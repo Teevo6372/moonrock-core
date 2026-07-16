@@ -1,0 +1,38 @@
+# -----------------------------
+# Moonrock Core
+# Git Ignore
+# -----------------------------
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# VS Code
+.vscode/settings.json
+.vscode/*.code-workspace
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment files
+.env
+.env.local
+.env.*
+
+# Node (future use)
+node_modules/
+
+# Build output (future use)
+dist/
+build/
+
+# Python (future use)
+__pycache__/
+*.pyc
