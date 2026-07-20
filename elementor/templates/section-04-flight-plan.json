@@ -1,0 +1,148 @@
+{
+  "_comment": "Moonrock Homepage — Section 04: Moonrock Flight Plan™. 5-stage vertical timeline with alternating desktop layout, connector line, and stage dots. Uses custom CSS from xstore-child/style.css.",
+  "title": "Moonrock — Flight Plan",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-flightplan",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#0a0a0f",
+        "padding": { "unit": "px", "top": 100, "bottom": 100, "left": 24, "right": 24 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-fp-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": {
+            "title": "Every Great Journey Starts with a Flight Plan.",
+            "header_size": "h2", "align": "center", "title_color": "#ffffff"
+          }
+        },
+        {
+          "id": "moonrock-fp-intro",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>No two businesses are exactly alike, so we don't believe in one-size-fits-all solutions. Before recommending anything, we take the time to understand where you are today, where you want to go, and what's standing in the way. From there, we create your personalized Moonrock Flight Plan™—a practical roadmap designed around your business, your goals, and your next stage of growth.</p>",
+            "align": "center", "text_color": "rgba(255,255,255,0.75)", "width": { "unit": "px", "size": 760 }
+          }
+        },
+        {
+          "id": "moonrock-fp-timeline",
+          "elType": "container",
+          "settings": {
+            "_css_classes": "flight-plan-timeline",
+            "margin": { "unit": "px", "top": 56 },
+            "flex_direction": "column",
+            "gap": { "unit": "px", "size": 8 }
+          },
+          "elements": [
+            {
+              "id": "moonrock-fp-stage-01",
+              "elType": "container",
+              "settings": { "_css_classes": "flight-plan-stage", "padding": { "unit": "px", "top": 24, "bottom": 24 } },
+              "elements": [
+                { "id": "fp-s1-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-search", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "fp-s1-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Discover", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "fp-s1-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Every journey begins with understanding where you are today. We learn about your business, your goals, your challenges, and what success looks like for you.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "fp-s1-why", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><strong>Why This Matters:</strong> Businesses often invest in solutions before fully understanding the problem. Taking time to understand where you are today creates better decisions later.</p>", "text_color": "rgba(255,255,255,0.55)" } }
+              ]
+            },
+            {
+              "id": "moonrock-fp-stage-02",
+              "elType": "container",
+              "settings": { "_css_classes": "flight-plan-stage", "padding": { "unit": "px", "top": 24, "bottom": 24 } },
+              "elements": [
+                { "id": "fp-s2-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-compass", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "fp-s2-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Navigate", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "fp-s2-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Together, we'll identify the best route forward. We'll help you prioritize opportunities, remove unnecessary complexity, and focus on the actions that create meaningful progress.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "fp-s2-why", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><strong>Why This Matters:</strong> Clarity helps you invest your time, energy, and budget where they create the greatest impact.</p>", "text_color": "rgba(255,255,255,0.55)" } }
+              ]
+            },
+            {
+              "id": "moonrock-fp-stage-03",
+              "elType": "container",
+              "settings": { "_css_classes": "flight-plan-stage", "padding": { "unit": "px", "top": 24, "bottom": 24 } },
+              "elements": [
+                { "id": "fp-s3-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-rocket", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "fp-s3-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Launch", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "fp-s3-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Put the right plan into motion. With a clear direction, we begin implementing practical solutions that support your business goals.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "fp-s3-why", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><strong>Why This Matters:</strong> Implementation should always follow strategy—not replace it.</p>", "text_color": "rgba(255,255,255,0.55)" } }
+              ]
+            },
+            {
+              "id": "moonrock-fp-stage-04",
+              "elType": "container",
+              "settings": { "_css_classes": "flight-plan-stage", "padding": { "unit": "px", "top": 24, "bottom": 24 } },
+              "elements": [
+                { "id": "fp-s4-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-trending-up", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "fp-s4-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Accelerate", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "fp-s4-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Build momentum with confidence. Strengthen your visibility, improve customer experiences, simplify operations, and continue building a stronger business.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "fp-s4-why", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><strong>Why This Matters:</strong> Sustainable growth comes from consistent improvement rather than chasing every new opportunity.</p>", "text_color": "rgba(255,255,255,0.55)" } }
+              ]
+            },
+            {
+              "id": "moonrock-fp-stage-05",
+              "elType": "container",
+              "settings": { "_css_classes": "flight-plan-stage", "padding": { "unit": "px", "top": 24, "bottom": 24 } },
+              "elements": [
+                { "id": "fp-s5-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-globe", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "fp-s5-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Horizon", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "fp-s5-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Keep moving forward. As your business evolves, your Flight Plan evolves with it. Moonrock remains your Business Growth Partner throughout your journey.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "fp-s5-why", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><strong>Why This Matters:</strong> Business growth isn't a destination. It's an ongoing process of learning, improving, and adapting.</p>", "text_color": "rgba(255,255,255,0.55)" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "moonrock-fp-closing",
+          "elType": "container",
+          "settings": { "margin": { "unit": "px", "top": 56 } },
+          "elements": [
+            {
+              "id": "moonrock-fp-closing-text",
+              "elType": "widget", "widgetType": "text-editor",
+              "settings": {
+                "editor": "<p>Your business deserves more than a collection of disconnected services. It deserves a clear direction, a practical roadmap, and a trusted Business Growth Partner committed to helping you move forward with confidence.</p>",
+                "align": "center", "text_color": "rgba(255,255,255,0.8)", "width": { "unit": "px", "size": 720 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "moonrock-fp-ctas",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "flex_justify_content": "center", "gap": { "unit": "px", "size": 20 },
+            "margin": { "unit": "px", "top": 32 }, "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-fp-btn-primary",
+              "elType": "widget", "widgetType": "button",
+              "settings": {
+                "text": "Chat with Nova", "button_size": "lg",
+                "link": { "url": "#nova-chat", "is_external": false },
+                "border_radius": { "unit": "px", "top": 8, "right": 8, "bottom": 8, "left": 8 },
+                "_css_classes": "moonrock-btn moonrock-btn--primary"
+              }
+            },
+            {
+              "id": "moonrock-fp-btn-secondary",
+              "elType": "widget", "widgetType": "button",
+              "settings": {
+                "text": "Build My Flight Plan", "button_size": "lg",
+                "link": { "url": "#flight-plan-assessment", "is_external": false },
+                "border_radius": { "unit": "px", "top": 8, "right": 8, "bottom": 8, "left": 8 },
+                "_css_classes": "moonrock-btn moonrock-btn--secondary"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

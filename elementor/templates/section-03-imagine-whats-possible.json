@@ -1,0 +1,166 @@
+{
+  "_comment": "Moonrock Homepage — Section 03: Imagine What's Possible. 6 outcome cards (non-interactive). This section intentionally has no CTA — it builds confidence before the Flight Plan.",
+  "title": "Moonrock — Imagine What's Possible",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-imagine",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#0e0e18",
+        "padding": { "unit": "px", "top": 100, "bottom": 100, "left": 24, "right": 24 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-imagine-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": {
+            "title": "Imagine Running Your Business with More Confidence.",
+            "header_size": "h2",
+            "align": "center",
+            "title_color": "#ffffff"
+          }
+        },
+        {
+          "id": "moonrock-imagine-intro",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Growing a business doesn't have to mean working longer hours, chasing every lead, or constantly wondering what to do next. Imagine having a business that gives you clarity, confidence, and room to focus on what matters most.</p>",
+            "align": "center",
+            "text_color": "rgba(255,255,255,0.75)",
+            "width": { "unit": "px", "size": 720 }
+          }
+        },
+        {
+          "id": "moonrock-imagine-grid",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row",
+            "flex_wrap": "wrap",
+            "gap": { "unit": "px", "size": 24 },
+            "margin": { "unit": "px", "top": 48 },
+            "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-imagine-card-01",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--static",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 },
+                "animation": "fadeInUp"
+              },
+              "elements": [
+                { "id": "mo-im-card-01-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Every Opportunity Has a Next Step", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "mo-im-card-01-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Spend less time worrying about missed opportunities and more time building relationships that lead to loyal customers.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-imagine-card-02",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--static",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 },
+                "animation": "fadeInUp"
+              },
+              "elements": [
+                { "id": "mo-im-card-02-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "A Website That Builds Trust", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "mo-im-card-02-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Your website becomes more than an online brochure—it becomes a place where visitors feel confident taking the next step.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-imagine-card-03",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--static",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 },
+                "animation": "fadeInUp"
+              },
+              "elements": [
+                { "id": "mo-im-card-03-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "More Visibility Where It Matters", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "mo-im-card-03-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Help the right people discover your business, whether they're searching locally or exploring solutions online.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-imagine-card-04",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--static",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 },
+                "animation": "fadeInUp"
+              },
+              "elements": [
+                { "id": "mo-im-card-04-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "More Time for Your Business", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "mo-im-card-04-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Simplify repetitive tasks and spend more time serving customers, leading your team, and growing your business.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-imagine-card-05",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--static",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 },
+                "animation": "fadeInUp"
+              },
+              "elements": [
+                { "id": "mo-im-card-05-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Better Decisions Through Clarity", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "mo-im-card-05-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Know what's working, what needs attention, and where to focus next—without relying on guesswork.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-imagine-card-06",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--static",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 },
+                "animation": "fadeInUp"
+              },
+              "elements": [
+                { "id": "mo-im-card-06-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "A Partner for the Journey", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "mo-im-card-06-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>You don't have to figure everything out on your own. Moonrock is here to provide practical guidance, personalized Flight Plans, and ongoing support as your business evolves.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "moonrock-imagine-transition",
+          "elType": "container",
+          "settings": { "margin": { "unit": "px", "top": 64 } },
+          "elements": [
+            {
+              "id": "moonrock-imagine-transition-heading",
+              "elType": "widget", "widgetType": "heading",
+              "settings": { "title": "Growth Isn't About Doing Everything.", "header_size": "h3", "align": "center", "title_color": "#ffffff" }
+            },
+            {
+              "id": "moonrock-imagine-transition-text",
+              "elType": "widget", "widgetType": "text-editor",
+              "settings": { "editor": "<p>It's about focusing on the right next step. That's exactly what the Moonrock Flight Plan™ is designed to help you discover.</p>", "align": "center", "text_color": "rgba(255,255,255,0.75)", "width": { "unit": "px", "size": 600 } }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

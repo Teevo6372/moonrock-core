@@ -1,0 +1,149 @@
+{
+  "_comment": "Moonrock Homepage — Section 07: Growth Hub. 4 category cards + Nova's Picks (dynamic WooCommerce). Nova's Picks must be admin-curated (tag/custom-field), not auto-populated by recency.",
+  "title": "Moonrock — Growth Hub",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-growthhub",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#0e0e18",
+        "padding": { "unit": "px", "top": 100, "bottom": 100, "left": 24, "right": 24 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-gh-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": { "title": "Continue Your Journey in the Growth Hub.", "header_size": "h2", "align": "center", "title_color": "#ffffff" }
+        },
+        {
+          "id": "moonrock-gh-intro",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Every business owner moves at a different pace. Whether you're working through your personalized Flight Plan or looking for practical tools to help you move forward, the Growth Hub is filled with resources designed to support your next step. Explore guides, templates, playbooks, and business tools created to help you build with confidence.</p>",
+            "align": "center", "text_color": "rgba(255,255,255,0.75)", "width": { "unit": "px", "size": 760 }
+          }
+        },
+        {
+          "id": "moonrock-gh-categories",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "flex_wrap": "wrap", "gap": { "unit": "px", "size": 24 },
+            "margin": { "unit": "px", "top": 48 }, "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-gh-cat-01",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card moonrock-card--interactive", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gh-c1-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-rocket", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gh-c1-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Launch Resources", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gh-c1-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Resources designed to help entrepreneurs build a strong business foundation and launch with confidence.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "gh-c1-btn", "elType": "widget", "widgetType": "button", "settings": { "text": "Explore Launch Resources", "link": { "url": "#growth-hub-launch" }, "button_size": "sm", "_css_classes": "moonrock-btn moonrock-btn--secondary" } }
+              ]
+            },
+            {
+              "id": "moonrock-gh-cat-02",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card moonrock-card--interactive", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gh-c2-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-trending-up", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gh-c2-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Growth Resources", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gh-c2-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Practical tools that help business owners strengthen visibility, improve customer experiences, and create sustainable growth.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "gh-c2-btn", "elType": "widget", "widgetType": "button", "settings": { "text": "Explore Growth Resources", "link": { "url": "#growth-hub-growth" }, "button_size": "sm", "_css_classes": "moonrock-btn moonrock-btn--secondary" } }
+              ]
+            },
+            {
+              "id": "moonrock-gh-cat-03",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card moonrock-card--interactive", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gh-c3-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-sparkles", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gh-c3-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "AI Resources", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gh-c3-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Learn practical ways AI can simplify daily operations, improve consistency, and support long-term business growth.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "gh-c3-btn", "elType": "widget", "widgetType": "button", "settings": { "text": "Explore AI Resources", "link": { "url": "#growth-hub-ai" }, "button_size": "sm", "_css_classes": "moonrock-btn moonrock-btn--secondary" } }
+              ]
+            },
+            {
+              "id": "moonrock-gh-cat-04",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card moonrock-card--interactive", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gh-c4-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-briefcase", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gh-c4-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Business Tools", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gh-c4-desc", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Templates, checklists, calculators, worksheets, and workflows designed to help business owners make confident decisions.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "gh-c4-btn", "elType": "widget", "widgetType": "button", "settings": { "text": "Browse Business Tools", "link": { "url": "#growth-hub-tools" }, "button_size": "sm", "_css_classes": "moonrock-btn moonrock-btn--secondary" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "moonrock-gh-novas-picks-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": { "title": "Recommended by Nova", "header_size": "h3", "align": "center", "title_color": "#ffffff", "margin": { "unit": "px", "top": 64 } }
+        },
+        {
+          "id": "moonrock-gh-novas-picks-intro",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Not sure where to begin? Nova has selected these resources to help you move forward based on where you are in your business journey.</p>",
+            "align": "center", "text_color": "rgba(255,255,255,0.65)", "width": { "unit": "px", "size": 600 }
+          }
+        },
+        {
+          "id": "moonrock-gh-novas-picks",
+          "elType": "container",
+          "settings": {
+            "margin": { "unit": "px", "top": 32 },
+            "_comment": "WooCommerce Products widget — filter by admin-curated tag 'nova-pick' or custom field. Present by outcome, not price. Requires WooCommerce + Elementor Pro."
+          },
+          "elements": [
+            {
+              "id": "moonrock-gh-products",
+              "elType": "widget",
+              "widgetType": "woocommerce-products",
+              "settings": {
+                "columns": "4",
+                "columns_tablet": "2",
+                "columns_mobile": "1",
+                "rows": 1,
+                "posts_per_page": 4,
+                "query_post_type": "product",
+                "query_tax_product_cat": [],
+                "query_tax_product_tag": "nova-pick",
+                "orderby": "menu_order",
+                "show_result_count": "no",
+                "show_heading": "no",
+                "_comment": "Set product tag 'nova-pick' on curated products in WP Admin. Products display by outcome-description priority, not price."
+              }
+            }
+          ]
+        },
+        {
+          "id": "moonrock-gh-ctas",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "flex_justify_content": "center", "gap": { "unit": "px", "size": 20 },
+            "margin": { "unit": "px", "top": 48 }, "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-gh-btn-primary",
+              "elType": "widget", "widgetType": "button",
+              "settings": { "text": "Explore the Growth Hub", "button_size": "lg", "link": { "url": "#growth-hub" }, "_css_classes": "moonrock-btn moonrock-btn--primary" }
+            },
+            {
+              "id": "moonrock-gh-btn-secondary",
+              "elType": "widget", "widgetType": "button",
+              "settings": { "text": "Ask Nova for a Recommendation", "button_size": "lg", "link": { "url": "#nova-chat" }, "_css_classes": "moonrock-btn moonrock-btn--secondary" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

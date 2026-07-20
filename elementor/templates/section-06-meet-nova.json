@@ -1,0 +1,145 @@
+{
+  "_comment": "Moonrock Homepage — Section 06: Meet Nova. Two-column desktop layout: visual left, content right. Stacks on mobile. Uses nova-layout CSS class from xstore-child/style.css.",
+  "title": "Moonrock — Meet Nova",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-nova",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#0a0a0f",
+        "padding": { "unit": "px", "top": 100, "bottom": 100, "left": 24, "right": 24 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-nova-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": { "title": "Meet Nova, Your Virtual Growth Advisor.", "header_size": "h2", "align": "center", "title_color": "#ffffff" }
+        },
+        {
+          "id": "moonrock-nova-intro-text",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Starting or growing a business comes with a lot of questions. You shouldn't have to search through endless articles, watch hours of videos, or guess what to do next. Nova is here to help you find answers, explore your options, and confidently take your next step—anytime, day or night.</p>",
+            "align": "center", "text_color": "rgba(255,255,255,0.75)", "width": { "unit": "px", "size": 720 }
+          }
+        },
+        {
+          "id": "moonrock-nova-layout",
+          "elType": "container",
+          "settings": {
+            "_css_classes": "nova-layout",
+            "margin": { "unit": "px", "top": 56 },
+            "gap": { "unit": "px", "size": 48 }
+          },
+          "elements": [
+            {
+              "id": "moonrock-nova-visual",
+              "elType": "container",
+              "settings": { "_css_classes": "nova-layout__visual" },
+              "elements": [
+                {
+                  "id": "moonrock-nova-image",
+                  "elType": "widget", "widgetType": "image",
+                  "settings": {
+                    "_comment": "Nova visual placeholder. Replace src with approved Nova artwork URL.",
+                    "image": { "url": "https://placehold.co/400x400/0a0a0f/4da8da?text=Nova", "id": 0 },
+                    "image_size": "medium_large",
+                    "caption_source": "none"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "moonrock-nova-content",
+              "elType": "container",
+              "settings": { "_css_classes": "nova-layout__content", "gap": { "unit": "px", "size": 16 } },
+              "elements": [
+                {
+                  "id": "moonrock-nova-greeting",
+                  "elType": "widget", "widgetType": "text-editor",
+                  "settings": {
+                    "editor": "<p>Hi, I'm Nova.<br>I'm Moonrock's Virtual Growth Advisor.<br>My job is simple: Help business owners move forward with confidence. Whether you're launching your first business, growing an existing one, or simply trying to figure out what comes next, I'm here to provide practical guidance and help you discover the right next step.</p>",
+                    "text_color": "rgba(255,255,255,0.85)",
+                    "typography_font_size": { "unit": "px", "size": 17 }
+                  }
+                },
+                {
+                  "id": "moonrock-nova-capabilities-heading",
+                  "elType": "widget", "widgetType": "heading",
+                  "settings": { "title": "What Nova Can Help With", "header_size": "h4", "title_color": "rgba(255,255,255,0.6)", "typography_font_size": { "unit": "px", "size": 14 }, "typography_text_transform": "uppercase", "typography_letter_spacing": { "unit": "px", "size": 1 } }
+                },
+                {
+                  "id": "moonrock-nova-capabilities",
+                  "elType": "widget", "widgetType": "icon-list",
+                  "settings": {
+                    "icon_list": [
+                      { "text": "I'm not sure where to start — Nova helps identify the right path before recommending a solution.", "icon": "lucide-help-circle" },
+                      { "text": "How can I grow my business? — Nova explores business goals and recommends practical next steps.", "icon": "lucide-trending-up" },
+                      { "text": "Which solution is right for me? — Nova explains recommendations in plain language.", "icon": "lucide-target" },
+                      { "text": "Can you recommend a resource? — Nova recommends relevant Growth Hub resources.", "icon": "lucide-book-open" }
+                    ],
+                    "icon_color": "var(--e-global-color-accent)",
+                    "text_color": "rgba(255,255,255,0.75)"
+                  }
+                },
+                {
+                  "id": "moonrock-nova-quick-actions",
+                  "elType": "container",
+                  "settings": {
+                    "flex_direction": "row", "flex_wrap": "wrap", "gap": { "unit": "px", "size": 12 },
+                    "margin": { "unit": "px", "top": 16 }, "flex_direction_mobile": "column"
+                  },
+                  "elements": [
+                    { "id": "nova-qa-1", "elType": "widget", "widgetType": "button", "settings": { "text": "Launch My Business", "button_size": "sm", "link": { "url": "#nova-chat" }, "_css_classes": "moonrock-btn moonrock-btn--secondary" } },
+                    { "id": "nova-qa-2", "elType": "widget", "widgetType": "button", "settings": { "text": "Grow My Business", "button_size": "sm", "link": { "url": "#nova-chat" }, "_css_classes": "moonrock-btn moonrock-btn--secondary" } },
+                    { "id": "nova-qa-3", "elType": "widget", "widgetType": "button", "settings": { "text": "Recommend a Resource", "button_size": "sm", "link": { "url": "#nova-chat" }, "_css_classes": "moonrock-btn moonrock-btn--secondary" } },
+                    { "id": "nova-qa-4", "elType": "widget", "widgetType": "button", "settings": { "text": "Build My Flight Plan", "button_size": "sm", "link": { "url": "#" }, "_css_classes": "moonrock-btn moonrock-btn--secondary" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "moonrock-nova-ctas",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "flex_justify_content": "center", "gap": { "unit": "px", "size": 20 },
+            "margin": { "unit": "px", "top": 48 }, "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-nova-btn-primary",
+              "elType": "widget", "widgetType": "button",
+              "settings": { "text": "Chat with Nova", "button_size": "lg", "link": { "url": "#nova-chat" }, "_css_classes": "moonrock-btn moonrock-btn--primary" }
+            },
+            {
+              "id": "moonrock-nova-btn-secondary",
+              "elType": "widget", "widgetType": "button",
+              "settings": {
+                "text": "Talk with Nova",
+                "button_size": "lg",
+                "link": { "url": "#nova-voice", "is_external": false },
+                "_css_classes": "moonrock-btn moonrock-btn--secondary",
+                "_comment": "Voice is Coming Soon. If not live, this button should show a 'Coming Soon' tooltip or be visually distinct from active CTAs."
+              }
+            }
+          ]
+        },
+        {
+          "id": "moonrock-nova-availability",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Available 24 hours a day. Always ready to help.</p>",
+            "align": "center", "text_color": "rgba(255,255,255,0.45)", "typography_font_size": { "unit": "px", "size": 14 },
+            "margin": { "unit": "px", "top": 16 }
+          }
+        }
+      ]
+    }
+  ]
+}

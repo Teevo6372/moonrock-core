@@ -1,0 +1,129 @@
+{
+  "_comment": "Moonrock Homepage — Section 01: Hero. Elementor Container template. Import via Templates > Import. Assumes Elementor Pro 3.18+ with Flexbox Containers active.",
+  "title": "Moonrock — Hero",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-hero",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "min_height": { "unit": "vh", "size": 70 },
+        "background_background": "classic",
+        "background_color": "#0a0a0f",
+        "padding": { "unit": "px", "top": 80, "bottom": 80, "left": 24, "right": 24 },
+        "gap": { "unit": "px", "size": 16 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-hero-heading",
+          "elType": "widget",
+          "widgetType": "heading",
+          "settings": {
+            "title": "Helping Your Business Move Forward with Confidence.",
+            "header_size": "h1",
+            "align": "center",
+            "title_color": "#ffffff"
+          }
+        },
+        {
+          "id": "moonrock-hero-text",
+          "elType": "widget",
+          "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Whether you're launching your first business, trying to attract more customers, or looking for smarter ways to grow, Moonrock provides practical guidance, proven systems, and modern technology that help you build with confidence.</p><p>No confusing jargon. No high-pressure sales. Just a clear path forward.</p>",
+            "align": "center",
+            "text_color": "rgba(255,255,255,0.75)",
+            "typography_font_size": { "unit": "px", "size": 18 },
+            "width": { "unit": "px", "size": 720 }
+          }
+        },
+        {
+          "id": "moonrock-hero-buttons",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row",
+            "flex_justify_content": "center",
+            "flex_align_items": "center",
+            "gap": { "unit": "px", "size": 20 },
+            "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-hero-btn-primary",
+              "elType": "widget",
+              "widgetType": "button",
+              "settings": {
+                "text": "Chat with Nova",
+                "link": { "url": "#", "is_external": false },
+                "button_size": "lg",
+                "border_radius": { "unit": "px", "top": 8, "right": 8, "bottom": 8, "left": 8 },
+                "_css_classes": "moonrock-btn moonrock-btn--primary"
+              }
+            },
+            {
+              "id": "moonrock-hero-btn-secondary",
+              "elType": "widget",
+              "widgetType": "button",
+              "settings": {
+                "text": "Build My Flight Plan",
+                "link": { "url": "#", "is_external": false },
+                "button_size": "lg",
+                "border_radius": { "unit": "px", "top": 8, "right": 8, "bottom": 8, "left": 8 },
+                "_css_classes": "moonrock-btn moonrock-btn--secondary"
+              }
+            }
+          ]
+        },
+        {
+          "id": "moonrock-hero-trust",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row",
+            "flex_justify_content": "center",
+            "gap": { "unit": "px", "size": 48 },
+            "margin": { "unit": "px", "top": 48 },
+            "flex_direction_mobile": "column",
+            "flex_align_items_mobile": "center"
+          },
+          "elements": [
+            {
+              "id": "moonrock-hero-trust-1",
+              "elType": "widget",
+              "widgetType": "icon-box",
+              "settings": {
+                "title_text": "Built for Startups",
+                "icon": "lucide-rocket",
+                "title_size": "small",
+                "icon_color": "var(--e-global-color-accent)"
+              }
+            },
+            {
+              "id": "moonrock-hero-trust-2",
+              "elType": "widget",
+              "widgetType": "icon-box",
+              "settings": {
+                "title_text": "Built for Small Businesses",
+                "icon": "lucide-building-2",
+                "title_size": "small",
+                "icon_color": "var(--e-global-color-accent)"
+              }
+            },
+            {
+              "id": "moonrock-hero-trust-3",
+              "elType": "widget",
+              "widgetType": "icon-box",
+              "settings": {
+                "title_text": "Built for Growing Teams",
+                "icon": "lucide-trending-up",
+                "title_size": "small",
+                "icon_color": "var(--e-global-color-accent)"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
