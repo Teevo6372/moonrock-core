@@ -752,18 +752,6 @@ Just a clear path forward.
 
 ### Primary CTA
 
-Build My Flight Plan
-
-Destination:
-
-Launch Assessment or Growth Assessment
-
-The destination is determined by the visitor's selected journey.
-
----
-
-### Secondary CTA
-
 Chat with Nova
 
 Destination:
@@ -778,6 +766,18 @@ Nova helps visitors:
 - Determine whether a live Growth Specialist is needed.
 
 Nova should recommend a live appointment only when appropriate.
+
+---
+
+### Secondary CTA
+
+Build My Flight Plan
+
+Destination:
+
+Launch Assessment or Growth Assessment
+
+The destination is determined by the visitor's selected journey.
 
 ---
 

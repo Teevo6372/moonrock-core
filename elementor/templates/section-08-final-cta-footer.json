@@ -1,0 +1,193 @@
+{
+  "_comment": "Moonrock Homepage — Section 08: Final CTA & Footer. 3 action cards, multi-column footer with navigation, contact, social, and legal. Contact/social values are placeholders.",
+  "title": "Moonrock — Final CTA & Footer",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-final-cta",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#0a0a0f",
+        "padding": { "unit": "px", "top": 100, "bottom": 80, "left": 24, "right": 24 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-final-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": { "title": "Ready for Your Next Step?", "header_size": "h2", "align": "center", "title_color": "#ffffff" }
+        },
+        {
+          "id": "moonrock-final-intro",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Whether you're launching your first business, looking for a clearer path to growth, or simply exploring what's possible, Moonrock is here to help you move forward with confidence. Choose the path that feels right for you.</p>",
+            "align": "center", "text_color": "rgba(255,255,255,0.75)", "width": { "unit": "px", "size": 720 }
+          }
+        },
+        {
+          "id": "moonrock-final-cards",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "gap": { "unit": "px", "size": 24 },
+            "margin": { "unit": "px", "top": 48 }, "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-final-card-01",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card moonrock-card--interactive", "flex_basis": "33.333%", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 36, "right": 28, "bottom": 36, "left": 28 } },
+              "elements": [
+                { "id": "final-c1-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-map", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 32 } } },
+                { "id": "final-c1-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Build My Flight Plan", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "final-c1-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Start with a personalized Launch Assessment or Growth Assessment and receive practical recommendations designed around your business goals.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "final-c1-btn", "elType": "widget", "widgetType": "button", "settings": { "text": "Build My Flight Plan", "link": { "url": "#" }, "button_size": "md", "_css_classes": "moonrock-btn moonrock-btn--primary", "width": "100" } }
+              ]
+            },
+            {
+              "id": "moonrock-final-card-02",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card moonrock-card--interactive", "flex_basis": "33.333%", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 36, "right": 28, "bottom": 36, "left": 28 } },
+              "elements": [
+                { "id": "final-c2-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-message-circle", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 32 } } },
+                { "id": "final-c2-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Chat with Nova", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "final-c2-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Talk with Moonrock's Virtual Growth Advisor for practical guidance, personalized recommendations, and help identifying your next best step.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "final-c2-btn", "elType": "widget", "widgetType": "button", "settings": { "text": "Chat with Nova", "link": { "url": "#nova-chat" }, "button_size": "md", "_css_classes": "moonrock-btn moonrock-btn--primary", "width": "100" } }
+              ]
+            },
+            {
+              "id": "moonrock-final-card-03",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card moonrock-card--interactive", "flex_basis": "33.333%", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 36, "right": 28, "bottom": 36, "left": 28 } },
+              "elements": [
+                { "id": "final-c3-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-book-open", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 32 } } },
+                { "id": "final-c3-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Explore the Growth Hub", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "final-c3-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Browse practical resources, templates, playbooks, and business tools designed to help you continue moving forward.</p>", "text_color": "rgba(255,255,255,0.65)" } },
+                { "id": "final-c3-btn", "elType": "widget", "widgetType": "button", "settings": { "text": "Explore the Growth Hub", "link": { "url": "#growth-hub" }, "button_size": "md", "_css_classes": "moonrock-btn moonrock-btn--primary", "width": "100" } }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "moonrock-footer",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#06060a",
+        "padding": { "unit": "px", "top": 64, "bottom": 40, "left": 24, "right": 24 },
+        "_css_classes": "moonrock-footer"
+      },
+      "elements": [
+        {
+          "id": "moonrock-footer-brand",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p><strong>Moonrock Marketing</strong></p><p>Helping Business Owners Move Forward with Confidence.</p>",
+            "text_color": "rgba(255,255,255,0.6)", "typography_font_size": { "unit": "px", "size": 15 }
+          }
+        },
+        {
+          "id": "moonrock-footer-nav",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "flex_wrap": "wrap", "gap": { "unit": "px", "size": 48 },
+            "margin": { "unit": "px", "top": 40 }, "flex_direction_mobile": "column", "gap_mobile": { "unit": "px", "size": 24 }
+          },
+          "elements": [
+            {
+              "id": "moonrock-footer-col-quick",
+              "elType": "container",
+              "elements": [
+                { "id": "ft-quick-head", "elType": "widget", "widgetType": "heading", "settings": { "title": "Quick Navigation", "header_size": "h4", "_css_classes": "moonrock-footer__heading" } },
+                { "id": "ft-quick-links", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><a href=\"/\">Home</a><br><a href=\"#\">Launch</a><br><a href=\"#\">Grow</a><br><a href=\"#\">Growth Hub</a><br><a href=\"#\">About</a><br><a href=\"#\">Contact</a></p>" } }
+              ]
+            },
+            {
+              "id": "moonrock-footer-col-assessments",
+              "elType": "container",
+              "elements": [
+                { "id": "ft-assess-head", "elType": "widget", "widgetType": "heading", "settings": { "title": "Assessments", "header_size": "h4", "_css_classes": "moonrock-footer__heading" } },
+                { "id": "ft-assess-links", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><a href=\"#\">Moonrock Launch Assessment</a><br><a href=\"#\">Moonrock Growth Assessment</a><br><a href=\"#\">Moonrock Flight Plan\u2122</a></p>" } }
+              ]
+            },
+            {
+              "id": "moonrock-footer-col-nova",
+              "elType": "container",
+              "elements": [
+                { "id": "ft-nova-head", "elType": "widget", "widgetType": "heading", "settings": { "title": "Nova", "header_size": "h4", "_css_classes": "moonrock-footer__heading" } },
+                { "id": "ft-nova-links", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><a href=\"#\">Meet Nova</a><br><a href=\"#nova-chat\">Chat with Nova</a><br><a href=\"#nova-voice\">Talk with Nova</a></p>" } }
+              ]
+            },
+            {
+              "id": "moonrock-footer-col-growthhub",
+              "elType": "container",
+              "elements": [
+                { "id": "ft-gh-head", "elType": "widget", "widgetType": "heading", "settings": { "title": "Growth Hub", "header_size": "h4", "_css_classes": "moonrock-footer__heading" } },
+                { "id": "ft-gh-links", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p><a href=\"#\">Launch Resources</a><br><a href=\"#\">Growth Resources</a><br><a href=\"#\">AI Resources</a><br><a href=\"#\">Business Tools</a></p>" } }
+              ]
+            },
+            {
+              "id": "moonrock-footer-col-contact",
+              "elType": "container",
+              "elements": [
+                { "id": "ft-contact-head", "elType": "widget", "widgetType": "heading", "settings": { "title": "Contact", "header_size": "h4", "_css_classes": "moonrock-footer__heading" } },
+                { "id": "ft-contact-info", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Lawrence, Kansas<br>Helping Businesses Nationwide<br><a href=\"mailto:stephen@moonrockmarketing.com\">stephen@moonrockmarketing.com</a><br><em>Phone: [Configure in WordPress]</em><br><em>By appointment</em></p>" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "moonrock-footer-social",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "gap": { "unit": "px", "size": 16 },
+            "margin": { "unit": "px", "top": 32 },
+            "_comment": "Hide Facebook/LinkedIn icons if URLs are not yet configured. Do not invent links."
+          },
+          "elements": [
+            {
+              "id": "moonrock-footer-social-fb",
+              "elType": "widget", "widgetType": "icon",
+              "settings": { "icon": "lucide-facebook", "link": { "url": "#", "is_external": true, "_placeholder": true }, "icon_color": "rgba(255,255,255,0.45)", "_comment": "Replace # with real Facebook URL. Hide widget until URL is available." }
+            },
+            {
+              "id": "moonrock-footer-social-li",
+              "elType": "widget", "widgetType": "icon",
+              "settings": { "icon": "lucide-linkedin", "link": { "url": "#", "is_external": true, "_placeholder": true }, "icon_color": "rgba(255,255,255,0.45)", "_comment": "Replace # with real LinkedIn URL. Hide widget until URL is available." }
+            }
+          ]
+        },
+        {
+          "id": "moonrock-footer-legal",
+          "elType": "container",
+          "settings": { "_css_classes": "moonrock-footer__legal" },
+          "elements": [
+            {
+              "id": "moonrock-footer-legal-links",
+              "elType": "widget", "widgetType": "text-editor",
+              "settings": {
+                "editor": "<p><a href=\"#\">Privacy Policy</a> &nbsp;·&nbsp; <a href=\"#\">Terms of Service</a> &nbsp;·&nbsp; <a href=\"#\">Cookie Policy</a> &nbsp;·&nbsp; <a href=\"#\">Accessibility Statement</a></p>",
+                "align": "center",
+                "_comment": "Replace # with published legal page URLs."
+              }
+            },
+            {
+              "id": "moonrock-footer-copyright",
+              "elType": "widget", "widgetType": "text-editor",
+              "settings": {
+                "editor": "<p>\u00a9 Moonrock Marketing. All Rights Reserved.</p>",
+                "align": "center"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

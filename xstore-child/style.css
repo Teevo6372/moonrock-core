@@ -1,0 +1,402 @@
+/*
+ * Theme Name: XStore Child — Moonrock
+ * Template: xstore
+ * Description: Custom styles for Moonrock Marketing homepage.
+ *               Mobile-first. All colors via Elementor Global Colors;
+ *               this stylesheet covers only what Elementor cannot express.
+ * Version: 1.0.0
+ */
+
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
+
+/* Ensure smooth scrolling for anchor / Flight Plan progress */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ==========================================================================
+   CARDS
+   ========================================================================== */
+
+.moonrock-card {
+  border-radius: 12px;
+  padding: 2rem;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.moonrock-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.moonrock-card:focus-visible {
+  outline: 2px solid var(--e-global-color-accent);
+  outline-offset: 2px;
+}
+
+/* Interactive cards (Recognition, Growth Hub categories, Final CTA) */
+.moonrock-card--interactive {
+  cursor: pointer;
+}
+
+.moonrock-card--interactive:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Outcome cards (non-interactive) */
+.moonrock-card--static:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+.moonrock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0.75rem 1.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.moonrock-btn:hover {
+  transform: translateY(-1px);
+}
+
+.moonrock-btn:focus-visible {
+  outline: 2px solid var(--e-global-color-accent);
+  outline-offset: 2px;
+}
+
+.moonrock-btn--primary {
+  background: var(--e-global-color-accent);
+  color: #0a0a0f;
+  box-shadow: 0 0 20px rgba(var(--e-global-color-accent-rgb, 100, 200, 255), 0.25);
+}
+
+.moonrock-btn--primary:hover {
+  box-shadow: 0 0 30px rgba(var(--e-global-color-accent-rgb, 100, 200, 255), 0.4);
+}
+
+.moonrock-btn--secondary {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.moonrock-btn--secondary:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ==========================================================================
+   MOONROCK FLIGHT PLAN — CONNECTOR LINES
+   ========================================================================== */
+
+.flight-plan-timeline {
+  position: relative;
+}
+
+/* Vertical connector line */
+.flight-plan-timeline::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  transform: translateX(-50%);
+}
+
+.flight-plan-stage {
+  position: relative;
+  padding: 2rem 0;
+}
+
+/* Stage dot on the timeline */
+.flight-plan-stage::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 2.5rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--e-global-color-accent, #4da8da);
+  box-shadow: 0 0 12px var(--e-global-color-accent, rgba(77, 168, 218, 0.5));
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+/* Alternating desktop layout */
+@media (min-width: 768px) {
+  .flight-plan-stage:nth-child(odd) {
+    padding-right: calc(50% + 2rem);
+    text-align: right;
+  }
+
+  .flight-plan-stage:nth-child(even) {
+    padding-left: calc(50% + 2rem);
+    text-align: left;
+  }
+}
+
+/* Mobile: left-aligned timeline */
+@media (max-width: 767px) {
+  .flight-plan-timeline::before {
+    left: 22px;
+  }
+
+  .flight-plan-stage {
+    padding-left: 3.5rem;
+    text-align: left;
+  }
+
+  .flight-plan-stage::after {
+    left: 22px;
+  }
+}
+
+/* ==========================================================================
+   GLOW EFFECTS
+   ========================================================================== */
+
+.moonrock-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.moonrock-glow::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--e-global-color-accent-rgb, 100, 200, 255), 0.06) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.moonrock-glow > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   NOVA SECTION — TWO-COLUMN
+   ========================================================================== */
+
+.nova-layout {
+  display: flex;
+  gap: 3rem;
+  align-items: center;
+}
+
+.nova-layout__visual {
+  flex: 0 0 40%;
+  max-width: 400px;
+}
+
+.nova-layout__content {
+  flex: 1;
+}
+
+@media (max-width: 767px) {
+  .nova-layout {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .nova-layout__visual {
+    max-width: 240px;
+    margin: 0 auto;
+  }
+}
+
+/* ==========================================================================
+   COMPARISON TABLE (Guidance Before Guesswork)
+   ========================================================================== */
+
+.moonrock-comparison {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.moonrock-comparison th,
+.moonrock-comparison td {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.moonrock-comparison th {
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.moonrock-comparison td {
+  font-size: 0.9375rem;
+}
+
+/* Mobile: cards replace table */
+@media (max-width: 767px) {
+  .moonrock-comparison thead {
+    display: none;
+  }
+
+  .moonrock-comparison tr {
+    display: block;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .moonrock-comparison td {
+    display: block;
+    padding: 0.25rem 0;
+    border: none;
+  }
+
+  .moonrock-comparison td:first-child {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+
+.moonrock-footer {
+  font-size: 0.875rem;
+}
+
+.moonrock-footer a {
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.moonrock-footer a:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.moonrock-footer a:focus-visible {
+  outline: 2px solid var(--e-global-color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.moonrock-footer__heading {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 1rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.moonrock-footer__legal {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .moonrock-card:hover {
+    transform: none;
+  }
+
+  .moonrock-btn:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE SPACING
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  .moonrock-card {
+    padding: 1.5rem;
+  }
+
+  .moonrock-btn {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+  }
+
+  .flight-plan-stage {
+    padding: 1.5rem 0 1.5rem 3rem;
+  }
+}
+
+/* ==========================================================================
+   UTILITY
+   ========================================================================== */
+
+/* Consistent content max-width (mirrors Elementor container setting) */
+.moonrock-content-width {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Narrow reading width for long-form copy sections */
+.moonrock-reading-width {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}

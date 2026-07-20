@@ -1,0 +1,130 @@
+{
+  "_comment": "Moonrock Homepage — Section 05: Guidance Before Guesswork. 4 brand pillars, comparison table, closing statement, dual CTAs.",
+  "title": "Moonrock — Guidance Before Guesswork",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-guidance",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#0e0e18",
+        "padding": { "unit": "px", "top": 100, "bottom": 100, "left": 24, "right": 24 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-gb-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": { "title": "Guidance Before Guesswork.", "header_size": "h2", "align": "center", "title_color": "#ffffff" }
+        },
+        {
+          "id": "moonrock-gb-intro",
+          "elType": "widget", "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Business owners don't need more software. They don't need more marketing buzzwords. They don't need another company trying to sell them a package they may not even need. They need someone who understands where they are today, helps them see what's possible, and provides practical guidance that actually moves them forward. That's what Moonrock is built to do.</p>",
+            "align": "center", "text_color": "rgba(255,255,255,0.75)", "width": { "unit": "px", "size": 760 }
+          }
+        },
+        {
+          "id": "moonrock-gb-pillars",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "flex_wrap": "wrap", "gap": { "unit": "px", "size": 24 },
+            "margin": { "unit": "px", "top": 48 }, "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-gb-pillar-01",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gb-p1-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-eye", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gb-p1-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Clarity Before Complexity", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gb-p1-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Every recommendation starts with understanding your goals—not adding more tools.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-gb-pillar-02",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gb-p2-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-handshake", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gb-p2-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Partnership Over Projects", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gb-p2-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>We're invested in your long-term success, not simply completing another project.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-gb-pillar-03",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gb-p3-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-wrench", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gb-p3-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Practical Solutions", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gb-p3-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Every recommendation should solve a real business problem and create measurable progress.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            },
+            {
+              "id": "moonrock-gb-pillar-04",
+              "elType": "container",
+              "settings": { "_css_classes": "moonrock-card", "flex_basis": "calc(25% - 18px)", "flex_basis_tablet": "calc(50% - 12px)", "flex_basis_mobile": "100%", "padding": { "unit": "px", "top": 32, "right": 24, "bottom": 32, "left": 24 } },
+              "elements": [
+                { "id": "gb-p4-icon", "elType": "widget", "widgetType": "icon", "settings": { "icon": "lucide-zap", "icon_color": "var(--e-global-color-accent)", "icon_size": { "unit": "px", "size": 28 } } },
+                { "id": "gb-p4-heading", "elType": "widget", "widgetType": "heading", "settings": { "title": "Momentum That Lasts", "header_size": "h3", "title_color": "#ffffff" } },
+                { "id": "gb-p4-text", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Business growth isn't one big leap. It's consistently taking the right next step.</p>", "text_color": "rgba(255,255,255,0.65)" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "moonrock-gb-comparison-heading",
+          "elType": "widget", "widgetType": "heading",
+          "settings": { "title": "The Moonrock Difference", "header_size": "h3", "align": "center", "title_color": "#ffffff", "margin": { "unit": "px", "top": 64 } }
+        },
+        {
+          "id": "moonrock-gb-comparison",
+          "elType": "widget", "widgetType": "html",
+          "settings": {
+            "html": "<table class=\"moonrock-comparison\"><thead><tr><th>Traditional Agency</th><th>Moonrock</th></tr></thead><tbody><tr><td>Starts with services</td><td>Starts by understanding your business</td></tr><tr><td>Recommends predefined packages</td><td>Builds a personalized Flight Plan\u2122</td></tr><tr><td>Focuses on deliverables</td><td>Focuses on business outcomes</td></tr><tr><td>Project completed = relationship ends</td><td>Partnership continues as your business evolves</td></tr><tr><td>Explains technology</td><td>Explains how every recommendation helps you move forward</td></tr></tbody></table>"
+          }
+        },
+        {
+          "id": "moonrock-gb-closing",
+          "elType": "container",
+          "settings": { "margin": { "unit": "px", "top": 48 } },
+          "elements": [
+            {
+              "id": "moonrock-gb-closing-text",
+              "elType": "widget", "widgetType": "text-editor",
+              "settings": {
+                "editor": "<p>Your business deserves more than another vendor. It deserves a trusted Business Growth Partner committed to helping you move forward with confidence.</p>",
+                "align": "center", "text_color": "rgba(255,255,255,0.8)", "width": { "unit": "px", "size": 680 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "moonrock-gb-ctas",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row", "flex_justify_content": "center", "gap": { "unit": "px", "size": 20 },
+            "margin": { "unit": "px", "top": 32 }, "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-gb-btn-primary",
+              "elType": "widget", "widgetType": "button",
+              "settings": { "text": "Chat with Nova", "button_size": "lg", "link": { "url": "#nova-chat" }, "_css_classes": "moonrock-btn moonrock-btn--primary" }
+            },
+            {
+              "id": "moonrock-gb-btn-secondary",
+              "elType": "widget", "widgetType": "button",
+              "settings": { "text": "Build My Flight Plan", "button_size": "lg", "link": { "url": "#" }, "_css_classes": "moonrock-btn moonrock-btn--secondary" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

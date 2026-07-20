@@ -1,0 +1,325 @@
+{
+  "_comment": "Moonrock Homepage — Section 02: Recognition. 6 challenge cards (3x2 desktop, 2x3 tablet, 1x6 mobile). Each card passes a hidden GHL assessment value.",
+  "title": "Moonrock — Recognition",
+  "type": "container",
+  "content": [
+    {
+      "id": "moonrock-recognition",
+      "elType": "container",
+      "settings": {
+        "content_width": "boxed",
+        "boxed_width": { "unit": "px", "size": 1200 },
+        "background_background": "classic",
+        "background_color": "#0a0a0f",
+        "padding": { "unit": "px", "top": 100, "bottom": 100, "left": 24, "right": 24 }
+      },
+      "elements": [
+        {
+          "id": "moonrock-recognition-heading",
+          "elType": "widget",
+          "widgetType": "heading",
+          "settings": {
+            "title": "Does Any of This Sound Familiar?",
+            "header_size": "h2",
+            "align": "center",
+            "title_color": "#ffffff"
+          }
+        },
+        {
+          "id": "moonrock-recognition-intro",
+          "elType": "widget",
+          "widgetType": "text-editor",
+          "settings": {
+            "editor": "<p>Running a business isn't easy. Whether you're just getting started or trying to reach your next stage of growth, it's easy to feel like you're working harder than ever without seeing the results you expected. If any of these sound familiar, you're not alone.</p>",
+            "align": "center",
+            "text_color": "rgba(255,255,255,0.75)",
+            "width": { "unit": "px", "size": 720 }
+          }
+        },
+        {
+          "id": "moonrock-recognition-grid",
+          "elType": "container",
+          "settings": {
+            "flex_direction": "row",
+            "flex_wrap": "wrap",
+            "flex_justify_content": "stretch",
+            "gap": { "unit": "px", "size": 24 },
+            "margin": { "unit": "px", "top": 48 },
+            "flex_direction_mobile": "column"
+          },
+          "elements": [
+            {
+              "id": "moonrock-recognition-card-01",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--interactive",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 }
+              },
+              "elements": [
+                {
+                  "id": "moonrock-recognition-card-01-heading",
+                  "elType": "widget", "widgetType": "heading",
+                  "settings": {
+                    "title": "I'm getting leads... but not enough customers.",
+                    "header_size": "h3", "title_color": "#ffffff"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-01-text",
+                  "elType": "widget", "widgetType": "text-editor",
+                  "settings": {
+                    "editor": "<p>Potential customers are reaching out, but too many conversations end before they become paying customers.</p>",
+                    "text_color": "rgba(255,255,255,0.65)"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-01-btn",
+                  "elType": "widget", "widgetType": "button",
+                  "settings": {
+                    "text": "This sounds like me →",
+                    "link": { "url": "#growth-assessment", "is_external": false },
+                    "button_size": "sm",
+                    "_css_classes": "moonrock-btn moonrock-btn--secondary",
+                    "_ghl_hidden_value": "Lead Nurturing"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "moonrock-recognition-card-02",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--interactive",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 }
+              },
+              "elements": [
+                {
+                  "id": "moonrock-recognition-card-02-heading",
+                  "elType": "widget", "widgetType": "heading",
+                  "settings": {
+                    "title": "People visit my website... but they rarely take the next step.",
+                    "header_size": "h3", "title_color": "#ffffff"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-02-text",
+                  "elType": "widget", "widgetType": "text-editor",
+                  "settings": {
+                    "editor": "<p>Your website should help build trust and create opportunities—not simply exist online.</p>",
+                    "text_color": "rgba(255,255,255,0.65)"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-02-btn",
+                  "elType": "widget", "widgetType": "button",
+                  "settings": {
+                    "text": "This sounds like me →",
+                    "link": { "url": "#growth-assessment", "is_external": false },
+                    "button_size": "sm",
+                    "_css_classes": "moonrock-btn moonrock-btn--secondary",
+                    "_ghl_hidden_value": "Website Conversion"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "moonrock-recognition-card-03",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--interactive",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 }
+              },
+              "elements": [
+                {
+                  "id": "moonrock-recognition-card-03-heading",
+                  "elType": "widget", "widgetType": "heading",
+                  "settings": {
+                    "title": "I know my business could be more visible.",
+                    "header_size": "h3", "title_color": "#ffffff"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-03-text",
+                  "elType": "widget", "widgetType": "text-editor",
+                  "settings": {
+                    "editor": "<p>You know people are searching for businesses like yours, but you're not confident they're finding you.</p>",
+                    "text_color": "rgba(255,255,255,0.65)"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-03-btn",
+                  "elType": "widget", "widgetType": "button",
+                  "settings": {
+                    "text": "This sounds like me →",
+                    "link": { "url": "#growth-assessment", "is_external": false },
+                    "button_size": "sm",
+                    "_css_classes": "moonrock-btn moonrock-btn--secondary",
+                    "_ghl_hidden_value": "Visibility"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "moonrock-recognition-card-04",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--interactive",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 }
+              },
+              "elements": [
+                {
+                  "id": "moonrock-recognition-card-04-heading",
+                  "elType": "widget", "widgetType": "heading",
+                  "settings": {
+                    "title": "I'm spending too much time doing everything myself.",
+                    "header_size": "h3", "title_color": "#ffffff"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-04-text",
+                  "elType": "widget", "widgetType": "text-editor",
+                  "settings": {
+                    "editor": "<p>Running a business shouldn't mean constantly putting out fires instead of focusing on growth.</p>",
+                    "text_color": "rgba(255,255,255,0.65)"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-04-btn",
+                  "elType": "widget", "widgetType": "button",
+                  "settings": {
+                    "text": "This sounds like me →",
+                    "link": { "url": "#growth-assessment", "is_external": false },
+                    "button_size": "sm",
+                    "_css_classes": "moonrock-btn moonrock-btn--secondary",
+                    "_ghl_hidden_value": "Operations"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "moonrock-recognition-card-05",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--interactive",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 }
+              },
+              "elements": [
+                {
+                  "id": "moonrock-recognition-card-05-heading",
+                  "elType": "widget", "widgetType": "heading",
+                  "settings": {
+                    "title": "I'm making decisions based on guesswork.",
+                    "header_size": "h3", "title_color": "#ffffff"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-05-text",
+                  "elType": "widget", "widgetType": "text-editor",
+                  "settings": {
+                    "editor": "<p>You shouldn't have to wonder which marketing efforts are working or where your next customer is coming from.</p>",
+                    "text_color": "rgba(255,255,255,0.65)"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-05-btn",
+                  "elType": "widget", "widgetType": "button",
+                  "settings": {
+                    "text": "This sounds like me →",
+                    "link": { "url": "#growth-assessment", "is_external": false },
+                    "button_size": "sm",
+                    "_css_classes": "moonrock-btn moonrock-btn--secondary",
+                    "_ghl_hidden_value": "Reporting"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "moonrock-recognition-card-06",
+              "elType": "container",
+              "settings": {
+                "_css_classes": "moonrock-card moonrock-card--interactive",
+                "flex_basis": "calc(33.333% - 16px)",
+                "flex_basis_tablet": "calc(50% - 12px)",
+                "flex_basis_mobile": "100%",
+                "padding": { "unit": "px", "top": 32, "right": 28, "bottom": 32, "left": 28 }
+              },
+              "elements": [
+                {
+                  "id": "moonrock-recognition-card-06-heading",
+                  "elType": "widget", "widgetType": "heading",
+                  "settings": {
+                    "title": "I know I need help... I just don't know where to start.",
+                    "header_size": "h3", "title_color": "#ffffff"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-06-text",
+                  "elType": "widget", "widgetType": "text-editor",
+                  "settings": {
+                    "editor": "<p>The hardest part isn't always solving the problem. Sometimes it's simply knowing which problem to solve first.</p>",
+                    "text_color": "rgba(255,255,255,0.65)"
+                  }
+                },
+                {
+                  "id": "moonrock-recognition-card-06-btn",
+                  "elType": "widget", "widgetType": "button",
+                  "settings": {
+                    "text": "This sounds like me →",
+                    "link": { "url": "#nova-chat", "is_external": false },
+                    "button_size": "sm",
+                    "_css_classes": "moonrock-btn moonrock-btn--secondary",
+                    "_ghl_hidden_value": "Needs Guidance"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "moonrock-recognition-transition",
+          "elType": "container",
+          "settings": {
+            "margin": { "unit": "px", "top": 64 }
+          },
+          "elements": [
+            {
+              "id": "moonrock-recognition-transition-heading",
+              "elType": "widget", "widgetType": "heading",
+              "settings": {
+                "title": "Imagine Having a Clearer Path Forward.",
+                "header_size": "h3",
+                "align": "center",
+                "title_color": "#ffffff"
+              }
+            },
+            {
+              "id": "moonrock-recognition-transition-text",
+              "elType": "widget", "widgetType": "text-editor",
+              "settings": {
+                "editor": "<p>Not more software. Not more complexity. Just practical guidance, smarter solutions, and a personalized Flight Plan designed around your business.</p>",
+                "align": "center",
+                "text_color": "rgba(255,255,255,0.75)",
+                "width": { "unit": "px", "size": 640 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
