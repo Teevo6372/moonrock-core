@@ -1,30 +1,31 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Moonrock — Environment Check Script
-# Version: 1.0.0
+# Moonrock — Environment Check Script  v1.1.0
 #
 # Verifies that the server environment meets all requirements for
 # Moonrock homepage deployment. Produces PASS / WARNING / FAIL output
 # with actionable recommendations. Makes no changes to the system.
 #
 # Usage:
-#   bash scripts/check-environment.sh [--json]
-#
-#   --json   Output results as JSON (for CI/CD consumption)
+#   bash scripts/check-environment.sh
 # =============================================================================
 
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
+# Trap handler — ensures clean exit even on unexpected failures
+# ---------------------------------------------------------------------------
+trap 'echo ""; echo "[check-environment] Interrupted or failed at line $LINENO."; exit 1' ERR INT TERM
+
+# ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-WP_PATH="${WP_PATH:-/home/*/public_html}"
+# WP_PATH defaults to common cPanel home-directory pattern.
+# The glob expands at assignment time in the for-loop below, not here.
+WP_PATH="${WP_PATH:-}"
 REQUIRED_PHP_VERSION="8.0"
 REQUIRED_DISK_SPACE_MB=500
-REQUIRED_THEME="xstore-child"
-ELEMENTOR_VERSION_MIN="3.18.0"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-OUTPUT_FORMAT="${1:-text}"
 
 # ---------------------------------------------------------------------------
 # State
@@ -59,25 +60,54 @@ die() {
 }
 
 # ---------------------------------------------------------------------------
+# Detect WordPress path (best-effort)
+# ---------------------------------------------------------------------------
+detect_wp_path() {
+  # Already set via environment
+  if [ -n "$WP_PATH" ] && [ -f "${WP_PATH}/wp-config.php" ]; then
+    return 0
+  fi
+
+  # Current directory
+  if [ -f "./wp-config.php" ]; then
+    WP_PATH="."
+    return 0
+  fi
+
+  # WP-CLI auto-detection
+  if command -v wp &>/dev/null && wp core is-installed 2>/dev/null; then
+    WP_PATH="$(wp eval 'echo rtrim(ABSPATH, "/");' 2>/dev/null || echo '')"
+    if [ -n "$WP_PATH" ] && [ -f "${WP_PATH}/wp-config.php" ]; then
+      return 0
+    fi
+  fi
+
+  # Common cPanel paths
+  for candidate in /home/*/public_html /var/www/html /var/www; do
+    if [ -f "$candidate/wp-config.php" ]; then
+      WP_PATH="$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # Checks
 # ---------------------------------------------------------------------------
 
 echo ""
 echo "=============================================="
-echo "  Moonrock Environment Check"
+echo "  Moonrock Environment Check  v1.1.0"
 echo "  $TIMESTAMP"
 echo "=============================================="
 echo ""
 
 # --- WordPress Path ---
 echo "--- WordPress Installation ---"
-if [ -n "${WP_PATH:-}" ] && [ -f "${WP_PATH}/wp-config.php" ]; then
+if detect_wp_path; then
   record_pass "WordPress found at ${WP_PATH}"
-elif [ -f "./wp-config.php" ]; then
-  WP_PATH="."
-  record_pass "WordPress found in current directory"
-elif wp core is-installed --path="${WP_PATH}" 2>/dev/null; then
-  record_pass "WordPress installed (detected via WP-CLI)"
 else
   record_warn "WordPress path not auto-detected. Set WP_PATH environment variable."
   WP_PATH=""
@@ -238,9 +268,9 @@ fi
 # --- Writable Directories ---
 echo "--- Writable Directories ---"
 for dir in "${WP_PATH}/wp-content/themes" "${WP_PATH}/wp-content/uploads" "${WP_PATH}/wp-content/plugins"; do
-  if [ -w "$dir" ]; then
+  if [ -d "$dir" ] && [ -w "$dir" ]; then
     record_pass "Writable: $dir"
-  else
+  elif [ -d "$dir" ]; then
     record_warn "Not writable: $dir"
   fi
 done

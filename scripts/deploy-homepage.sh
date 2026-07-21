@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Moonrock — Homepage Deployment Script  v2.0.0
+# Moonrock — Homepage Deployment Script  v2.1.0
 #
 # Deploys the Moonrock homepage implementation to the live WordPress site.
 # Idempotent — safe to run multiple times.
@@ -15,6 +15,12 @@
 # =============================================================================
 
 set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Trap handler — logs unexpected failures before exiting
+# ---------------------------------------------------------------------------
+trap 'echo ""; echo "[deploy-homepage] FAILED at line $LINENO — check log."; exit 1' ERR
+trap 'echo ""; echo "[deploy-homepage] Interrupted."; exit 130' INT TERM
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -35,14 +41,17 @@ TEMPLATE_SKIPPED=0
 TEMPLATE_UPDATED=0
 HOMEPAGE_ID_BEFORE=""
 HOMEPAGE_ID_AFTER=""
+# Temp file for JSON payloads (avoid shell arg-length limits)
+TEMP_JSON=$(mktemp /tmp/moonrock-deploy-json.XXXXXX)
+trap 'rm -f "$TEMP_JSON"' EXIT
 
 # ---------------------------------------------------------------------------
 # Parse arguments
 # ---------------------------------------------------------------------------
 for arg in "$@"; do
   case "$arg" in
-    --dry-run)          DRY_RUN=true ;;
-    --deploy-theme-files) DEPLOY_THEME_FILES=true ;;
+    --dry-run)              DRY_RUN=true ;;
+    --deploy-theme-files)   DEPLOY_THEME_FILES=true ;;
     *) echo "Unknown argument: $arg"; exit 1 ;;
   esac
 done
@@ -65,19 +74,54 @@ die() {
 }
 
 # ---------------------------------------------------------------------------
+# Detect WP path (shared logic)
+# ---------------------------------------------------------------------------
+detect_wp_path() {
+  if [ -n "$WP_PATH" ] && [ -f "${WP_PATH}/wp-config.php" ]; then
+    return 0
+  fi
+  if command -v wp &>/dev/null && wp core is-installed 2>/dev/null; then
+    WP_PATH="$(wp eval 'echo rtrim(ABSPATH, "/");' 2>/dev/null || echo '')"
+    if [ -n "$WP_PATH" ] && [ -f "${WP_PATH}/wp-config.php" ]; then
+      return 0
+    fi
+  fi
+  for candidate in /home/*/public_html /var/www/html /var/www; do
+    if [ -f "$candidate/wp-config.php" ]; then
+      WP_PATH="$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# SHA-256 helper (portable: Linux sha256sum, macOS shasum -a 256)
+# ---------------------------------------------------------------------------
+sha256() {
+  if command -v sha256sum &>/dev/null; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum &>/dev/null; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    echo "00000000"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Banner
 # ---------------------------------------------------------------------------
 echo ""
 echo "=============================================="
-echo "  Moonrock Homepage Deployment  v2.0.0"
+echo "  Moonrock Homepage Deployment  v2.1.0"
 echo "  $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
 if $DRY_RUN; then
   echo "  MODE: DRY RUN — no changes will be made"
 fi
 if $DEPLOY_THEME_FILES; then
-  echo "  THEME FILES: will be deployed"
+  echo "  THEME FILES: enabled (--deploy-theme-files)"
 else
-  echo "  THEME FILES: will NOT be deployed (use --deploy-theme-files)"
+  echo "  THEME FILES: disabled (use --deploy-theme-files to enable)"
 fi
 echo "=============================================="
 echo ""
@@ -100,29 +144,12 @@ fi
 # ---------------------------------------------------------------------------
 log "Step 1: Detect WordPress environment"
 
-# Find WordPress path if not set
-if [ -z "$WP_PATH" ]; then
-  if wp core is-installed 2>/dev/null; then
-    WP_PATH="$(wp eval 'echo ABSPATH;' 2>/dev/null || echo '')"
-  fi
-  if [ -z "$WP_PATH" ]; then
-    # Try common paths
-    for candidate in /home/*/public_html /var/www/html /var/www; do
-      if [ -f "$candidate/wp-config.php" ]; then
-        WP_PATH="$candidate"
-        break
-      fi
-    done
-  fi
-fi
-
-if [ -z "$WP_PATH" ] || [ ! -f "${WP_PATH}/wp-config.php" ]; then
+if ! detect_wp_path; then
   die "Cannot detect WordPress installation. Set WP_PATH environment variable."
 fi
 
 log "  WordPress path: $WP_PATH"
 
-# Site info
 SITE_URL=$(wp option get siteurl --path="$WP_PATH" 2>/dev/null || echo "unknown")
 DB_NAME=$(wp config get DB_NAME --path="$WP_PATH" 2>/dev/null || echo "unknown")
 PHP_VER=$(php -r 'echo PHP_VERSION;' 2>/dev/null || echo "unknown")
@@ -141,10 +168,13 @@ log "Step 2: Detect active theme"
 ACTIVE_THEME=$(wp theme list --status=active --field=name --path="$WP_PATH" 2>/dev/null || echo "")
 ACTIVE_THEME_DIR=$(wp theme list --status=active --field=stylesheet --path="$WP_PATH" 2>/dev/null || echo "")
 
+if [ -z "$ACTIVE_THEME_DIR" ]; then
+  die "Could not determine active theme. Is WordPress installed correctly?"
+fi
+
 log "  Active theme:    $ACTIVE_THEME"
 log "  Stylesheet dir:  $ACTIVE_THEME_DIR"
 
-# Verify it is a child theme
 TEMPLATE=$(wp theme get "$ACTIVE_THEME_DIR" --field=template --path="$WP_PATH" 2>/dev/null || echo "")
 if [ -z "$TEMPLATE" ] || [ "$TEMPLATE" = "$ACTIVE_THEME_DIR" ]; then
   die "Active theme '$ACTIVE_THEME' does not appear to be a child theme (no Template header). Refusing to deploy into a parent theme."
@@ -233,7 +263,6 @@ if ! $DEPLOY_THEME_FILES; then
     info "  Dry run: would compare checksums and show diff, but not deploy."
   fi
 
-  # Interactive fallback
   if ! $DRY_RUN; then
     read -r -p "  Deploy theme files now? [y/N]: " CONFIRM
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
@@ -243,20 +272,18 @@ if ! $DEPLOY_THEME_FILES; then
 fi
 
 if $DEPLOY_THEME_FILES; then
-  # Compare checksums
   for pair in "$SOURCE_CSS|$DEST_CSS|style.css" "$SOURCE_PHP|$DEST_PHP|functions.php"; do
     IFS='|' read -r src dest name <<< "$pair"
 
     if [ -f "$dest" ]; then
-      SRC_SUM=$(sha256sum "$src" | awk '{print $1}')
-      DEST_SUM=$(sha256sum "$dest" | awk '{print $1}')
+      SRC_SUM=$(sha256 "$src")
+      DEST_SUM=$(sha256 "$dest")
 
-      if [ "$SRC_SUM" = "$DEST_SUM" ]; then
+      if [ "$SRC_SUM" = "$DEST_SUM" ] && [ "$SRC_SUM" != "00000000" ]; then
         log "  $name: identical (no changes needed)"
       else
-        info "  $name: differs from deployed version"
+        info "  $name: differs from deployed version (or checksum unavailable)"
         if $DRY_RUN; then
-          info "    (dry-run) Would back up existing, then copy."
           diff --unified=1 "$dest" "$src" 2>/dev/null | head -40 || true
         fi
       fi
@@ -267,8 +294,9 @@ if $DEPLOY_THEME_FILES; then
 
   # Backup existing files
   if ! $DRY_RUN; then
-    for pair in "$DEST_CSS|style.css" "$DEST_PHP|functions.php"; do
-      IFS='|' read -r dest name <<< "$pair"
+    for dest in "$DEST_CSS" "$DEST_PHP"; do
+      local name
+      name=$(basename "$dest")
       if [ -f "$dest" ]; then
         cp "$dest" "${BACKUP_DIR}/${name}.bak"
         log "  Backed up: $name"
@@ -293,14 +321,20 @@ fi
 # ---------------------------------------------------------------------------
 log "Step 6: Import Elementor templates"
 
+# Extract title from JSON safely via grep (avoids python3 dependency and
+# command-injection risk from passing filename into a python -c string)
+get_json_title() {
+  grep -oP '"title"\s*:\s*"\K[^"]+' "$1" 2>/dev/null | head -1 || echo "unknown"
+}
+
 import_template() {
   local json_file="$1"
   local template_name
-  template_name=$(python3 -c "import json; print(json.load(open('$json_file'))['title'])" 2>/dev/null || \
-                  grep -oP '"title"\s*:\s*"\K[^"]+' "$json_file" | head -1 || echo "unknown")
+  template_name=$(get_json_title "$json_file")
 
-  # Check if a template with our deployment marker already exists
-  EXISTING_ID=$(wp post list \
+  # Check for existing template with our deployment marker
+  local existing_id
+  existing_id=$(wp post list \
     --post_type=elementor_library \
     --meta_key="$PACKAGE_MARKER" \
     --meta_value="$PACKAGE_VALUE" \
@@ -308,32 +342,34 @@ import_template() {
     --field=ID \
     --path="$WP_PATH" 2>/dev/null | head -1 || echo "")
 
-  if [ -n "$EXISTING_ID" ]; then
-    log "  Template '$template_name' already exists (ID: $EXISTING_ID) with package marker — updating"
+  if [ -n "$existing_id" ]; then
+    log "  Template '$template_name' already exists (ID: $existing_id) with package marker — updating"
 
     if ! $DRY_RUN; then
-      TEMPLATE_JSON=$(cat "$json_file")
-      wp post meta update "$EXISTING_ID" "_elementor_data" "$TEMPLATE_JSON" --path="$WP_PATH" 2>/dev/null || true
-      wp post meta update "$EXISTING_ID" "_elementor_version" "3.18.0" --path="$WP_PATH" 2>/dev/null || true
-      wp post meta update "$EXISTING_ID" "$PACKAGE_MARKER" "$PACKAGE_VALUE" --path="$WP_PATH" 2>/dev/null || true
+      # Write JSON to temp file to avoid shell arg-length issues with large payloads
+      cat "$json_file" > "$TEMP_JSON"
+      wp post meta update "$existing_id" "_elementor_data" --format=json < "$TEMP_JSON" --path="$WP_PATH" 2>/dev/null || true
+      wp post meta update "$existing_id" "_elementor_version" "3.18.0" --path="$WP_PATH" 2>/dev/null || true
+      wp post meta update "$existing_id" "$PACKAGE_MARKER" "$PACKAGE_VALUE" --path="$WP_PATH" 2>/dev/null || true
       TEMPLATE_UPDATED=$((TEMPLATE_UPDATED + 1))
     else
-      dry "  Would update: $template_name (ID: $EXISTING_ID)"
+      dry "  Would update: $template_name (ID: $existing_id)"
     fi
     return
   fi
 
-  # Also check by title alone (catches templates from v1 without the marker)
-  EXISTING_BY_TITLE=$(wp post list \
+  # Check by title for pre-existing unmarked templates (v1 migration)
+  local existing_by_title
+  existing_by_title=$(wp post list \
     --post_type=elementor_library \
     --title="$template_name" \
     --field=ID \
     --path="$WP_PATH" 2>/dev/null | head -1 || echo "")
 
-  if [ -n "$EXISTING_BY_TITLE" ]; then
-    log "  Template '$template_name' exists (ID: $EXISTING_BY_TITLE) without package marker — adding marker, skipping update"
+  if [ -n "$existing_by_title" ]; then
+    log "  Template '$template_name' exists (ID: $existing_by_title) without package marker — adding marker, skipping update"
     if ! $DRY_RUN; then
-      wp post meta update "$EXISTING_BY_TITLE" "$PACKAGE_MARKER" "$PACKAGE_VALUE" --path="$WP_PATH" 2>/dev/null || true
+      wp post meta update "$existing_by_title" "$PACKAGE_MARKER" "$PACKAGE_VALUE" --path="$WP_PATH" 2>/dev/null || true
     fi
     TEMPLATE_SKIPPED=$((TEMPLATE_SKIPPED + 1))
     return
@@ -346,26 +382,28 @@ import_template() {
     return
   fi
 
-  NEW_ID=$(wp post create \
+  local new_id
+  new_id=$(wp post create \
     --post_type=elementor_library \
     --post_title="$template_name" \
     --post_status=publish \
     --porcelain \
     --path="$WP_PATH" 2>/dev/null || echo "")
 
-  if [ -z "$NEW_ID" ]; then
+  if [ -z "$new_id" ]; then
     red "  Failed to create template: $template_name"
     return
   fi
 
-  TEMPLATE_JSON=$(cat "$json_file")
-  wp post meta update "$NEW_ID" "_elementor_template_type" "container" --path="$WP_PATH" 2>/dev/null || true
-  wp post meta update "$NEW_ID" "_elementor_edit_mode" "builder" --path="$WP_PATH" 2>/dev/null || true
-  wp post meta update "$NEW_ID" "_elementor_data" "$TEMPLATE_JSON" --path="$WP_PATH" 2>/dev/null || true
-  wp post meta update "$NEW_ID" "_elementor_version" "3.18.0" --path="$WP_PATH" 2>/dev/null || true
-  wp post meta update "$NEW_ID" "$PACKAGE_MARKER" "$PACKAGE_VALUE" --path="$WP_PATH" 2>/dev/null || true
+  # Write JSON to temp file for safe wp post meta import
+  cat "$json_file" > "$TEMP_JSON"
+  wp post meta update "$new_id" "_elementor_template_type" "container" --path="$WP_PATH" 2>/dev/null || true
+  wp post meta update "$new_id" "_elementor_edit_mode" "builder" --path="$WP_PATH" 2>/dev/null || true
+  wp post meta update "$new_id" "_elementor_data" --format=json < "$TEMP_JSON" --path="$WP_PATH" 2>/dev/null || true
+  wp post meta update "$new_id" "_elementor_version" "3.18.0" --path="$WP_PATH" 2>/dev/null || true
+  wp post meta update "$new_id" "$PACKAGE_MARKER" "$PACKAGE_VALUE" --path="$WP_PATH" 2>/dev/null || true
 
-  log "  Created: $template_name (ID: $NEW_ID) [marker: $PACKAGE_MARKER=$PACKAGE_VALUE]"
+  log "  Created: $template_name (ID: $new_id) [marker: $PACKAGE_MARKER=$PACKAGE_VALUE]"
   TEMPLATE_IMPORTED=$((TEMPLATE_IMPORTED + 1))
 }
 
@@ -373,8 +411,7 @@ if $DRY_RUN; then
   info "  (dry-run) Would process templates from $TEMPLATE_DIR"
   for f in "$TEMPLATE_DIR"/section-*.json; do
     [ -f "$f" ] || continue
-    TEMPLATE_NAME=$(grep -oP '"title"\s*:\s*"\K[^"]+' "$f" | head -1 || basename "$f" .json)
-    info "    → $TEMPLATE_NAME"
+    info "    → $(get_json_title "$f")"
     TEMPLATE_IMPORTED=$((TEMPLATE_IMPORTED + 1))
   done
 else
@@ -413,28 +450,28 @@ fi
 log "Step 8: Cache clearing"
 
 clear_elementor_cache() {
-  if ! $DRY_RUN; then
-    if wp eval "echo class_exists('\\\\Elementor\\\\Plugin') ? 'yes' : 'no';" --path="$WP_PATH" 2>/dev/null | grep -q "yes"; then
-      wp eval "\Elementor\Plugin::instance()->files_manager->clear_cache();" --path="$WP_PATH" 2>/dev/null && \
-        log "  Elementor CSS cache cleared" || \
-        warn "Elementor CSS cache clear failed — this is not critical. Run manually: Elementor → Tools → Regenerate CSS"
-    else
-      warn "Elementor not available — cache not cleared"
-    fi
-  else
+  if $DRY_RUN; then
     info "  (dry-run) Would attempt Elementor cache clear"
+    return
+  fi
+  if wp eval "echo class_exists('\\\\Elementor\\\\Plugin') ? 'yes' : 'no';" --path="$WP_PATH" 2>/dev/null | grep -q "yes"; then
+    wp eval "\Elementor\Plugin::instance()->files_manager->clear_cache();" --path="$WP_PATH" 2>/dev/null && \
+      log "  Elementor CSS cache cleared" || \
+      warn "Elementor CSS cache clear failed — this is not critical."
+  else
+    warn "Elementor not available — cache not cleared"
   fi
 }
 
 clear_litespeed_cache() {
-  if ! $DRY_RUN; then
-    if command -v wp >/dev/null && wp litespeed-purge all --path="$WP_PATH" 2>/dev/null; then
-      log "  LiteSpeed cache purged"
-    else
-      warn "LiteSpeed cache purge not available — this is not critical. Clear manually if needed."
-    fi
-  else
+  if $DRY_RUN; then
     info "  (dry-run) Would attempt LiteSpeed cache purge"
+    return
+  fi
+  if command -v wp >/dev/null && wp litespeed-purge all --path="$WP_PATH" 2>/dev/null; then
+    log "  LiteSpeed cache purged"
+  else
+    warn "LiteSpeed cache purge not available — this is not critical."
   fi
 }
 
