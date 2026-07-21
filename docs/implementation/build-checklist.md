@@ -1,24 +1,31 @@
 # Moonrock Homepage — Build Checklist
 
-**Version:** 1.0.0  
-**Branch:** feature/homepage-elementor-build  
+**Version:** 2.0.0  
+**Branch:** feature/deployment-pipeline  
 **Repository:** moonrock-core  
 **Last updated:** 2026-07-20
 
+> **Deployment scripts are available.** Run `bash scripts/deploy-homepage.sh --dry-run` first.
+> See `scripts/README.md` and `docs/deployment-guide.md`.
+
 ---
 
-## Phase 0 — Pre-Build: Backup & Staging
+## Phase 0 — Pre-Build: Backup
 
-- [ ] Create a full WordPress backup (files + database).
-- [ ] Set up a staging environment (subdomain or local clone).
-- [ ] Verify staging site loads correctly with XStore + XStore Child active.
+> **⚠️ No staging environment is used.** Development happens on the live server using a new unlinked Elementor page. The existing homepage remains active throughout.
+
+- [ ] Create a full WordPress backup via **JetBackup** in cPanel (files + database).
+- [ ] Verify the live site loads correctly with XStore + XStore Child active.
 - [ ] Verify WooCommerce products, orders, customer accounts, and payment gateways are intact.
-- [ ] Confirm Elementor Pro license is active on staging.
+- [ ] Confirm Elementor Pro license is active.
 
 ---
 
 ## Phase 1 — Theme & Plugin Verification
 
+> **🤖 Automated:** `scripts/check-environment.sh` verifies all items below.
+
+- [ ] Run `bash scripts/check-environment.sh` on the server.
 - [ ] Confirm **XStore Child** theme is active (Appearance → Themes).
 - [ ] Confirm **Elementor Pro** is installed and license activated.
 - [ ] Confirm **WooCommerce** is installed and operational.
@@ -29,8 +36,10 @@
 
 ## Phase 2 — XStore Child Theme Setup
 
-- [ ] Copy `xstore-child/style.css` into the active XStore Child theme directory.
-- [ ] Copy `xstore-child/functions.php` into the active XStore Child theme directory.
+> **🤖 Automated:** `scripts/deploy-homepage.sh --deploy-theme-files` handles file backup, checksum comparison, and deployment. Theme files are NOT copied without the flag.
+
+- [ ] Run `bash scripts/deploy-homepage.sh --deploy-theme-files --dry-run` to preview.
+- [ ] Run `bash scripts/deploy-homepage.sh --deploy-theme-files` to deploy.
 - [ ] Verify the child stylesheet loads (inspect any page for `.moonrock-card` styles in browser DevTools).
 
 ---
@@ -72,7 +81,9 @@
 
 ## Phase 4 — WooCommerce Category Setup
 
-### 4.1 — Create Categories (manual)
+> **🤖 Partially automated:** Category creation can be scripted via WP-CLI. See `scripts/README.md` for the WP-CLI commands. Manual product curation still required.
+
+### 4.1 — Create Categories
 - [ ] Products → Categories → Add New:
   - **Launch Resources** (slug: `launch-resources`)
   - **Growth Resources** (slug: `growth-resources`)
@@ -89,25 +100,20 @@
 
 ## Phase 5 — Template Import
 
+> **🤖 Automated:** `scripts/deploy-homepage.sh` imports all 8 templates with metadata marker `moonrock_deployment_package = homepage-v1`. Idempotent — re-running skips or updates existing templates.
+
 ### 5.1 — Pre-Import Checks
 - [ ] Read `elementor/templates/README.md` fully.
 - [ ] Confirm all Phase 3 global settings are saved.
 
-### 5.2 — Import Templates (in order)
-- [ ] Templates → Import → `section-01-hero.json`
-- [ ] Templates → Import → `section-02-recognition.json`
-- [ ] Templates → Import → `section-03-imagine-whats-possible.json`
-- [ ] Templates → Import → `section-04-flight-plan.json`
-- [ ] Templates → Import → `section-05-guidance-before-guesswork.json`
-- [ ] Templates → Import → `section-06-meet-nova.json`
-- [ ] Templates → Import → `section-07-growth-hub.json`
-- [ ] Templates → Import → `section-08-final-cta-footer.json`
+### 5.2 — Import (automated)
+- [ ] The deploy script imports all 8 templates in order. No manual import needed.
 
 ### 5.3 — Post-Import Verification
 - [ ] Open each imported template in Elementor Editor.
 - [ ] Confirm all containers, headings, and text widgets render.
 - [ ] Confirm icons display (Lucide library loaded).
-- [ ] Confirm no broken widget types (indicates missing plugin or Pro feature).
+- [ ] Confirm no broken widget types.
 
 ---
 
@@ -210,10 +216,14 @@
 
 ## Phase 9 — Go-Live
 
-- [ ] Move homepage from staging to production (Elementor template export → import, or page duplicate).
-- [ ] Verify all CTA destinations are production URLs (not staging).
+- [ ] Create a **NEW** Elementor page (Pages → Add New → Edit with Elementor).
+- [ ] **Do NOT** set it as the front page. Leave the existing homepage active.
+- [ ] Assemble the 8 imported section templates on this new page in order.
+- [ ] QA the new page at its preview URL while the old homepage remains live.
+- [ ] After final human approval: **Settings → Reading → Your homepage displays → A static page → Homepage: [new page].**
+- [ ] Verify all CTA destinations point to production GHL URLs.
 - [ ] Verify analytics (GA4, GSC, Meta Pixel, Clarity) are installed.
-- [ ] Verify GHL chat widget loads on production.
+- [ ] Verify GHL chat widget loads on the new homepage.
 - [ ] Submit XML sitemap to Google Search Console.
 - [ ] Test a complete visitor journey end-to-end.
 
@@ -221,9 +231,21 @@
 
 ## Rollback Plan
 
-If the homepage causes issues post-launch:
+> **🤖 Targeted rollback:** `scripts/rollback-homepage.sh` restores child theme files from backup, removes ONLY templates with the deployment marker, and clears caches. It does NOT perform a database or full-site restore.
 
-1. Restore the previous homepage revision from WordPress revisions or backup.
-2. If the issue is CSS-related, comment out the child theme style enqueue in `functions.php`.
-3. If the issue is template-related, remove imported Elementor templates and republish the page with prior content.
-4. Full site restore from Phase 0 backup as last resort.
+If the new homepage causes issues after go-live:
+
+1. **Switch back to the old homepage:** Settings → Reading → set the previous page as homepage.
+2. Run `bash scripts/rollback-homepage.sh` to restore theme files and remove package-owned templates.
+3. Run `bash scripts/rollback-homepage.sh --list` to view available backups.
+4. For full disaster recovery (database + all files), use **JetBackup** in cPanel.
+
+---
+
+## Phase 10 — Recovery & Maintenance
+
+- [ ] **List backups:** `bash scripts/rollback-homepage.sh --list`
+- [ ] **Rollback:** `bash scripts/rollback-homepage.sh`
+- [ ] **Re-deploy after fix:** `bash scripts/deploy-homepage.sh`
+- [ ] **Full disaster recovery:** JetBackup in cPanel
+- [ ] **View deployment logs:** `cat deployments/deploy-*.log`
