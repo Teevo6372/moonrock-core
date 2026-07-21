@@ -187,10 +187,20 @@ fi
 echo "--- Theme ---"
 if $HAS_WP_CLI && [ -n "${WP_PATH:-}" ]; then
   ACTIVE_THEME=$(wp theme list --status=active --field=name --path="$WP_PATH" 2>/dev/null)
+  ACTIVE_DIR=$(wp theme list --status=active --field=stylesheet --path="$WP_PATH" 2>/dev/null)
+  THEME_TEMPLATE=$(wp theme get "$ACTIVE_DIR" --field=template --path="$WP_PATH" 2>/dev/null || echo "")
+
   if echo "$ACTIVE_THEME" | grep -qi "xstore"; then
-    record_pass "XStore Child theme active: $ACTIVE_THEME"
+    record_pass "Active theme: $ACTIVE_THEME (dir: $ACTIVE_DIR)"
   else
-    record_fail "Active theme is '$ACTIVE_THEME' — expected XStore Child"
+    record_warn "Active theme is '$ACTIVE_THEME' — expected XStore Child"
+  fi
+
+  if [ -n "$THEME_TEMPLATE" ] && [ "$THEME_TEMPLATE" != "$ACTIVE_DIR" ]; then
+    record_pass "Verified child theme — parent template: $THEME_TEMPLATE"
+    record_pass "Child theme directory: ${WP_PATH}/wp-content/themes/${ACTIVE_DIR}"
+  else
+    record_fail "Active theme does not appear to be a child theme. Deployment into a parent theme is blocked."
   fi
 
   if wp theme is-installed xstore-child --path="$WP_PATH" 2>/dev/null; then

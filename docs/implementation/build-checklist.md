@@ -1,22 +1,23 @@
 # Moonrock Homepage — Build Checklist
 
-**Version:** 1.1.0  
+**Version:** 2.0.0  
 **Branch:** feature/deployment-pipeline  
 **Repository:** moonrock-core  
 **Last updated:** 2026-07-20
 
-> **Deployment scripts are now available.** Phases 2–5 below can be automated.
+> **Deployment scripts are available.** Run `bash scripts/deploy-homepage.sh --dry-run` first.
 > See `scripts/README.md` and `docs/deployment-guide.md`.
 
 ---
 
-## Phase 0 — Pre-Build: Backup & Staging
+## Phase 0 — Pre-Build: Backup
 
-- [ ] Create a full WordPress backup (files + database).
-- [ ] Set up a staging environment (subdomain or local clone).
-- [ ] Verify staging site loads correctly with XStore + XStore Child active.
+> **⚠️ No staging environment is used.** Development happens on the live server using a new unlinked Elementor page. The existing homepage remains active throughout.
+
+- [ ] Create a full WordPress backup via **JetBackup** in cPanel (files + database).
+- [ ] Verify the live site loads correctly with XStore + XStore Child active.
 - [ ] Verify WooCommerce products, orders, customer accounts, and payment gateways are intact.
-- [ ] Confirm Elementor Pro license is active on staging.
+- [ ] Confirm Elementor Pro license is active.
 
 ---
 
@@ -35,10 +36,10 @@
 
 ## Phase 2 — XStore Child Theme Setup
 
-> **🤖 Automated:** `scripts/deploy-homepage.sh` handles file deployment, backup, and verification.
+> **🤖 Automated:** `scripts/deploy-homepage.sh --deploy-theme-files` handles file backup, checksum comparison, and deployment. Theme files are NOT copied without the flag.
 
-- [ ] Run `bash scripts/deploy-homepage.sh --dry-run` to preview.
-- [ ] Run `bash scripts/deploy-homepage.sh` to deploy.
+- [ ] Run `bash scripts/deploy-homepage.sh --deploy-theme-files --dry-run` to preview.
+- [ ] Run `bash scripts/deploy-homepage.sh --deploy-theme-files` to deploy.
 - [ ] Verify the child stylesheet loads (inspect any page for `.moonrock-card` styles in browser DevTools).
 
 ---
@@ -99,7 +100,7 @@
 
 ## Phase 5 — Template Import
 
-> **🤖 Automated:** `scripts/deploy-homepage.sh` imports all 8 templates via WP-CLI and skips duplicates.
+> **🤖 Automated:** `scripts/deploy-homepage.sh` imports all 8 templates with metadata marker `moonrock_deployment_package = homepage-v1`. Idempotent — re-running skips or updates existing templates.
 
 ### 5.1 — Pre-Import Checks
 - [ ] Read `elementor/templates/README.md` fully.
@@ -215,10 +216,14 @@
 
 ## Phase 9 — Go-Live
 
-- [ ] Move homepage from staging to production (Elementor template export → import, or page duplicate).
-- [ ] Verify all CTA destinations are production URLs (not staging).
+- [ ] Create a **NEW** Elementor page (Pages → Add New → Edit with Elementor).
+- [ ] **Do NOT** set it as the front page. Leave the existing homepage active.
+- [ ] Assemble the 8 imported section templates on this new page in order.
+- [ ] QA the new page at its preview URL while the old homepage remains live.
+- [ ] After final human approval: **Settings → Reading → Your homepage displays → A static page → Homepage: [new page].**
+- [ ] Verify all CTA destinations point to production GHL URLs.
 - [ ] Verify analytics (GA4, GSC, Meta Pixel, Clarity) are installed.
-- [ ] Verify GHL chat widget loads on production.
+- [ ] Verify GHL chat widget loads on the new homepage.
 - [ ] Submit XML sitemap to Google Search Console.
 - [ ] Test a complete visitor journey end-to-end.
 
@@ -226,15 +231,14 @@
 
 ## Rollback Plan
 
-> **🤖 Automated:** `scripts/rollback-homepage.sh` handles all items below.
+> **🤖 Targeted rollback:** `scripts/rollback-homepage.sh` restores child theme files from backup, removes ONLY templates with the deployment marker, and clears caches. It does NOT perform a database or full-site restore.
 
-If the homepage causes issues post-launch:
+If the new homepage causes issues after go-live:
 
-1. Run `bash scripts/rollback-homepage.sh` — restores style.css, functions.php, removes all 8 templates, clears cache.
-2. Run `bash scripts/rollback-homepage.sh --list` to view available backups.
-3. Run `bash scripts/rollback-homepage.sh --backup-dir <path>` to use a specific backup.
-4. If rollback script unavailable: Restore the previous homepage revision from WordPress revisions or backup.
-5. Full site restore from Phase 0 backup as last resort.
+1. **Switch back to the old homepage:** Settings → Reading → set the previous page as homepage.
+2. Run `bash scripts/rollback-homepage.sh` to restore theme files and remove package-owned templates.
+3. Run `bash scripts/rollback-homepage.sh --list` to view available backups.
+4. For full disaster recovery (database + all files), use **JetBackup** in cPanel.
 
 ---
 
@@ -243,5 +247,5 @@ If the homepage causes issues post-launch:
 - [ ] **List backups:** `bash scripts/rollback-homepage.sh --list`
 - [ ] **Rollback:** `bash scripts/rollback-homepage.sh`
 - [ ] **Re-deploy after fix:** `bash scripts/deploy-homepage.sh`
+- [ ] **Full disaster recovery:** JetBackup in cPanel
 - [ ] **View deployment logs:** `cat deployments/deploy-*.log`
-- [ ] **View rollback logs:** `cat deployments/rollback-*.log`

@@ -1,6 +1,5 @@
-# Moonrock Deployment Scripts
+# Moonrock Deployment Scripts  v2.0.0
 
-**Version:** 1.0.0  
 **Branch:** feature/deployment-pipeline
 
 ---
@@ -14,29 +13,27 @@
 | Git | 2.x | `git --version` |
 | PHP CLI | 8.0+ | `php -v` |
 | SSH access | key-based or password | `ssh user@host` |
-| File permissions | write to `wp-content/themes/` | verified by check script |
+| File permissions | write to active child theme directory | verified by check script |
 | Disk space | 500MB free | verified by check script |
+| Python 3 | (for JSON parsing in template import) | `python3 --version` |
 
 ### WP-CLI Setup
 
 ```bash
-# Install WP-CLI if not present
 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 chmod +x wp-cli.phar
 sudo mv wp-cli.phar /usr/local/bin/wp
-
-# Verify
 wp --info
 ```
 
 ### Required WordPress Plugins
 
-| Plugin | Slug | Check |
-|---|---|---|
-| Elementor | `elementor` | `wp plugin is-active elementor` |
-| Elementor Pro | `elementor-pro` | manual verification |
-| WooCommerce | `woocommerce` | `wp plugin is-active woocommerce` |
-| XStore Child theme | `xstore-child` | `wp theme is-active xstore-child` |
+| Plugin | Slug |
+|---|---|
+| Elementor | `elementor` |
+| Elementor Pro | `elementor-pro` |
+| WooCommerce | `woocommerce` |
+| XStore Child theme | (detected automatically) |
 
 ---
 
@@ -44,66 +41,60 @@ wp --info
 
 ### `check-environment.sh`
 
-Verifies the server environment. Makes no changes.
+Pre-flight verification. Makes no changes.
 
 ```bash
-bash scripts/check-environment.sh          # Text output
-bash scripts/check-environment.sh --json   # JSON output (for CI/CD)
+bash scripts/check-environment.sh
 ```
 
-**Expected output:**
-```
-==============================================
-  Moonrock Environment Check
-  2026-07-20T22:00:00Z
-==============================================
+Checks: WordPress path, PHP version, WP-CLI, Git, SSH, file permissions,
+Elementor, WooCommerce, active theme, JetBackup, disk space, writable directories.
 
---- WordPress Installation ---
-[PASS] WordPress found at /home/user/public_html
---- PHP ---
-[PASS] PHP 8.2.0 (>= 8.0 required)
---- WP-CLI ---
-[PASS] WP-CLI 2.11.0
-...
-
-==============================================
-  SUMMARY
-==============================================
-
-  PASS:   12
-  WARN:   2
-  FAIL:   0
-
-VERDICT: ⚠️  READY WITH WARNINGS — review warnings before deploying.
-```
+Output: PASS / WARNING / FAIL with recommendations. Exits non-zero on any FAIL.
 
 ### `deploy-homepage.sh`
 
 Deploys child theme files and Elementor templates. Idempotent.
 
 ```bash
-bash scripts/deploy-homepage.sh            # Live deployment
-bash scripts/deploy-homepage.sh --dry-run  # Simulate only
+# Dry run — simulate everything, make no changes
+bash scripts/deploy-homepage.sh --dry-run
+
+# Deploy templates only (no theme files)
+bash scripts/deploy-homepage.sh
+
+# Deploy everything including theme files
+bash scripts/deploy-homepage.sh --deploy-theme-files
+
+# Preview theme-file deployment without changing
+bash scripts/deploy-homepage.sh --deploy-theme-files --dry-run
 ```
 
+**Theme file gate:** `style.css` and `functions.php` are NOT deployed by default.
+Use `--deploy-theme-files` or answer `y` at the interactive prompt.
+
 **What it does:**
-1. Runs `check-environment.sh` — aborts if critical checks fail
-2. Backs up existing `style.css` + `functions.php` to `deployments/backups/<timestamp>/`
-3. Verifies Elementor, Elementor Pro, and WooCommerce are active
-4. Copies `xstore-child/style.css` and `xstore-child/functions.php` to the theme directory
-5. Imports all 8 Elementor section templates via WP-CLI (skips existing)
-6. Clears Elementor CSS cache + LiteSpeed cache
-7. Logs everything to `deployments/deploy-<timestamp>.log`
+1. Runs `check-environment.sh` — aborts on failure
+2. Detects WordPress path, site URL, database, active theme via WP-CLI
+3. Verifies the active theme is a child theme (refuses to deploy into a parent)
+4. Captures current homepage ID and title
+5. Verifies Elementor, Elementor Pro, WooCommerce are active
+6. If `--deploy-theme-files`: backs up existing files, compares checksums, shows diffs, copies
+7. Imports 8 Elementor templates with `moonrock_deployment_package = homepage-v1` metadata
+8. Skips or updates templates that already carry the marker (true idempotency)
+9. Confirms homepage ID is unchanged
+10. Conditionally clears Elementor and LiteSpeed caches (warnings only on failure)
 
 **What it never does:**
 - Change the active homepage
-- Touch navigation/menus
+- Touch navigation or menus
 - Modify WooCommerce products, orders, or categories
 - Delete anything
+- Deploy theme files without explicit permission
 
 ### `rollback-homepage.sh`
 
-Restores the pre-deployment state.
+Rolls back the deployment. Safe and targeted.
 
 ```bash
 bash scripts/rollback-homepage.sh                        # Use latest backup
@@ -113,13 +104,16 @@ bash scripts/rollback-homepage.sh --list                 # List available backup
 
 **What it does:**
 1. Restores `style.css` and `functions.php` from backup
-2. Removes ONLY the 8 imported Elementor section templates
-3. Clears caches
-4. Logs everything to `deployments/rollback-<timestamp>.log`
+2. Removes ONLY Elementor templates that carry `moonrock_deployment_package = homepage-v1`
+3. Conditionally clears caches
 
-**What it never does:**
-- Touch pages, posts, products, categories, tags, or navigation
-- Affect manually created Elementor content
+**What it does NOT do:**
+- Perform a database restore
+- Restore deleted content
+- Revert WooCommerce data
+- Change the active homepage
+
+For full disaster recovery, use **JetBackup** in cPanel.
 
 ---
 
@@ -127,7 +121,7 @@ bash scripts/rollback-homepage.sh --list                 # List available backup
 
 ```bash
 # 1. SSH into the FusionArc server
-ssh user@moonrock-server
+ssh user@fusionarc-server
 
 # 2. Pull latest from GitHub
 cd /path/to/moonrock-core
@@ -139,10 +133,19 @@ bash scripts/check-environment.sh
 # 4. Dry run the deployment
 bash scripts/deploy-homepage.sh --dry-run
 
-# 5. Deploy
+# 5. Deploy templates
 bash scripts/deploy-homepage.sh
 
-# 6. If something goes wrong, roll back
+# 6. If theme files changed, deploy them too
+bash scripts/deploy-homepage.sh --deploy-theme-files
+
+# 7. In WordPress admin:
+#    - Create a NEW unlinked Elementor page (do NOT set as homepage)
+#    - Assemble the 8 imported section templates on that page
+#    - QA the page
+#    - When approved, set it as the homepage
+
+# 8. If something goes wrong, roll back
 bash scripts/rollback-homepage.sh
 ```
 
@@ -150,14 +153,15 @@ bash scripts/rollback-homepage.sh
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `WP-CLI not found` | WP-CLI not installed | `curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar` |
-| `WordPress path not auto-detected` | Script run from outside WP root | `export WP_PATH=/home/user/public_html` |
-| `Elementor Pro not detected` | Pro uses a different slug or manual install | Verify manually in WP Admin; deployment continues with warning |
-| `Child theme directory not found` | XStore Child not installed | Install via WP Admin → Appearance → Themes |
-| `wp post create` fails | WP-CLI can't reach database | Check `wp-config.php` and `wp db check` |
-| Templates imported but styling broken | Lucide icons not installed | Install a Lucide Icons Elementor plugin |
+| Symptom | Fix |
+|---|---|
+| `Cannot detect WordPress` | `export WP_PATH=/home/user/public_html` |
+| `Active theme is not a child theme` | Activate XStore Child in Appearance → Themes |
+| `WP-CLI not found` | `curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar` |
+| `Elementor Pro not detected` | Deploy continues with warning; verify manually |
+| `Template import fails` | Manual import: Elementor → Templates → Import |
+| `LiteSpeed cache purge fails` | Warning only — clear manually in LiteSpeed panel |
+| `Elementor cache clear fails` | Warning only — Elementor → Tools → Regenerate CSS |
 
 ---
 
@@ -170,14 +174,14 @@ moonrock-core/
 │   │   └── 20260720-220000/
 │   │       ├── style.css.bak
 │   │       └── functions.php.bak
-│   ├── deploy-20260720-220000.log
-│   └── rollback-20260720-221500.log
+│   ├── deploy-*.log
+│   └── rollback-*.log
 ├── scripts/
+│   ├── README.md          ← this file
 │   ├── check-environment.sh
 │   ├── deploy-homepage.sh
-│   ├── rollback-homepage.sh
-│   └── README.md
+│   └── rollback-homepage.sh
 ├── xstore-child/
-├── elementor/
+├── elementor/templates/
 └── docs/
 ```

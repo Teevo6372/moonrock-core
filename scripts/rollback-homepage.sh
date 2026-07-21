@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Moonrock — Homepage Rollback Script
-# Version: 1.0.0
+# Moonrock — Homepage Rollback Script  v2.0.0
 #
 # Restores child theme files from the most recent backup and removes
-# only the Elementor templates imported by deploy-homepage.sh.
-# Leaves all unrelated content, products, pages, and navigation untouched.
+# ONLY the Elementor templates that carry the deployment-package marker.
+# Does NOT perform a complete database or filesystem restore.
+# JetBackup is the disaster-recovery method for full restoration.
 #
 # Usage:
 #   bash scripts/rollback-homepage.sh              # Use latest backup
-#   bash scripts/rollback-homepage.sh --backup-dir /path/to/specific  # Use specific backup
+#   bash scripts/rollback-homepage.sh --backup-dir /path/to/specific
 #   bash scripts/rollback-homepage.sh --list       # List available backups
 # =============================================================================
 
@@ -20,24 +20,14 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-WP_PATH="${WP_PATH:-/home/*/public_html}"
-CHILD_THEME_DIR="${WP_PATH}/wp-content/themes/xstore-child"
+WP_PATH="${WP_PATH:-}"
+CHILD_THEME_DIR=""
 BACKUPS_ROOT="${REPO_ROOT}/deployments/backups"
 ROLLBACK_LOG="${REPO_ROOT}/deployments/rollback-$(date -u +'%Y%m%d-%H%M%S').log"
 BACKUP_DIR=""
 LIST_MODE=false
-
-# Template titles to remove (must match deploy script naming)
-TEMPLATE_TITLES=(
-  "Moonrock — Hero"
-  "Moonrock — Recognition"
-  "Moonrock — Imagine What's Possible"
-  "Moonrock — Flight Plan"
-  "Moonrock — Guidance Before Guesswork"
-  "Moonrock — Meet Nova"
-  "Moonrock — Growth Hub"
-  "Moonrock — Final CTA & Footer"
-)
+PACKAGE_MARKER="moonrock_deployment_package"
+PACKAGE_VALUE="homepage-v1"
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -45,10 +35,7 @@ TEMPLATE_TITLES=(
 for arg in "$@"; do
   case "$arg" in
     --list) LIST_MODE=true ;;
-    --backup-dir)
-      shift
-      BACKUP_DIR="${1:-}"
-      ;;
+    --backup-dir) shift; BACKUP_DIR="${1:-}" ;;
     *) : ;;
   esac
 done
@@ -61,6 +48,12 @@ yellow() { echo -e "\033[33m[SKIP]\033[0m $*"; }
 red()    { echo -e "\033[31m[ERROR]\033[0m $*"; }
 info()   { echo -e "\033[36m[INFO]\033[0m $*"; }
 log()    { echo "[$(date -u +'%T')] $*" | tee -a "$ROLLBACK_LOG"; }
+
+die() {
+  red "FATAL: $*"
+  log "FATAL: $*"
+  exit 1
+}
 
 # ---------------------------------------------------------------------------
 # List mode
@@ -76,6 +69,31 @@ if $LIST_MODE; then
   fi
   echo ""
   exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Find WP path and child theme
+# ---------------------------------------------------------------------------
+if [ -z "$WP_PATH" ]; then
+  if wp core is-installed 2>/dev/null; then
+    WP_PATH="$(wp eval 'echo ABSPATH;' 2>/dev/null || echo '')"
+  fi
+fi
+
+if [ -z "$WP_PATH" ]; then
+  for candidate in /home/*/public_html /var/www/html /var/www; do
+    if [ -f "$candidate/wp-config.php" ]; then
+      WP_PATH="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -n "$WP_PATH" ]; then
+  ACTIVE_THEME_DIR=$(wp theme list --status=active --field=stylesheet --path="$WP_PATH" 2>/dev/null || echo "")
+  if [ -n "$ACTIVE_THEME_DIR" ]; then
+    CHILD_THEME_DIR="${WP_PATH}/wp-content/themes/${ACTIVE_THEME_DIR}"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -103,15 +121,28 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "=============================================="
-echo "  Moonrock Homepage Rollback"
+echo "  Moonrock Homepage Rollback  v2.0.0"
 echo "  $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
 echo "=============================================="
+echo ""
+echo "  This script:"
+echo "    • Restores backed-up style.css and functions.php"
+echo "    • Removes ONLY Elementor templates with marker:"
+echo "      $PACKAGE_MARKER = $PACKAGE_VALUE"
+echo "    • Clears supported caches"
+echo ""
+echo "  This script does NOT:"
+echo "    • Perform a database restore"
+echo "    • Restore deleted products, pages, or posts"
+echo "    • Roll back WooCommerce data"
+echo ""
+echo "  For full disaster recovery, use JetBackup in cPanel."
 echo ""
 
 # ---------------------------------------------------------------------------
 # Step 1 — Restore child theme files
 # ---------------------------------------------------------------------------
-log "Step 1: Restore child theme files"
+log "Step 1: Restore child theme files from backup"
 
 restore_file() {
   local backup="$1"
@@ -124,11 +155,11 @@ restore_file() {
     log "  Restored: $name from $backup"
   else
     yellow "  No backup for $name — skipping"
-    log "  No backup for $name"
+    log "  No backup for $name — file left as-is"
   fi
 }
 
-if [ -d "$CHILD_THEME_DIR" ]; then
+if [ -n "$CHILD_THEME_DIR" ] && [ -d "$CHILD_THEME_DIR" ]; then
   restore_file "${BACKUP_DIR}/style.css.bak" "${CHILD_THEME_DIR}/style.css" "style.css"
   restore_file "${BACKUP_DIR}/functions.php.bak" "${CHILD_THEME_DIR}/functions.php" "functions.php"
 else
@@ -136,44 +167,62 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2 — Remove imported templates
+# Step 2 — Remove package-owned Elementor templates
 # ---------------------------------------------------------------------------
-log "Step 2: Remove imported Elementor templates"
+log "Step 2: Remove package-owned Elementor templates"
 
 REMOVED=0
-SKIPPED=0
+NOT_FOUND=0
 
-for title in "${TEMPLATE_TITLES[@]}"; do
-  # Find template by title
-  TEMPLATE_ID=$(wp post list \
+if [ -z "$WP_PATH" ]; then
+  yellow "  WordPress path not available — cannot remove templates"
+else
+  # Find all posts with our package marker
+  TEMPLATE_IDS=$(wp post list \
     --post_type=elementor_library \
-    --title="$title" \
+    --meta_key="$PACKAGE_MARKER" \
+    --meta_value="$PACKAGE_VALUE" \
     --field=ID \
     --path="$WP_PATH" 2>/dev/null || echo "")
 
-  if [ -n "$TEMPLATE_ID" ]; then
-    wp post delete "$TEMPLATE_ID" --force --path="$WP_PATH" 2>/dev/null && \
-      green "  Removed: $title (ID: $TEMPLATE_ID)" && \
-      log "  Removed template: $title (ID: $TEMPLATE_ID)" && \
-      REMOVED=$((REMOVED + 1)) || \
-      red "  Failed to remove: $title (ID: $TEMPLATE_ID)"
+  if [ -z "$TEMPLATE_IDS" ]; then
+    yellow "  No templates found with marker $PACKAGE_MARKER=$PACKAGE_VALUE"
+    NOT_FOUND=0
   else
-    yellow "  Not found: $title — skipping"
-    SKIPPED=$((SKIPPED + 1))
+    for tid in $TEMPLATE_IDS; do
+      TITLE=$(wp post get "$tid" --field=post_title --path="$WP_PATH" 2>/dev/null || echo "unknown")
+      if wp post delete "$tid" --force --path="$WP_PATH" 2>/dev/null; then
+        green "  Removed: $TITLE (ID: $tid)"
+        log "  Removed: $TITLE (ID: $tid)"
+        REMOVED=$((REMOVED + 1))
+      else
+        red "  Failed to remove ID: $tid"
+      fi
+    done
   fi
-done
+fi
 
-log "  Removed: $REMOVED, Skipped (not found): $SKIPPED"
+log "  Templates removed: $REMOVED"
 
 # ---------------------------------------------------------------------------
-# Step 3 — Clear caches
+# Step 3 — Conditional cache clearing
 # ---------------------------------------------------------------------------
 log "Step 3: Clear caches"
 
-if wp eval "echo class_exists('\\\\Elementor\\\\Plugin') ? 'yes' : 'no';" --path="$WP_PATH" 2>/dev/null | grep -q "yes"; then
-  wp eval "\Elementor\Plugin::instance()->files_manager->clear_cache();" --path="$WP_PATH" 2>/dev/null && \
-    log "  Elementor CSS cache cleared" || \
-    log "  Elementor cache clear skipped"
+# Elementor cache
+if [ -n "$WP_PATH" ]; then
+  if wp eval "echo class_exists('\\\\Elementor\\\\Plugin') ? 'yes' : 'no';" --path="$WP_PATH" 2>/dev/null | grep -q "yes"; then
+    wp eval "\Elementor\Plugin::instance()->files_manager->clear_cache();" --path="$WP_PATH" 2>/dev/null && \
+      log "  Elementor CSS cache cleared" || \
+      warn "Elementor CSS cache clear skipped"
+  fi
+fi
+
+# LiteSpeed cache
+if command -v wp >/dev/null && [ -n "$WP_PATH" ]; then
+  wp litespeed-purge all --path="$WP_PATH" 2>/dev/null && \
+    log "  LiteSpeed cache purged" || \
+    warn "LiteSpeed cache purge not available"
 fi
 
 # ---------------------------------------------------------------------------
@@ -184,16 +233,24 @@ echo "=============================================="
 echo "  ROLLBACK COMPLETE"
 echo "=============================================="
 echo ""
-echo "  Files restored: style.css, functions.php"
-echo "  Templates removed: $REMOVED"
-echo "  Templates skipped: $SKIPPED"
-echo "  Log: $ROLLBACK_LOG"
+echo "  Theme files restored:  style.css, functions.php (from $BACKUP_DIR)"
+echo "  Templates removed:     $REMOVED (marked $PACKAGE_MARKER=$PACKAGE_VALUE)"
+echo "  Log:                   $ROLLBACK_LOG"
 echo ""
-green "Rollback successful. The site has been returned to its pre-deployment state."
+green "Rollback finished."
+
 echo ""
-echo "  Note: Manually created Elementor pages or assignments"
-echo "        are not affected by this rollback — only the"
-echo "        imported section templates were removed."
+echo "  ═══════════════════════════════════════════"
+echo "  IMPORTANT — what this rollback did NOT do:"
+echo "  ═══════════════════════════════════════════"
+echo ""
+echo "  ✗ Did NOT restore the database"
+echo "  ✗ Did NOT restore deleted content"
+echo "  ✗ Did NOT revert WooCommerce data"
+echo "  ✗ Did NOT change the active homepage"
+echo "  ✗ Did NOT modify pages, posts, menus, or categories"
+echo ""
+echo "  For a full site restoration, use JetBackup in cPanel."
 echo ""
 
 log "Rollback finished."

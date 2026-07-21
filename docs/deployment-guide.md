@@ -1,6 +1,5 @@
-# Moonrock Deployment Guide
+# Moonrock Deployment Guide  v2.0.0
 
-**Version:** 1.0.0  
 **Audience:** Moonrock developers and DevOps engineers  
 **Last updated:** 2026-07-20
 
@@ -11,23 +10,48 @@
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   GitHub    │────▶│  FusionArc       │────▶│   WordPress     │
-│  (source)   │     │  HyperHaven      │     │   + Elementor   │
-│             │     │  (hosting)       │     │   + WooCommerce  │
-└─────────────┘     └──────────────────┘     └─────────────────┘
-                           │
+│  (source)   │     │  HyperHaven      │     │   (LIVE SITE)   │
+│             │     │  (hosting)       │     │                 │
+└─────────────┘     └──────────────────┘     │ Existing pages  │
+                           │                 │   UNCHANGED     │
+                    ┌──────┴──────┐          │                 │
+                    │  Deployment │          │ NEW dev page    │
+                    │  Scripts    │          │ ← templates     │
+                    │             │          │   assembled     │
+                    │  check      │          │                 │
+                    │  deploy     │          │ Old homepage    │
+                    │  rollback   │          │   STAYS ACTIVE  │
+                    └──────┬──────┘          │                 │
+                           │                 └─────────────────┘
                     ┌──────┴──────┐
-                    │  Deployment │
-                    │  Scripts    │
-                    │             │
-                    │  check      │
-                    │  deploy     │
-                    │  rollback   │
+                    │  JetBackup  │
+                    │  (full DR)  │
                     └─────────────┘
 ```
 
-**GitHub** is the single source of truth. Every change begins as a commit to `moonrock-core`.  
-**FusionArc HyperHaven** hosts the live WordPress site with cPanel, SSH, and LiteSpeed.  
-**Deployment scripts** bridge the two — they pull from the repo and push to WordPress safely and reversibly.
+**GitHub** is the single source of truth.  
+**FusionArc HyperHaven** hosts the live WordPress site.  
+**Deployment scripts** bridge the two — pulling from the repo and pushing to WordPress safely.  
+**JetBackup** is the disaster-recovery method for full files-and-database restoration.
+
+There is **no separate staging installation**. Development happens on the live server using an unlinked Elementor page that does not replace the existing homepage until final human approval.
+
+---
+
+## Deployment Approach
+
+```
+Production Site (LIVE — never taken offline)
+│
+├── Existing homepage (unchanged, active throughout)
+│
+├── NEW Elementor development page (unlinked, not set as front page)
+│   └── 8 imported section templates assembled here
+│   └── QA'd in place
+│   └── When approved → manually set as homepage
+│
+└── Backup taken before every deployment (JetBackup)
+```
 
 ---
 
@@ -52,30 +76,37 @@
 6. bash scripts/deploy-homepage.sh --dry-run
           │
           ▼
-7. bash scripts/deploy-homepage.sh
+7. bash scripts/deploy-homepage.sh [--deploy-theme-files]
           │
           ▼
-8. Manual post-deployment config (Phase 6)
+8. In WordPress admin:
+   • Create NEW Elementor page (Pages → Add New → Edit with Elementor)
+   • Do NOT set as front page — leave existing homepage active
+   • Assemble imported section templates on the new page
           │
           ▼
-9. Verify on staging
+9. Manual post-deployment config (GHL URLs, Nova image, footer)
           │
           ▼
-10. Promote to production page
+10. QA the new page while old homepage remains live
+          │
+          ▼
+11. Human approval → Settings → Reading → set new page as homepage
 ```
 
 ### What Each Step Does
 
-| Step | Command | Effect |
+| Step | Location | Effect |
 |---|---|---|
-| 3 | `ssh user@host` | Secure shell access |
-| 4 | `git pull origin main` | Syncs repo files to server |
-| 5 | `check-environment.sh` | Validates PHP, WP-CLI, plugins, disk, permissions |
-| 6 | `deploy --dry-run` | Simulates deployment — verifies without changes |
-| 7 | `deploy-homepage.sh` | Backs up → deploys CSS/PHP → imports templates → clears cache |
-| 8 | Manual | Replace `#` URLs with real GHL links, set Nova image, configure footer |
-| 9 | Browser QA | Visual check on staging page |
-| 10 | Elementor page assignment | Point the staged homepage to the live URL |
+| 3 | SSH | Secure shell to FusionArc |
+| 4 | Server | Syncs repo files from GitHub |
+| 5 | Server | Validates PHP, WP-CLI, plugins, theme, disk, permissions |
+| 6 | Server | Simulates deployment — no changes |
+| 7 | Server | Backs up files → deploys CSS/PHP (if gated) → imports templates → clears cache |
+| 8 | WP Admin | New Elementor page created — existing homepage untouched |
+| 9 | WP Admin | Replace `#` URLs with GHL links, Nova image, footer config |
+| 10 | Browser | Visual QA on new page |
+| 11 | WP Admin | Manual: set new page as front page |
 
 ---
 
@@ -91,11 +122,12 @@
 3. Automatically:
    • Restores style.css from backup
    • Restores functions.php from backup
-   • Removes 8 imported Elementor templates
-   • Clears caches
+   • Removes ONLY templates with marker:
+     moonrock_deployment_package = homepage-v1
+   • Clears supported caches
           │
           ▼
-4. Site returns to pre-deployment state
+4. Existing homepage is unaffected (it was never changed)
           │
           ▼
 5. Fix the issue in GitHub
@@ -104,48 +136,43 @@
 6. Re-deploy
 ```
 
-Rollback is **instant** and touches nothing except the specific files and templates deployed. Existing pages, products, navigation, and content are never affected.
+### What Rollback Does NOT Do
+
+- ✗ Database restore
+- ✗ Full filesystem restore
+- ✗ WooCommerce data rollback
+- ✗ Page/post restoration beyond the 8 templates
+
+**For full disaster recovery, use JetBackup in cPanel.**
 
 ---
 
-## Git-Based Deployment Workflow (Recommended)
+## Git-Based Deployment Workflow
 
-FusionArc HyperHaven supports Git via cPanel and SSH. The recommended workflow:
+The recommended workflow for FusionArc:
 
 ```
 GitHub (moonrock-core)
        │
-       │  git pull (manual or cron)
+       │  git pull (manual trigger)
        ▼
 FusionArc server clone
        │
        │  scripts/deploy-homepage.sh
        ▼
-WordPress (wp-content/themes/xstore-child)
+WordPress live site (existing homepage untouched)
 ```
 
-### Why Git Pull + Script (not Git push-to-deploy)
+### Why git pull + deploy script
 
-FusionArc does not natively support GitHub webhooks or Git push-to-deploy without custom server-side configuration. The most reliable and secure method is:
+FusionArc does not natively support GitHub webhooks for push-to-deploy. The safest approach is:
+1. Merge to `main` on GitHub (reviewed, approved)
+2. SSH into server + `git pull` (manual, verifiable)
+3. Run deployment scripts (automated, idempotent, logged)
 
-1. **Merge to `main` on GitHub** (reviewed, approved)
-2. **SSH into server + `git pull`** (manual trigger, verifiable)
-3. **Run deployment scripts** (automated, idempotent, logged)
+### Cron-based auto-deploy (future, not recommended yet)
 
-### Future: Cron-based auto-deploy
-
-For non-critical updates (CSS tweaks, template refinements), a cron job can be configured:
-
-```bash
-# /etc/cron.d/moonrock-deploy (runs daily at 3 AM)
-0 3 * * * cd /path/to/moonrock-core && git pull origin main && bash scripts/deploy-homepage.sh
-```
-
-**Risk:** Auto-deploy skips human verification. Use only after the pipeline is battle-tested.
-
-### Alternative: cPanel Git Version Control
-
-cPanel's Git Version Control interface can auto-deploy from a GitHub repository to a directory. If the repo is cloned into the WordPress theme directory, changes to `xstore-child/` would deploy automatically on pull. However, this bypasses the backup, verification, and logging steps — the scripts remain the recommended approach.
+A cron job could auto-pull and deploy for non-critical updates. This is **not currently implemented** and should only be considered after the pipeline is battle-tested on manual triggers.
 
 ---
 
@@ -153,30 +180,25 @@ cPanel's Git Version Control interface can auto-deploy from a GitHub repository 
 
 ### For theme/CSS changes:
 ```bash
-# 1. Edit files in moonrock-core/xstore-child/
-# 2. Commit to a feature branch
-# 3. Open PR → review → merge to main
-# 4. SSH into server
-# 5. git pull origin main
-# 6. bash scripts/deploy-homepage.sh
+# 1. Edit xstore-child/ files in moonrock-core
+# 2. Commit to feature branch → PR → merge to main
+# 3. SSH into server → git pull origin main
+# 4. bash scripts/deploy-homepage.sh --deploy-theme-files --dry-run
+# 5. bash scripts/deploy-homepage.sh --deploy-theme-files
 ```
 
 ### For Elementor template changes:
 ```bash
-# Option A: Edit JSON templates directly in moonrock-core/elementor/templates/
-#           (same flow as above — deploy script imports them)
-
-# Option B: Edit in Elementor editor, export as JSON,
-#           replace the file in the repo, commit, deploy
+# 1. Edit JSON in elementor/templates/ → commit → PR → merge
+# 2. SSH into server → git pull → deploy
+#    (templates with the package marker will be updated automatically)
 ```
 
 ### For new pages or sections:
 ```bash
-# 1. Create new section-XX-name.json in elementor/templates/
-# 2. Add the template title to TEMPLATE_TITLES array in both:
-#    - scripts/deploy-homepage.sh
-#    - scripts/rollback-homepage.sh
-# 3. Follow standard deploy flow
+# 1. Add section-XX-name.json to elementor/templates/
+# 2. The deploy script imports it automatically
+# 3. Assemble on the dev page in WordPress admin
 ```
 
 ---
@@ -189,27 +211,27 @@ moonrock-core/
 ├── scripts/                          # Deployment automation
 │   ├── README.md
 │   ├── check-environment.sh          # Pre-flight checks
-│   ├── deploy-homepage.sh            # Deploy to WordPress
-│   └── rollback-homepage.sh          # Revert deployment
+│   ├── deploy-homepage.sh            # Deploy to WordPress (gated)
+│   └── rollback-homepage.sh          # Revert deployment (targeted)
 │
-├── xstore-child/                     # Theme files (deployed to wp-content/themes/)
+├── xstore-child/                     # Theme files (deployed with --deploy-theme-files)
 │   ├── style.css
 │   └── functions.php
 │
-├── elementor/templates/              # Elementor JSON (imported by deploy script)
+├── elementor/templates/              # Elementor JSON (imported with metadata marker)
 │   ├── README.md
 │   └── section-*.json
 │
 ├── docs/
 │   ├── implementation/
-│   │   └── build-checklist.md        # Manual WordPress setup steps
+│   │   └── build-checklist.md        # WordPress admin setup steps
 │   ├── deployment-guide.md           # This document
 │   └── homepage-blueprint.md         # Authoritative homepage spec
 │
-├── deployments/                      # Created by deploy script at runtime
-│   ├── backups/<timestamp>/          # Pre-deployment file backups
-│   ├── deploy-<timestamp>.log        # Deployment logs
-│   └── rollback-<timestamp>.log      # Rollback logs
+├── deployments/                      # Created at runtime
+│   ├── backups/<timestamp>/
+│   ├── deploy-*.log
+│   └── rollback-*.log
 │
 └── releases/                         # Versioned release notes
 ```
@@ -218,9 +240,10 @@ moonrock-core/
 
 ## Security Considerations
 
-- Deployment scripts never store credentials — they use the active SSH session or WP-CLI's existing `wp-config.php` connection
+- Scripts never store credentials — use active SSH session or WP-CLI's existing config
+- Theme files are never deployed without `--deploy-theme-files` or explicit confirmation
 - Backups are timestamped and never overwritten
-- Rollback is always available from `deployments/backups/`
-- Scripts never execute destructive SQL queries
-- Template import is idempotent — duplicate runs are safe
+- Rollback only removes templates it created (identified by metadata marker)
+- Templates carry `moonrock_deployment_package = homepage-v1` — never cleaned up by accident
 - `--dry-run` mode allows full simulation before any changes
+- The active homepage ID is captured before deployment and verified unchanged after
