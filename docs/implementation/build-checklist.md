@@ -1,9 +1,12 @@
 # Moonrock Homepage — Build Checklist
 
-**Version:** 1.0.0  
-**Branch:** feature/homepage-elementor-build  
+**Version:** 1.1.0  
+**Branch:** feature/deployment-pipeline  
 **Repository:** moonrock-core  
 **Last updated:** 2026-07-20
+
+> **Deployment scripts are now available.** Phases 2–5 below can be automated.
+> See `scripts/README.md` and `docs/deployment-guide.md`.
 
 ---
 
@@ -19,6 +22,9 @@
 
 ## Phase 1 — Theme & Plugin Verification
 
+> **🤖 Automated:** `scripts/check-environment.sh` verifies all items below.
+
+- [ ] Run `bash scripts/check-environment.sh` on the server.
 - [ ] Confirm **XStore Child** theme is active (Appearance → Themes).
 - [ ] Confirm **Elementor Pro** is installed and license activated.
 - [ ] Confirm **WooCommerce** is installed and operational.
@@ -29,8 +35,10 @@
 
 ## Phase 2 — XStore Child Theme Setup
 
-- [ ] Copy `xstore-child/style.css` into the active XStore Child theme directory.
-- [ ] Copy `xstore-child/functions.php` into the active XStore Child theme directory.
+> **🤖 Automated:** `scripts/deploy-homepage.sh` handles file deployment, backup, and verification.
+
+- [ ] Run `bash scripts/deploy-homepage.sh --dry-run` to preview.
+- [ ] Run `bash scripts/deploy-homepage.sh` to deploy.
 - [ ] Verify the child stylesheet loads (inspect any page for `.moonrock-card` styles in browser DevTools).
 
 ---
@@ -72,7 +80,9 @@
 
 ## Phase 4 — WooCommerce Category Setup
 
-### 4.1 — Create Categories (manual)
+> **🤖 Partially automated:** Category creation can be scripted via WP-CLI. See `scripts/README.md` for the WP-CLI commands. Manual product curation still required.
+
+### 4.1 — Create Categories
 - [ ] Products → Categories → Add New:
   - **Launch Resources** (slug: `launch-resources`)
   - **Growth Resources** (slug: `growth-resources`)
@@ -89,25 +99,20 @@
 
 ## Phase 5 — Template Import
 
+> **🤖 Automated:** `scripts/deploy-homepage.sh` imports all 8 templates via WP-CLI and skips duplicates.
+
 ### 5.1 — Pre-Import Checks
 - [ ] Read `elementor/templates/README.md` fully.
 - [ ] Confirm all Phase 3 global settings are saved.
 
-### 5.2 — Import Templates (in order)
-- [ ] Templates → Import → `section-01-hero.json`
-- [ ] Templates → Import → `section-02-recognition.json`
-- [ ] Templates → Import → `section-03-imagine-whats-possible.json`
-- [ ] Templates → Import → `section-04-flight-plan.json`
-- [ ] Templates → Import → `section-05-guidance-before-guesswork.json`
-- [ ] Templates → Import → `section-06-meet-nova.json`
-- [ ] Templates → Import → `section-07-growth-hub.json`
-- [ ] Templates → Import → `section-08-final-cta-footer.json`
+### 5.2 — Import (automated)
+- [ ] The deploy script imports all 8 templates in order. No manual import needed.
 
 ### 5.3 — Post-Import Verification
 - [ ] Open each imported template in Elementor Editor.
 - [ ] Confirm all containers, headings, and text widgets render.
 - [ ] Confirm icons display (Lucide library loaded).
-- [ ] Confirm no broken widget types (indicates missing plugin or Pro feature).
+- [ ] Confirm no broken widget types.
 
 ---
 
@@ -221,9 +226,22 @@
 
 ## Rollback Plan
 
+> **🤖 Automated:** `scripts/rollback-homepage.sh` handles all items below.
+
 If the homepage causes issues post-launch:
 
-1. Restore the previous homepage revision from WordPress revisions or backup.
-2. If the issue is CSS-related, comment out the child theme style enqueue in `functions.php`.
-3. If the issue is template-related, remove imported Elementor templates and republish the page with prior content.
-4. Full site restore from Phase 0 backup as last resort.
+1. Run `bash scripts/rollback-homepage.sh` — restores style.css, functions.php, removes all 8 templates, clears cache.
+2. Run `bash scripts/rollback-homepage.sh --list` to view available backups.
+3. Run `bash scripts/rollback-homepage.sh --backup-dir <path>` to use a specific backup.
+4. If rollback script unavailable: Restore the previous homepage revision from WordPress revisions or backup.
+5. Full site restore from Phase 0 backup as last resort.
+
+---
+
+## Phase 10 — Recovery & Maintenance
+
+- [ ] **List backups:** `bash scripts/rollback-homepage.sh --list`
+- [ ] **Rollback:** `bash scripts/rollback-homepage.sh`
+- [ ] **Re-deploy after fix:** `bash scripts/deploy-homepage.sh`
+- [ ] **View deployment logs:** `cat deployments/deploy-*.log`
+- [ ] **View rollback logs:** `cat deployments/rollback-*.log`
