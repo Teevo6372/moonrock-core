@@ -1,6 +1,6 @@
 {
   "name": "@moonrock/commerce-os",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "engines": { "node": ">=22 <27" },
   "scripts": {
@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "format": "prettier --check src/lib/health.ts src/lib/health.test.ts src/lib/db.ts src/app/api/health/route.ts prisma/seed.mjs prisma/verify.mjs",
-    "format:write": "prettier --write src/lib/health.ts src/lib/health.test.ts src/lib/db.ts src/app/api/health/route.ts prisma/seed.mjs prisma/verify.mjs",
+    "format": "prettier --check src/lib/health.ts src/lib/health.test.ts src/lib/db.ts src/app/api/health/route.ts src/domain/profit-engine.ts src/domain/profit-engine.test.ts prisma/seed.mjs prisma/verify.mjs",
+    "format:write": "prettier --write src/lib/health.ts src/lib/health.test.ts src/lib/db.ts src/app/api/health/route.ts src/domain/profit-engine.ts src/domain/profit-engine.test.ts prisma/seed.mjs prisma/verify.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "prisma generate",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.2",
+    "decimal.js": "10.6.0",
     "next": "16.2.11",
     "react": "19.2.7",
     "react-dom": "19.2.7"
