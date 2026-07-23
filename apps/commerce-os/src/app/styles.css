@@ -15,7 +15,7 @@ body {
 }
 
 main {
-  width: min(760px, calc(100% - 2rem));
+  width: min(980px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 12vh 0;
 }
@@ -30,6 +30,10 @@ main {
 h1 {
   margin: 0.4rem 0;
   font-size: clamp(3rem, 10vw, 6rem);
+}
+
+h2 {
+  margin-top: 0;
 }
 
 .summary {
@@ -49,4 +53,170 @@ section {
 
 li {
   margin: 0.7rem 0;
+}
+
+form {
+  margin-top: 2rem;
+}
+
+fieldset {
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+  border: 1px solid #313745;
+  border-radius: 1rem;
+  background: #11151d;
+}
+
+legend {
+  padding: 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+label {
+  display: block;
+  margin: 0.8rem 0 0.35rem;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid #596274;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: #090b10;
+  color: inherit;
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus,
+a:focus {
+  outline: 3px solid #7eb8ff;
+  outline-offset: 2px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1rem;
+}
+
+.muted {
+  color: #b5bdca;
+  line-height: 1.5;
+}
+
+.field-error {
+  display: block;
+  margin-top: 0.35rem;
+  color: #ff9c9c;
+}
+
+.notice {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #596274;
+  border-radius: 0.6rem;
+}
+
+.notice.error {
+  border-color: #c75b5b;
+}
+
+.notice.success {
+  border-color: #4b9b70;
+}
+
+.notice.warning {
+  border-color: #c79843;
+}
+
+button,
+.button-link {
+  display: inline-block;
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.8rem 1.1rem;
+  background: #dcecff;
+  color: #07111f;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.actions button:first-child {
+  border: 1px solid #596274;
+  background: transparent;
+  color: #f5f7fb;
+}
+
+.back-link {
+  color: #bcd8ff;
+}
+
+.result dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.result dl div {
+  padding: 0.8rem;
+  border-radius: 0.5rem;
+  background: #090b10;
+}
+
+.result dt {
+  color: #b5bdca;
+}
+
+.result dd {
+  margin: 0.3rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  main {
+    padding: 2rem 0 4rem;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 13vw, 4rem);
+  }
+
+  .grid,
+  .result dl {
+    grid-template-columns: 1fr;
+  }
+
+  fieldset {
+    padding: 1rem;
+  }
+
+  .actions button {
+    width: 100%;
+  }
 }

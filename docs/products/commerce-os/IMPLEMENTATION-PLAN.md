@@ -88,6 +88,13 @@ Definition of done:
 - an operator can evaluate one MTG opportunity from a desktop or mobile browser
 - incomplete data cannot produce a fabricated recommendation
 
+Implementation status (COS-030 through COS-033): complete. The server validates
+manual input, loads the active eBay fee profile from the database, writes normalized
+product, supplier, offer, and opportunity records transactionally, and appends an
+immutable calculation snapshot on every evaluation. Evidence older than 30 days
+produces an operator warning. The seeded owner remains a local development identity;
+authentication and live provider connectivity are not represented as complete.
+
 ## Epic 5 — Decision Workflow
 
 Deliverables:

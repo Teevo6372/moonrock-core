@@ -20,6 +20,11 @@ npm run dev
 
 Open `http://localhost:3000`. The health endpoint is `http://localhost:3000/api/health` and returns HTTP 503 until the configured database is reachable.
 
+The manual evaluator is at `http://localhost:3000/opportunities/new`. It normalizes
+product and supplier records, loads the active eBay fee profile on the server, and
+appends an immutable calculation snapshot. The seeded owner is a local development
+identity only; production authentication is not configured.
+
 ## Validation
 
 ```bash

@@ -52,10 +52,10 @@ Acceptance criteria for Epic 3:
 
 ## Epic 4 — Opportunity Workflow
 
-### COS-030 Create normalized product records
-### COS-031 Create supplier offers
-### COS-032 Create manual opportunities
-### COS-033 Display calculation results and assumptions
+### COS-030 Create normalized product records — Complete
+### COS-031 Create supplier offers — Complete
+### COS-032 Create manual opportunities — Complete
+### COS-033 Display calculation results and assumptions — Complete
 
 Acceptance criteria:
 - operator can complete an evaluation from a mobile or desktop browser
