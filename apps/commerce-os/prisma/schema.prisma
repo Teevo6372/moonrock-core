@@ -7,8 +7,316 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model SystemCheck {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  displayName String
+  role        String       @default("viewer")
+  status      String       @default("active")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  opportunities Opportunity[]
+  approvals   Approval[]
+  auditEvents AuditEvent[]
+}
+
+model Product {
+  id               String              @id @default(cuid())
+  category         String
+  game             String?
+  productType      String
+  name             String
+  setName          String?
+  manufacturer     String?
+  language         String              @default("English")
+  edition          String?
+  conditionDefault String?
+  releaseDate      DateTime?
+  notes             String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  identifiers       ProductIdentifier[]
+  supplierOffers    SupplierOffer[]
+  marketObservations MarketObservation[]
+  opportunities     Opportunity[]
+  inventoryLots     InventoryLot[]
+
+  @@index([game, productType, name])
+}
+
+model ProductIdentifier {
+  id              String   @id @default(cuid())
+  productId       String
+  identifierType  String
+  identifierValue String
+  source           String?
+  createdAt        DateTime @default(now())
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([identifierType, identifierValue])
+  @@index([productId])
+}
+
+model Supplier {
+  id           String          @id @default(cuid())
+  name         String          @unique
+  supplierType String
+  websiteUrl   String?
+  status       String          @default("active")
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  offers       SupplierOffer[]
+}
+
+model SupplierOffer {
+  id                    String        @id @default(cuid())
+  productId             String
+  supplierId            String
+  externalOfferId       String?
+  sourceUrl             String?
+  condition             String
+  unitCost              Decimal
+  availableQuantity     Int?
+  minimumQuantity       Int           @default(1)
+  inboundShippingTotal  Decimal       @default(0)
+  estimatedTaxTotal     Decimal       @default(0)
+  otherCostTotal        Decimal       @default(0)
+  currency              String        @default("USD")
+  observedAt            DateTime
+  expiresAt             DateTime?
+  evidenceReference     String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  product               Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplier              Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  opportunities         Opportunity[]
+
+  @@index([productId, supplierId, observedAt])
+  @@index([expiresAt])
+}
+
+model Marketplace {
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  channelType        String
+  status             String              @default("active")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  feeProfiles        FeeProfile[]
+  marketObservations MarketObservation[]
+  opportunities      Opportunity[]
+  listings           Listing[]
+  sales              Sale[]
+}
+
+model FeeProfile {
+  id                         String      @id @default(cuid())
+  marketplaceId              String
+  name                       String
+  marketplaceFeeRate         Decimal
+  marketplaceFeeFixed        Decimal     @default(0)
+  paymentFeeRate             Decimal     @default(0)
+  paymentFeeFixed            Decimal     @default(0)
+  promotedListingRateDefault Decimal     @default(0)
+  feeBasisNotes              String?
+  effectiveFrom              DateTime
+  effectiveTo                DateTime?
+  createdAt                  DateTime    @default(now())
+  marketplace                Marketplace @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+
+  @@unique([marketplaceId, name, effectiveFrom])
+  @@index([marketplaceId, effectiveTo])
+}
+
+model MarketObservation {
+  id                String      @id @default(cuid())
+  productId         String
+  marketplaceId     String
+  listingType       String
+  condition         String
+  observedPrice     Decimal
+  shippingPrice     Decimal     @default(0)
+  soldStatus        String
+  soldDate          DateTime?
+  sourceUrl         String?
+  observedAt        DateTime
+  evidenceReference String?
+  createdAt         DateTime    @default(now())
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  marketplace       Marketplace @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+
+  @@index([productId, marketplaceId, soldStatus, observedAt])
+}
+
+model Opportunity {
+  id                         String           @id @default(cuid())
+  productId                  String
+  supplierOfferId            String?
+  targetMarketplaceId        String
+  status                     String           @default("draft")
+  quantity                   Int
+  expectedUnitSalePrice      Decimal
+  buyerShippingRevenuePerUnit Decimal          @default(0)
+  outboundShippingPerOrder   Decimal          @default(0)
+  packagingCostPerOrder      Decimal          @default(0)
+  otherSellingCostPerOrder   Decimal          @default(0)
+  estimatedDaysToSale        Int?
+  capitalExposure            Decimal?
+  createdById                String
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  product                    Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplierOffer              SupplierOffer?   @relation(fields: [supplierOfferId], references: [id], onDelete: SetNull)
+  targetMarketplace          Marketplace      @relation(fields: [targetMarketplaceId], references: [id], onDelete: Restrict)
+  createdBy                  User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  calculationRuns            CalculationRun[]
+  decisionRuns               DecisionRun[]
+  approvals                  Approval[]
+  inventoryLots              InventoryLot[]
+
+  @@index([status, createdAt])
+  @@index([productId])
+}
+
+model CalculationRun {
+  id                     String      @id @default(cuid())
+  opportunityId          String
+  formulaVersion         String
+  inputSnapshotJson      String
+  assumptionSnapshotJson String
+  acquisitionTotal       Decimal
+  landedCostPerUnit      Decimal
+  expectedGrossRevenue   Decimal
+  expectedSellingCost    Decimal
+  expectedNetProfit      Decimal
+  roi                     Decimal?
+  margin                  Decimal?
+  breakEvenPrice          Decimal?
+  minimumAcceptablePrice Decimal?
+  warningsJson            String
+  createdAt               DateTime    @default(now())
+  opportunity             Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  decisionRuns            DecisionRun[]
+
+  @@index([opportunityId, createdAt])
+}
+
+model DecisionRun {
+  id                   String         @id @default(cuid())
+  opportunityId        String
+  calculationRunId     String
+  rulesetVersion       String
+  recommendation       String
+  confidence           Decimal
+  reasonsJson          String
+  failedThresholdsJson String
+  riskFlagsJson        String
+  createdAt            DateTime       @default(now())
+  opportunity          Opportunity    @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  calculationRun       CalculationRun @relation(fields: [calculationRunId], references: [id], onDelete: Restrict)
+  approvals            Approval[]
+
+  @@index([opportunityId, createdAt])
+}
+
+model Approval {
+  id             String      @id @default(cuid())
+  opportunityId  String
+  decisionRunId  String
+  action         String
+  overrideFlag   Boolean     @default(false)
+  overrideReason String?
+  approvedById   String
+  createdAt      DateTime    @default(now())
+  opportunity    Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  decisionRun    DecisionRun @relation(fields: [decisionRunId], references: [id], onDelete: Restrict)
+  approvedBy     User        @relation(fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@index([opportunityId, createdAt])
+}
+
+model InventoryLot {
+  id                String      @id @default(cuid())
+  opportunityId     String
+  productId         String
+  acquiredQuantity  Int
+  availableQuantity Int
+  unitLandedCost    Decimal
+  storageLocation   String?
+  acquiredAt        DateTime
+  status             String      @default("active")
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  opportunity        Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  product            Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  listings           Listing[]
+  sales              Sale[]
+
+  @@index([productId, status])
+}
+
+model Listing {
+  id                  String       @id @default(cuid())
+  inventoryLotId      String
+  marketplaceId       String
+  externalListingId   String?
+  listingUrl           String?
+  title                String
+  listedQuantity       Int
+  listingPrice         Decimal
+  shippingPrice        Decimal      @default(0)
+  promotedListingRate Decimal      @default(0)
+  status               String       @default("draft")
+  listedAt             DateTime?
+  endedAt              DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  inventoryLot         InventoryLot @relation(fields: [inventoryLotId], references: [id], onDelete: Restrict)
+  marketplace          Marketplace  @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+  sales                Sale[]
+
+  @@unique([marketplaceId, externalListingId])
+  @@index([status, createdAt])
+}
+
+model Sale {
+  id                      String       @id @default(cuid())
+  listingId               String
+  inventoryLotId          String
+  marketplaceId           String
+  quantity                Int
+  soldAt                  DateTime
+  itemRevenue             Decimal
+  shippingRevenue         Decimal      @default(0)
+  marketplaceFeeActual    Decimal      @default(0)
+  paymentFeeActual        Decimal      @default(0)
+  promotionCostActual     Decimal      @default(0)
+  outboundShippingActual  Decimal      @default(0)
+  packagingCostActual     Decimal      @default(0)
+  otherCostActual         Decimal      @default(0)
+  netProfitActual         Decimal
+  currency                String       @default("USD")
+  createdAt               DateTime     @default(now())
+  listing                 Listing      @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  inventoryLot            InventoryLot @relation(fields: [inventoryLotId], references: [id], onDelete: Restrict)
+  marketplace             Marketplace  @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+
+  @@index([soldAt])
+  @@index([inventoryLotId])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  entityType  String
+  entityId    String
+  action      String
+  beforeJson  String?
+  afterJson   String?
+  reason      String?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
 }
