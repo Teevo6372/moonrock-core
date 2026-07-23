@@ -227,4 +227,3 @@ describe("calculateProfit", () => {
     ).toThrow("expectedUnitsPerOrder must be a positive integer");
   });
 });
-

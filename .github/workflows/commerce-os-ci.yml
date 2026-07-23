@@ -49,4 +49,3 @@ jobs:
         run: npm run db:validate
       - name: Build
         run: npm run build
-

@@ -185,4 +185,3 @@ export function calculateProfit(input: ProfitEngineInput): ProfitEngineResult {
     minimumAcceptableItemPrice: output(minimumAcceptableItemPrice),
   };
 }
-

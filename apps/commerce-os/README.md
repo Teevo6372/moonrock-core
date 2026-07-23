@@ -37,4 +37,3 @@ The application is isolated from WordPress, Elementor, XStore, deployment, and r
 ## Profit Engine assumptions
 
 The Profit Engine uses arbitrary-precision decimal arithmetic. `expectedUnitsPerOrder` defaults to one and controls how many times fixed marketplace, payment, shipping, packaging, and other per-order costs are applied. `minimumNetProfit` is a per-unit threshold when solving the minimum acceptable unit sale price.
-
