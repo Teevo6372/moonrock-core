@@ -5,7 +5,11 @@ const prisma = new PrismaClient();
 async function main() {
   const owner = await prisma.user.upsert({
     where: { email: "owner@localhost.invalid" },
-    update: { displayName: "Stephen Tyler Jr.", role: "owner", status: "active" },
+    update: {
+      displayName: "Stephen Tyler Jr.",
+      role: "owner",
+      status: "active",
+    },
     create: {
       email: "owner@localhost.invalid",
       displayName: "Stephen Tyler Jr.",
@@ -37,12 +41,15 @@ async function main() {
       paymentFeeRate: "0",
       paymentFeeFixed: "0",
       promotedListingRateDefault: "0",
-      feeBasisNotes: "Seed values are editable assumptions, not permanent constants.",
+      feeBasisNotes:
+        "Seed values are editable assumptions, not permanent constants.",
       effectiveFrom: new Date("2026-07-22T00:00:00.000Z"),
     },
   });
 
-  console.log(`Seeded Commerce OS owner ${owner.displayName} and eBay defaults.`);
+  console.log(
+    `Seeded Commerce OS owner ${owner.displayName} and eBay defaults.`,
+  );
 }
 
 main()
