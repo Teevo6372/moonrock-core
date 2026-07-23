@@ -39,15 +39,8 @@ jobs:
         run: npm run db:verify
       - name: Lint
         run: npm run lint
-      - name: Generate formatting patch
-        run: |
-          npm run format:write
-          git diff -- . > formatting.patch
-      - name: Upload formatting patch
-        uses: actions/upload-artifact@v4
-        with:
-          name: commerce-os-formatting-patch
-          path: apps/commerce-os/formatting.patch
+      - name: Check formatting
+        run: npm run format
       - name: Type-check
         run: npm run typecheck
       - name: Run tests
@@ -56,3 +49,4 @@ jobs:
         run: npm run db:validate
       - name: Build
         run: npm run build
+

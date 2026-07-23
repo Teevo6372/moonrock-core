@@ -33,3 +33,8 @@ The relational model separates normalized products, supplier offers, market evid
 `db:push` is used only for disposable local and CI bootstrap while the initial migration is prepared. Production must use reviewed migrations rather than schema push.
 
 The application is isolated from WordPress, Elementor, XStore, deployment, and rollback assets. It does not purchase products, publish listings, or change prices.
+
+## Profit Engine assumptions
+
+The Profit Engine uses arbitrary-precision decimal arithmetic. `expectedUnitsPerOrder` defaults to one and controls how many times fixed marketplace, payment, shipping, packaging, and other per-order costs are applied. `minimumNetProfit` is a per-unit threshold when solving the minimum acceptable unit sale price.
+

@@ -5,6 +5,7 @@ Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
 export type ProfitEngineInput = {
   unitCost: string;
   quantity: number;
+  expectedUnitsPerOrder?: number;
   inboundShippingTotal?: string;
   acquisitionTaxTotal?: string;
   otherAcquisitionCostTotal?: string;
@@ -24,6 +25,7 @@ export type ProfitEngineInput = {
 
 export type ProfitEngineResult = {
   formulaVersion: "0.1.0";
+  expectedOrderCount: number;
   acquisitionTotal: string;
   landedCostPerUnit: string;
   expectedGrossRevenue: string;
@@ -55,6 +57,12 @@ export function calculateProfit(input: ProfitEngineInput): ProfitEngineResult {
   }
 
   const quantity = new Decimal(input.quantity);
+  const expectedUnitsPerOrder = input.expectedUnitsPerOrder ?? 1;
+  if (!Number.isInteger(expectedUnitsPerOrder) || expectedUnitsPerOrder < 1) {
+    throw new Error("expectedUnitsPerOrder must be a positive integer.");
+  }
+  const expectedOrderCount = Math.ceil(input.quantity / expectedUnitsPerOrder);
+  const orderCount = new Decimal(expectedOrderCount);
   const unitCost = decimal(input.unitCost);
   const inboundShipping = decimal(input.inboundShippingTotal);
   const acquisitionTax = decimal(input.acquisitionTaxTotal);
@@ -95,9 +103,16 @@ export function calculateProfit(input: ProfitEngineInput): ProfitEngineResult {
     assertNonNegative(name, value);
   }
 
-  const totalPercentageRate = marketplaceRate.plus(paymentRate).plus(promotedRate);
-  if (marketplaceRate.greaterThanOrEqualTo(1) || paymentRate.greaterThanOrEqualTo(1)) {
-    throw new Error("individual marketplace and payment rates must be below 1.");
+  const totalPercentageRate = marketplaceRate
+    .plus(paymentRate)
+    .plus(promotedRate);
+  if (
+    marketplaceRate.greaterThanOrEqualTo(1) ||
+    paymentRate.greaterThanOrEqualTo(1)
+  ) {
+    throw new Error(
+      "individual marketplace and payment rates must be below 1.",
+    );
   }
   if (totalPercentageRate.greaterThanOrEqualTo(1)) {
     throw new Error("combined percentage rates must be below 1.");
@@ -114,23 +129,23 @@ export function calculateProfit(input: ProfitEngineInput): ProfitEngineResult {
   }
 
   const landedCostPerUnit = acquisitionTotal.dividedBy(quantity);
-  const grossRevenuePerOrder = itemPrice.plus(buyerShipping);
-  const expectedGrossRevenue = grossRevenuePerOrder.times(quantity);
+  const itemRevenueTotal = itemPrice.times(quantity);
+  const shippingRevenueTotal = buyerShipping.times(quantity);
+  const expectedGrossRevenue = itemRevenueTotal.plus(shippingRevenueTotal);
 
   if (expectedGrossRevenue.isZero()) {
     throw new Error("expected gross revenue must be greater than zero.");
   }
 
-  const sellingCostPerOrder = grossRevenuePerOrder
-    .times(marketplaceRate.plus(paymentRate))
-    .plus(itemPrice.times(promotedRate))
-    .plus(marketplaceFixed)
+  const fixedSellingCostPerOrder = marketplaceFixed
     .plus(paymentFixed)
     .plus(outboundShipping)
     .plus(packaging)
     .plus(otherSellingCost);
-
-  const expectedSellingCost = sellingCostPerOrder.times(quantity);
+  const expectedSellingCost = expectedGrossRevenue
+    .times(marketplaceRate.plus(paymentRate))
+    .plus(itemRevenueTotal.times(promotedRate))
+    .plus(fixedSellingCostPerOrder.times(orderCount));
   const expectedNetProfit = expectedGrossRevenue
     .minus(acquisitionTotal)
     .minus(expectedSellingCost);
@@ -138,31 +153,27 @@ export function calculateProfit(input: ProfitEngineInput): ProfitEngineResult {
   const margin = expectedNetProfit.dividedBy(expectedGrossRevenue);
 
   const denominator = new Decimal(1).minus(totalPercentageRate);
-  const fixedCostPerOrder = landedCostPerUnit
-    .plus(marketplaceFixed)
-    .plus(paymentFixed)
-    .plus(outboundShipping)
-    .plus(packaging)
-    .plus(otherSellingCost);
-  const shippingContribution = buyerShipping.times(
+  const shippingContributionTotal = shippingRevenueTotal.times(
     new Decimal(1).minus(marketplaceRate).minus(paymentRate),
   );
-  const breakEvenItemPrice = fixedCostPerOrder
-    .minus(shippingContribution)
-    .dividedBy(denominator);
+  const breakEvenItemPrice = acquisitionTotal
+    .plus(fixedSellingCostPerOrder.times(orderCount))
+    .minus(shippingContributionTotal)
+    .dividedBy(quantity.times(denominator));
 
-  const requiredProfitTotal = Decimal.max(
+  const requiredProfitPerUnit = Decimal.max(
     minimumNetProfit,
-    acquisitionTotal.times(minimumRoi),
+    landedCostPerUnit.times(minimumRoi),
   );
-  const requiredProfitPerUnit = requiredProfitTotal.dividedBy(quantity);
-  const minimumAcceptableItemPrice = fixedCostPerOrder
-    .plus(requiredProfitPerUnit)
-    .minus(shippingContribution)
-    .dividedBy(denominator);
+  const minimumAcceptableItemPrice = acquisitionTotal
+    .plus(fixedSellingCostPerOrder.times(orderCount))
+    .plus(requiredProfitPerUnit.times(quantity))
+    .minus(shippingContributionTotal)
+    .dividedBy(quantity.times(denominator));
 
   return {
     formulaVersion: "0.1.0",
+    expectedOrderCount,
     acquisitionTotal: output(acquisitionTotal),
     landedCostPerUnit: output(landedCostPerUnit),
     expectedGrossRevenue: output(expectedGrossRevenue),
@@ -174,3 +185,4 @@ export function calculateProfit(input: ProfitEngineInput): ProfitEngineResult {
     minimumAcceptableItemPrice: output(minimumAcceptableItemPrice),
   };
 }
+
