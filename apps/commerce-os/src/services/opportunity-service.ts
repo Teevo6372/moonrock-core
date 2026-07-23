@@ -5,12 +5,12 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import {
   calculateProfit,
   type ProfitEngineResult,
-} from "@/domain/profit-engine";
+} from "../domain/profit-engine";
 import {
   toProfitEngineInput,
   type OpportunityInput,
-} from "@/domain/opportunity-input";
-import { prisma } from "@/lib/db";
+} from "../domain/opportunity-input";
+import { prisma } from "../lib/db";
 
 export type OpportunityOptions = {
   products: Array<{ id: string; name: string; productType: string }>;
