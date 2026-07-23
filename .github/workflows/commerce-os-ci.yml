@@ -25,7 +25,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install --ignore-scripts
-      - run: cp .env.example .env
-      - run: npm run db:generate
-      - run: npm run check
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+      - name: Configure environment
+        run: cp .env.example .env
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Lint
+        run: npm run lint
+      - name: Check formatting
+        run: npm run format
+      - name: Type-check
+        run: npm run typecheck
+      - name: Run tests
+        run: npm run test
+      - name: Validate schema
+        run: npm run db:validate
+      - name: Build
+        run: npm run build
