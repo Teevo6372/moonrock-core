@@ -31,6 +31,12 @@ jobs:
         run: cp .env.example .env
       - name: Generate Prisma client
         run: npm run db:generate
+      - name: Create clean database
+        run: npm run db:push
+      - name: Seed database
+        run: npm run db:seed
+      - name: Verify database
+        run: npm run db:verify
       - name: Lint
         run: npm run lint
       - name: Check formatting

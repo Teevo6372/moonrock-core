@@ -1,6 +1,6 @@
 {
   "name": "@moonrock/commerce-os",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "engines": { "node": ">=22 <27" },
   "scripts": {
@@ -8,14 +8,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "format": "prettier --check src/lib/health.ts src/lib/health.test.ts src/app/api/health/route.ts prisma/seed.mjs",
-    "format:write": "prettier --write src/lib/health.ts src/lib/health.test.ts src/app/api/health/route.ts prisma/seed.mjs",
+    "format": "prettier --check src/lib/health.ts src/lib/health.test.ts src/lib/db.ts src/app/api/health/route.ts prisma/seed.mjs prisma/verify.mjs",
+    "format:write": "prettier --write src/lib/health.ts src/lib/health.test.ts src/lib/db.ts src/app/api/health/route.ts prisma/seed.mjs prisma/verify.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push --skip-generate",
     "db:seed": "node prisma/seed.mjs",
+    "db:verify": "node prisma/verify.mjs",
     "check": "npm run lint && npm run format && npm run typecheck && npm run test && npm run db:validate && npm run build"
   },
   "dependencies": {
