@@ -11,7 +11,8 @@ export default function Home() {
       <p className="eyebrow">Moonrock Enterprises</p>
       <h1>Commerce OS</h1>
       <p className="summary">
-        Internal commerce intelligence for evaluating opportunities, protecting margin, and improving realized outcomes.
+        Internal commerce intelligence for evaluating opportunities,
+        protecting margin, and improving realized outcomes.
       </p>
       <section aria-labelledby="foundation-status">
         <h2 id="foundation-status">Foundation status</h2>
