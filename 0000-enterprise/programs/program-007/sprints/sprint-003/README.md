@@ -30,6 +30,7 @@ Later lifecycle stages remain governed by Sprint 002: implementation, optimizati
 10. [Enterprise Sales Playbook](ENTERPRISE-SALES-PLAYBOOK.md)
 11. [Marketing Asset Governance Standard](MARKETING-ASSET-GOVERNANCE-STANDARD.md)
 12. [Executive KPI Dashboard Standard](EXECUTIVE-KPI-DASHBOARD-STANDARD.md)
+13. [Client Relationship Health Index Standard](CLIENT-RELATIONSHIP-HEALTH-INDEX-STANDARD.md)
 
 ## Dependencies
 - Programs 001–006
