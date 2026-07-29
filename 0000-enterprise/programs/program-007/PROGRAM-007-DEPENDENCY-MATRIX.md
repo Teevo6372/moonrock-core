@@ -13,6 +13,8 @@ This matrix identifies the minimum governance dependencies that must be consider
 | Sprint 006 — MEIS | Sprints 001–005 | Dashboards, forecasts, executive decision support |
 | Sprint 007 — MEAS | Sprints 001–006 | Nova and all governed automations |
 | Sprint 008 — Resilience | Sprints 001–007 | Security, continuity, incident response, audit readiness |
+| Sprint 009 — Executive Command Center | Sprints 001–008 | Executive reviews, decisions, actions, and cross-division coordination |
+| Sprint 010 — Program Closure | Sprints 001–009 | Validation, lessons learned, handoff, and MBOS v1.0 baseline decision |
 
 ## Interpretation Rules
 - Earlier approved governance is not automatically replaced by later work.
