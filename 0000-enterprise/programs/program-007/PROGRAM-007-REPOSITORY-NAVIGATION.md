@@ -14,6 +14,7 @@ Current subsystem baselines:
 - Sprint 005 — MEFS finance, procurement, and administration
 - Sprint 006 — MEIS intelligence, analytics, and reporting
 - Sprint 007 — MEAS AI, agent, integration, and workflow automation governance
+- Sprint 008 — enterprise security, compliance, resilience, continuity, and MBOS v1.0 readiness
 
 ## Consumption Path
 1. Start with `PROGRAM-007-EXECUTIVE-INDEX.md`.
