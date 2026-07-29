@@ -18,6 +18,8 @@ Current subsystem baselines:
 - Sprint 009 — enterprise reporting consumption and Executive Command Center operations
 - Sprint 010 — program validation, lessons learned, operational handoff, and baseline decision
 
+Sprint 010 contains the integrated validation, residual-work, ownership, handoff, Program 007 closure, and MBOS v1.0 executive decision records.
+
 ## Consumption Path
 1. Start with `PROGRAM-007-EXECUTIVE-INDEX.md`.
 2. Review the architecture map and glossary.

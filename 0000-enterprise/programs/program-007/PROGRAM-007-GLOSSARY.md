@@ -37,6 +37,10 @@
 - **Executive briefing:** A versioned, decision-oriented package of governed information, exceptions, options, and requested actions.
 - **Decision record:** The authoritative evidence of a material decision, including context, options, authority, approval, conditions, actions, and outcome review.
 - **Command view:** A registered decision-oriented presentation that references governed source records without replacing their systems of record.
+- **Governance baseline:** The approved, versioned body of controlling governance and reusable specifications for a defined release.
+- **Operational handoff:** Controlled transfer of an approved specification to accountable implementation and operating owners with required gates and evidence.
+- **Program closure:** Formal confirmation that planned governance deliverables and handoff conditions are complete; it does not imply production activation.
+- **Release candidate:** A proposed baseline that has completed preparation but still requires designated owner approval.
 
 ## Usage Rule
 Terms defined here should be used consistently across Program 007. New acronyms or materially different meanings require an approved glossary update.
