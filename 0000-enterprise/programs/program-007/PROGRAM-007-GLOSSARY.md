@@ -26,6 +26,13 @@
 - **Kill switch:** A tested control that stops new automated work and prevents queued or retried work from bypassing the stop.
 - **Compensating action:** An approved action that corrects or offsets a completed effect when direct rollback is unavailable.
 - **Shadow automation:** An automation operating without required ownership, registration, review, or approval.
+- **Business impact analysis (BIA):** Assessment of essential services, disruption impacts, dependencies, and recovery requirements.
+- **Recovery time objective (RTO):** Target time to restore an essential service after disruption.
+- **Recovery point objective (RPO):** Maximum targeted period of data loss measured backward from disruption.
+- **Residual risk:** Risk remaining after existing or proposed controls.
+- **Compensating control:** Alternative control used to reduce risk when the primary requirement cannot be met.
+- **Control evidence:** Attributable records demonstrating control design, approval, operation, review, exception, or correction.
+- **Security incident:** An event that may compromise confidentiality, integrity, availability, privacy, safety, or authorized operation.
 
 ## Usage Rule
 Terms defined here should be used consistently across Program 007. New acronyms or materially different meanings require an approved glossary update.

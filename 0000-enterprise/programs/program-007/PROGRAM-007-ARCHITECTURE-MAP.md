@@ -15,6 +15,8 @@ MBOS — Moonrock Business Operating System
 `-- Nova — Governed Enterprise AI
 ```
 
+Security, compliance, resilience, and continuity controls established by Sprint 008 apply across every subsystem, division, implementation, and Nova operation.
+
 ## System Responsibilities
 
 ### MBOS
@@ -47,3 +49,4 @@ May assist with research, calculation, drafting, organization, monitoring, and r
 3. Runtime systems must reference MBOS rather than silently redefining policy.
 4. Conflicts must be escalated and resolved through approved change management.
 5. Client data, credentials, and live operational records remain outside the documentation repository unless explicitly approved and appropriately protected.
+6. Sprint 008 protection and resilience controls are cross-cutting and may strengthen, but may not silently replace, domain authority.
