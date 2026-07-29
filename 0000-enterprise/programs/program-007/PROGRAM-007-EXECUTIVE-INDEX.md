@@ -25,8 +25,8 @@ MBOS contains durable governance, policy, architecture, and reusable enterprise 
 | Sprint 003 | Marketing, acquisition, and revenue pipeline | Complete |
 | Sprint 004 | MEDS delivery and operational excellence | Complete |
 | Sprint 005 | MEFS finance, procurement, and administration | Complete |
-| Sprint 006 | MEIS intelligence, analytics, and executive reporting | Planned |
-| Sprint 007 | MEAS AI governance and enterprise automation | Planned |
+| Sprint 006 | MEIS intelligence, analytics, and executive reporting | Complete |
+| Sprint 007 | MEAS AI governance and enterprise automation | Complete |
 | Sprint 008 | Security, compliance, resilience, and continuity | Planned |
 
 ## Navigation

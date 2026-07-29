@@ -20,6 +20,12 @@
 - **Governance baseline:** The approved set of standards controlling a version or operating period.
 - **Maturity model:** A structured method for measuring capability progression; it does not independently authorize actions.
 - **Human-in-the-loop:** A control requiring human review or approval before defined actions proceed.
+- **Delegation envelope:** The explicit goals, actions, tools, systems, data, recipients, limits, approvals, evidence, and expiration governing an agent's authority.
+- **Automation registry:** The authoritative inventory of proposed, active, paused, and retired automations and their ownership, risk, version, controls, and status.
+- **Idempotency:** A control that prevents repeated processing of the same request from producing unintended duplicate effects.
+- **Kill switch:** A tested control that stops new automated work and prevents queued or retried work from bypassing the stop.
+- **Compensating action:** An approved action that corrects or offsets a completed effect when direct rollback is unavailable.
+- **Shadow automation:** An automation operating without required ownership, registration, review, or approval.
 
 ## Usage Rule
 Terms defined here should be used consistently across Program 007. New acronyms or materially different meanings require an approved glossary update.
