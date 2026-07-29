@@ -33,10 +33,10 @@ Governs project initiation, planning, delivery, change control, risk, quality, a
 Governs budgeting, forecasting, cash flow, revenue reporting, procurement, vendors, assets, inventory, subscriptions, billing, collections, treasury, financial controls, and administrative records.
 
 ### MEIS
-Will govern data definitions, KPI ownership, analytics quality, dashboards, forecasting, decision support, and executive reporting.
+Governs data definitions, KPI ownership, analytics quality, dashboards, forecasting, decision support, and executive reporting.
 
 ### MEAS
-Will govern AI agents, automation eligibility, workflow orchestration, observability, exception handling, approvals, and autonomous-operation boundaries.
+Governs AI agents, automation eligibility, risk classification, workflow orchestration, integrations, identities, observability, exception handling, approvals, recovery, auditability, and autonomous-operation boundaries.
 
 ### Nova
 May assist with research, calculation, drafting, organization, monitoring, and recommendations where authorized. Nova may not independently execute protected actions or create authority by implication.

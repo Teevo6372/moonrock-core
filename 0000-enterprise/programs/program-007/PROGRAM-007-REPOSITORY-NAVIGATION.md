@@ -9,6 +9,12 @@ Sprint-specific standards are maintained under:
 
 `0000-enterprise/programs/program-007/sprints/sprint-###/`
 
+Current subsystem baselines:
+- Sprint 004 — MEDS delivery and operational excellence
+- Sprint 005 — MEFS finance, procurement, and administration
+- Sprint 006 — MEIS intelligence, analytics, and reporting
+- Sprint 007 — MEAS AI, agent, integration, and workflow automation governance
+
 ## Consumption Path
 1. Start with `PROGRAM-007-EXECUTIVE-INDEX.md`.
 2. Review the architecture map and glossary.
