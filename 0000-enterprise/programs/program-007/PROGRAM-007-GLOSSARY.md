@@ -33,6 +33,10 @@
 - **Compensating control:** Alternative control used to reduce risk when the primary requirement cannot be met.
 - **Control evidence:** Attributable records demonstrating control design, approval, operation, review, exception, or correction.
 - **Security incident:** An event that may compromise confidentiality, integrity, availability, privacy, safety, or authorized operation.
+- **Executive Command Center (ECC):** The governed executive coordination layer for reviewing enterprise conditions, making traceable decisions, assigning actions, and verifying outcomes.
+- **Executive briefing:** A versioned, decision-oriented package of governed information, exceptions, options, and requested actions.
+- **Decision record:** The authoritative evidence of a material decision, including context, options, authority, approval, conditions, actions, and outcome review.
+- **Command view:** A registered decision-oriented presentation that references governed source records without replacing their systems of record.
 
 ## Usage Rule
 Terms defined here should be used consistently across Program 007. New acronyms or materially different meanings require an approved glossary update.
