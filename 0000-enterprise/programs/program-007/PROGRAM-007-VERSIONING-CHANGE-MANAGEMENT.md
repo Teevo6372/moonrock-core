@@ -8,7 +8,7 @@ This standard governs how Program 007 documentation is proposed, reviewed, appro
 - **Minor version:** approved new capability or standard that remains compatible with the current major baseline.
 - **Patch version:** clarification, correction, cross-reference repair, or non-material editorial improvement.
 
-MBOS v1.0 is not declared complete until Sprints 001–008 are merged and a final consistency review is approved.
+MBOS v1.0 is not declared complete until Sprints 001–010 are merged and the Sprint 010 validation, handoff, closure, and executive baseline decision are approved.
 
 ## Required Workflow
 1. Define the proposed change and affected governance.

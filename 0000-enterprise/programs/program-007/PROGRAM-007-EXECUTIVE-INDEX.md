@@ -29,7 +29,7 @@ MBOS contains durable governance, policy, architecture, and reusable enterprise 
 | Sprint 007 | MEAS AI governance and enterprise automation | Complete |
 | Sprint 008 | Security, compliance, resilience, and continuity | Complete |
 | Sprint 009 | Enterprise reporting and Executive Command Center | Complete |
-| Sprint 010 | Program validation, lessons learned, and operational handoff | Planned |
+| Sprint 010 | Program validation, lessons learned, and operational handoff | Complete upon approval and merge |
 
 ## Navigation
 - See `PROGRAM-007-ARCHITECTURE-MAP.md` for subsystem relationships.
@@ -42,6 +42,9 @@ MBOS contains durable governance, policy, architecture, and reusable enterprise 
 No index, automation, generated record, dashboard, recommendation, or AI output supersedes an approved governing standard or human approval requirement. Protected legal, financial, contractual, security, production, personnel, tax, and client-acceptance decisions remain human-controlled.
 
 ## MBOS v1.0 Completion Baseline
-MBOS v1.0 may be designated only after Sprints 001–008 are complete, cross-references are reconciled, contradictions are resolved, ownership is confirmed, and an executive baseline review is approved and merged.
+MBOS v1.0 may be designated only after Sprints 001–010 are complete, cross-references are reconciled, contradictions are resolved, ownership is confirmed, and the Sprint 010 executive baseline decision is approved and merged.
 
 Sprint 008 completion established subsystem readiness. Sprint 009 establishes executive coordination. Sprint 010 must complete program validation, lessons learned, operational handoff, and the executive baseline decision before MBOS v1.0 may be designated.
+
+## Program Closure Status
+Program 007 and MBOS v1.0 are release candidates pending explicit owner approval and merge of Sprint 010. Approval closes the governance program but does not authorize production activation.
