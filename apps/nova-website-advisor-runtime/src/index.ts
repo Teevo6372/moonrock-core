@@ -9,4 +9,5 @@ export * from "./policy.js";
 export * from "./redaction.js";
 export * from "./schema-validation.js";
 export * from "./session-store.js";
-
+export * from "./http/app.js";
+export * from "./http/bootstrap.js";
