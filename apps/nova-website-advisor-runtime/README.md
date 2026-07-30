@@ -1,6 +1,6 @@
 # Nova Website Advisor Runtime
 
-Non-production Sprint 005 local API and staging-readiness foundation for the
+Non-production Sprint 006 governed learning and closure foundation for the
 governed Nova Website Advisor.
 
 ## Included
@@ -19,6 +19,9 @@ governed Nova Website Advisor.
 - request-size, origin, rate, sequence, and session-lifetime controls;
 - explicit-purpose consent gates for synthetic handoff and booking workflows;
 - accessible, credential-free browser prototype;
+- non-controlling Continuous Learning Queue with role-gated lifecycle;
+- governed experiment authorization and aggregate quality snapshots;
+- deterministic, human-owned production release gate;
 - synthetic contract, lifecycle, safety, privacy, and injection tests.
 
 ## Excluded
@@ -48,7 +51,7 @@ local server listens on `127.0.0.1:8787`; open
 
 The orchestrator accepts adapters through interfaces. A model may propose a response, route, or tool, but the runtime validates the model schema and applies deterministic lifecycle, consent, risk, and tool policy before any adapter method is invoked.
 
-Provider adapters remain mocks in Sprint 005. Health output declares
+Provider adapters remain mocks in Sprint 006. Health output declares
 `providers: disconnected`, and the bundled knowledge is explicitly synthetic.
 Adding a live adapter, credentials, WordPress integration, staging deployment,
 or production activation requires a later approved sprint.
