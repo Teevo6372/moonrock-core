@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moonrockmarketing.com/schemas/nova/event-envelope/1.0.0",
+  "title": "Nova Runtime Operational Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventName",
+    "occurredAt",
+    "environment",
+    "correlationId",
+    "sessionId",
+    "release",
+    "state",
+    "outcome",
+    "severity",
+    "reasonCode"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventName": {
+      "enum": [
+        "session.opened",
+        "disclosure.presented",
+        "message.accepted",
+        "message.blocked",
+        "intent.classified",
+        "route.proposed",
+        "consent.requested",
+        "consent.recorded",
+        "tool.requested",
+        "tool.denied",
+        "tool.started",
+        "tool.succeeded",
+        "tool.outcome_unknown",
+        "tool.failed",
+        "handoff.created",
+        "booking.confirmed",
+        "escalation.created",
+        "session.completed",
+        "session.abandoned",
+        "session.expired",
+        "runtime.degraded"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "environment": {
+      "enum": ["local", "test", "staging", "production"]
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 128
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtimeVersion",
+        "promptVersion",
+        "policyVersion",
+        "knowledgeVersion",
+        "modelId"
+      ],
+      "properties": {
+        "runtimeVersion": {"type": "string"},
+        "promptVersion": {"type": "string"},
+        "policyVersion": {"type": "string"},
+        "knowledgeVersion": {"type": "string"},
+        "modelId": {"type": "string"}
+      }
+    },
+    "state": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "outcome": {
+      "enum": [
+        "started",
+        "accepted",
+        "confirmed",
+        "denied",
+        "failed",
+        "outcome_unknown",
+        "abandoned",
+        "expired",
+        "degraded"
+      ]
+    },
+    "severity": {
+      "enum": ["info", "warning", "high", "critical"]
+    },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]{3,64}$"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "provider": {
+      "enum": ["none", "openai", "ghl"]
+    },
+    "providerReceiptRef": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "safeMetrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["number", "integer", "boolean", "string", "null"]
+      }
+    }
+  }
+}
+
