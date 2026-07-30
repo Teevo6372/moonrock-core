@@ -1,0 +1,529 @@
+openapi: 3.1.0
+info:
+  title: Nova Website Advisor Runtime API
+  version: 1.0.0-draft
+  summary: Public Release 1 browser-to-runtime contract
+  description: |
+    Specification only. This contract does not authorize deployment or provider access.
+    All external actions are subject to server-side lifecycle, consent, authority,
+    schema, rate, and dependency validation.
+servers:
+  - url: https://nova-api.example.invalid
+    description: Placeholder only; not a deployable or production endpoint
+tags:
+  - name: Sessions
+  - name: Consent
+  - name: Handoff
+  - name: Booking
+  - name: Health
+paths:
+  /v1/sessions:
+    post:
+      tags: [Sessions]
+      operationId: createSession
+      summary: Start an anonymous Nova session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session created and disclosure returned
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSessionResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /v1/sessions/{sessionId}/messages:
+    post:
+      tags: [Sessions]
+      operationId: submitMessage
+      summary: Submit exactly one visitor message
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageRequest"
+      responses:
+        "202":
+          description: Message accepted for bounded processing
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedAction"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/StateConflict"
+        "413":
+          description: Message or request exceeds configured limit
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /v1/sessions/{sessionId}/events:
+    get:
+      tags: [Sessions]
+      operationId: streamEvents
+      summary: Stream public-safe server events
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - name: Last-Event-ID
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+      responses:
+        "200":
+          description: Server-sent event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/sessions/{sessionId}/consents:
+    post:
+      tags: [Consent]
+      operationId: recordConsent
+      summary: Record one affirmative grant or withdrawal
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentAction"
+      responses:
+        "201":
+          description: Consent evidence recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReceipt"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/StateConflict"
+  /v1/sessions/{sessionId}/handoffs:
+    post:
+      tags: [Handoff]
+      operationId: requestHandoff
+      summary: Request approved human follow-up
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HandoffRequest"
+      responses:
+        "202":
+          description: Handoff request accepted; not proof of human contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedAction"
+        "409":
+          $ref: "#/components/responses/StateConflict"
+  /v1/sessions/{sessionId}/bookings:
+    post:
+      tags: [Booking]
+      operationId: requestBooking
+      summary: Request one approved appointment slot
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingRequest"
+      responses:
+        "201":
+          description: Booking confirmed by authoritative GHL receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingReceipt"
+        "202":
+          description: Outcome unknown or reconciliation required; not confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedAction"
+        "409":
+          $ref: "#/components/responses/StateConflict"
+  /v1/sessions/{sessionId}/close:
+    post:
+      tags: [Sessions]
+      operationId: closeSession
+      summary: Close, decline, or end further processing
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [actionId, reason]
+              properties:
+                actionId:
+                  $ref: "#/components/schemas/Uuid"
+                reason:
+                  enum: [visitor_closed, visitor_declined, completed]
+      responses:
+        "200":
+          description: Session terminal state recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReceipt"
+  /health/live:
+    get:
+      tags: [Health]
+      operationId: liveness
+      responses:
+        "200":
+          description: Runtime process is live
+  /health/ready:
+    get:
+      tags: [Health]
+      operationId: readiness
+      responses:
+        "200":
+          description: Runtime can accept approved work
+        "503":
+          description: Runtime is degraded or closed
+components:
+  headers:
+    CorrelationId:
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/OpaqueId"
+  responses:
+    InvalidRequest:
+      description: Request failed schema or input validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    StateConflict:
+      description: Request is not valid for current lifecycle, consent, or authority state
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Session or resource not found
+    RateLimited:
+      description: Configured rate or cost limit reached
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+    OpaqueId:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{20,128}$"
+    CreateSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [client, page]
+      properties:
+        client:
+          $ref: "#/components/schemas/ClientContext"
+        page:
+          $ref: "#/components/schemas/PageContext"
+    CreateSessionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [sessionId, correlationId, state, disclosure, expiresAt, streamUrl]
+      properties:
+        sessionId:
+          $ref: "#/components/schemas/OpaqueId"
+        correlationId:
+          $ref: "#/components/schemas/OpaqueId"
+        state:
+          const: DISCLOSED
+        disclosure:
+          $ref: "#/components/schemas/Disclosure"
+        expiresAt:
+          type: string
+          format: date-time
+        streamUrl:
+          type: string
+          format: uri-reference
+    MessageRequest:
+      type: object
+      additionalProperties: false
+      required: [messageId, sequence, text, client, page]
+      properties:
+        messageId:
+          $ref: "#/components/schemas/Uuid"
+        sequence:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        client:
+          $ref: "#/components/schemas/ClientContext"
+        page:
+          $ref: "#/components/schemas/PageContext"
+    ClientContext:
+      type: object
+      additionalProperties: false
+      required: [locale, timeZone]
+      properties:
+        locale:
+          type: string
+          pattern: "^[a-z]{2,3}(-[A-Z]{2})?$"
+        timeZone:
+          type: string
+          minLength: 1
+          maxLength: 64
+    PageContext:
+      type: object
+      additionalProperties: false
+      required: [path, referrerClass]
+      properties:
+        path:
+          type: string
+          pattern: "^/"
+          maxLength: 512
+        referrerClass:
+          enum: [direct, search, campaign, internal, unknown]
+        campaign:
+          type: object
+          additionalProperties: false
+          properties:
+            source:
+              type: string
+              maxLength: 100
+            medium:
+              type: string
+              maxLength: 100
+            campaign:
+              type: string
+              maxLength: 100
+            content:
+              type: string
+              maxLength: 100
+            term:
+              type: string
+              maxLength: 100
+    Disclosure:
+      type: object
+      additionalProperties: false
+      required: [version, aiIdentityText, persistentText, sensitiveDataText]
+      properties:
+        version:
+          type: string
+          pattern: "^nova-disclosure-[0-9]+\\.[0-9]+\\.[0-9]+$"
+        aiIdentityText:
+          type: string
+        persistentText:
+          type: string
+        sensitiveDataText:
+          type: string
+    ConsentAction:
+      type: object
+      additionalProperties: false
+      required:
+        [actionId, category, action, disclosureVersion, affirmativeControlId]
+      properties:
+        actionId:
+          $ref: "#/components/schemas/Uuid"
+        category:
+          enum:
+            - save_contact
+            - save_transcript
+            - email_service
+            - sms_service
+            - phone_service
+            - appointment_notifications
+            - email_marketing
+            - sms_marketing
+        action:
+          enum: [grant, withdraw]
+        disclosureVersion:
+          type: string
+          minLength: 1
+          maxLength: 100
+        affirmativeControlId:
+          type: string
+          minLength: 1
+          maxLength: 128
+    HandoffRequest:
+      type: object
+      additionalProperties: false
+      required: [actionId, route, contact]
+      properties:
+        actionId:
+          $ref: "#/components/schemas/Uuid"
+        route:
+          enum:
+            - general_advisor
+            - launch
+            - growth
+            - systems
+            - support
+            - billing
+            - privacy
+            - security
+            - legal
+            - media
+            - partnership
+            - executive
+        contact:
+          $ref: "#/components/schemas/ContactInput"
+    BookingRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [actionId, calendarId, slotStart, timeZone, contact, notificationChannels]
+      properties:
+        actionId:
+          $ref: "#/components/schemas/Uuid"
+        calendarId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        slotStart:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        contact:
+          $ref: "#/components/schemas/ContactInput"
+        notificationChannels:
+          type: array
+          uniqueItems: true
+          items:
+            enum: [email, sms]
+    ContactInput:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          pattern: "^\\+[1-9][0-9]{7,14}$"
+        companyName:
+          type: string
+          maxLength: 200
+        preferredChannel:
+          enum: [email, sms, phone]
+      anyOf:
+        - required: [email]
+        - required: [phone]
+    AcceptedAction:
+      type: object
+      additionalProperties: false
+      required: [correlationId, status]
+      properties:
+        correlationId:
+          $ref: "#/components/schemas/OpaqueId"
+        status:
+          enum: [accepted, pending, outcome_unknown]
+        publicMessage:
+          type: string
+          maxLength: 500
+    ActionReceipt:
+      type: object
+      additionalProperties: false
+      required: [correlationId, receiptId, status, recordedAt]
+      properties:
+        correlationId:
+          $ref: "#/components/schemas/OpaqueId"
+        receiptId:
+          $ref: "#/components/schemas/OpaqueId"
+        status:
+          const: confirmed
+        recordedAt:
+          type: string
+          format: date-time
+    BookingReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        [correlationId, receiptId, appointmentId, status, start, timeZone]
+      properties:
+        correlationId:
+          $ref: "#/components/schemas/OpaqueId"
+        receiptId:
+          $ref: "#/components/schemas/OpaqueId"
+        appointmentId:
+          $ref: "#/components/schemas/OpaqueId"
+        status:
+          const: confirmed
+        start:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+        advisorDisplayName:
+          type: string
+          maxLength: 200
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, correlationId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+          maxLength: 200
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        correlationId:
+          $ref: "#/components/schemas/OpaqueId"
+        publicCode:
+          type: string
+          pattern: "^[A-Z0-9_]{3,64}$"
+
