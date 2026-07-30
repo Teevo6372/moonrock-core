@@ -1,5 +1,17 @@
 # Elementor Templates — Import Guide
 
+## Approved ChatGPT Sites homepage v2
+
+`moonrock-homepage-sites-v2.json` assembles the homepage approved in ChatGPT
+Sites. It uses the child theme's `[moonrock_homepage]` shortcode so the page can
+be placed through Elementor while reviewed markup, assets, responsive rules,
+and accessibility behavior remain version-controlled.
+
+Import it into **Templates → Saved Templates**, then insert it on a new,
+unlinked review page. Do not replace the active homepage until the v2
+installation checklist is complete and the owner explicitly approves the
+switch.
+
 **Project:** Moonrock Marketing  
 **Branch:** feature/homepage-elementor-build  
 **Last updated:** 2026-07-20
