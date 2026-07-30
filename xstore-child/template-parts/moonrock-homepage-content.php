@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$flight_plan_url = (string) apply_filters( 'moonrock_flight_plan_url', home_url( '/startups/#flight-plan' ) );
+$flight_plan_url = (string) apply_filters( 'moonrock_flight_plan_url', 'https://api.leadconnectorhq.com/widget/booking/CdHRDV6t85OcYrE6FMl9' );
 $nova_url        = (string) apply_filters( 'moonrock_nova_url', home_url( '/contact/' ) );
 $growth_url      = home_url( '/growth/' );
 $startups_url    = home_url( '/startups/' );
