@@ -43,7 +43,7 @@ function moonrock_enqueue_styles(): void {
 			'moonrock-homepage',
 			get_stylesheet_directory_uri() . '/assets/css/moonrock-homepage.css',
 			array( 'moonrock-child-style' ),
-			'2.0.0'
+			'2.0.1'
 		);
 
 		wp_enqueue_script(
