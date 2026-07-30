@@ -1,0 +1,33 @@
+{
+  "version": "0.4",
+  "title": "Moonrock — Approved Sites Homepage v2",
+  "type": "page",
+  "page_settings": {
+    "hide_title": "yes",
+    "page_layout": "theme"
+  },
+  "content": [
+    {
+      "id": "mrhomev2",
+      "elType": "container",
+      "isInner": false,
+      "settings": {
+        "content_width": "full",
+        "css_classes": "moonrock-homepage-container"
+      },
+      "elements": [
+        {
+          "id": "mrshort2",
+          "elType": "widget",
+          "widgetType": "shortcode",
+          "settings": {
+            "shortcode": "[moonrock_homepage]"
+          },
+          "elements": []
+        }
+      ]
+    }
+  ],
+  "moonrock_deployment_package": "homepage-v2",
+  "moonrock_source": "ChatGPT Sites approved homepage"
+}

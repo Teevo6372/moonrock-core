@@ -1,0 +1,121 @@
+name: Deploy Moonrock Homepage
+
+on:
+  workflow_dispatch:
+    inputs:
+      transport:
+        description: Deployment transport configured for FusionArc
+        required: true
+        type: choice
+        default: ssh
+        options:
+          - ssh
+          - sftp
+      confirm_production:
+        description: Type DEPLOY-HOMEPAGE-V2 after PR approval and merge
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: moonrock-homepage-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate deployment confirmation
+        run: |
+          if [[ "${{ inputs.confirm_production }}" != "DEPLOY-HOMEPAGE-V2" ]]; then
+            echo "Production confirmation did not match." >&2
+            exit 1
+          fi
+
+      - name: Validate PHP syntax
+        run: |
+          find xstore-child -type f -name '*.php' -print0 |
+            xargs -0 -n1 php -l
+
+      - name: Validate templates and package
+        run: |
+          jq empty elementor/templates/*.json
+          bash scripts/validate-homepage-v2.sh
+          bash scripts/package-homepage-v2.sh "$RUNNER_TEMP/homepage-v2"
+
+      - name: Upload reviewed deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonrock-homepage-v2
+          path: ${{ runner.temp }}/homepage-v2
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy-ssh:
+    if: inputs.transport == 'ssh'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: moonrock-homepage-v2
+          path: package
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.FUSIONARC_SSH_PRIVATE_KEY }}
+          SSH_HOST_KEY: ${{ secrets.FUSIONARC_SSH_HOST_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
+
+      - name: Deploy manifest-owned files with rsync
+        env:
+          SSH_HOST: ${{ secrets.FUSIONARC_SSH_HOST }}
+          SSH_PORT: ${{ secrets.FUSIONARC_SSH_PORT }}
+          SSH_USER: ${{ secrets.FUSIONARC_SSH_USER }}
+          WP_ROOT: ${{ secrets.FUSIONARC_WP_ROOT }}
+        run: |
+          test -n "$WP_ROOT"
+          rsync -rlptv --checksum \
+            -e "ssh -p ${SSH_PORT:-22}" \
+            package/wp-content/ \
+            "${SSH_USER}@${SSH_HOST}:${WP_ROOT%/}/wp-content/"
+
+  deploy-sftp:
+    if: inputs.transport == 'sftp'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: moonrock-homepage-v2
+          path: package
+
+      - name: Install SFTP client
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Deploy manifest-owned files with SFTP
+        env:
+          SFTP_HOST: ${{ secrets.FUSIONARC_SFTP_HOST }}
+          SFTP_PORT: ${{ secrets.FUSIONARC_SFTP_PORT }}
+          SFTP_USER: ${{ secrets.FUSIONARC_SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.FUSIONARC_SFTP_PASSWORD }}
+          WP_ROOT: ${{ secrets.FUSIONARC_WP_ROOT }}
+        run: |
+          test -n "$WP_ROOT"
+          lftp -u "$SFTP_USER","$SFTP_PASSWORD" -p "${SFTP_PORT:-22}" "sftp://$SFTP_HOST" <<LFTP
+          set sftp:auto-confirm no
+          mirror --reverse --verbose --only-newer \
+            package/wp-content/themes/xstore-child \
+            ${WP_ROOT%/}/wp-content/themes/xstore-child
+          bye
+          LFTP
