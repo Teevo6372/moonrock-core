@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moonrockmarketing.com/schemas/nova/consent-record/1.0.0",
+  "title": "Nova Website Advisor Consent Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "consentId",
+    "sessionId",
+    "category",
+    "action",
+    "status",
+    "purpose",
+    "disclosureVersion",
+    "disclosureTextHash",
+    "affirmativeControlId",
+    "sourcePagePath",
+    "occurredAt",
+    "timeZone",
+    "policyVersion"
+  ],
+  "properties": {
+    "consentId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 128
+    },
+    "contactId": {
+      "type": ["string", "null"],
+      "maxLength": 128
+    },
+    "category": {
+      "enum": [
+        "save_contact",
+        "save_transcript",
+        "email_service",
+        "sms_service",
+        "phone_service",
+        "appointment_notifications",
+        "email_marketing",
+        "sms_marketing"
+      ]
+    },
+    "action": {
+      "enum": ["grant", "withdraw"]
+    },
+    "status": {
+      "enum": ["granted", "withdrawn"]
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "disclosureVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "disclosureTextHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "affirmativeControlId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sourcePagePath": {
+      "type": "string",
+      "pattern": "^/",
+      "maxLength": 512
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timeZone": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "policyVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "withdrawsConsentId": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
+    "evidenceRef": {
+      "type": ["string", "null"],
+      "maxLength": 256
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action": {"const": "grant"}
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {"const": "granted"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {"const": "withdraw"}
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {"const": "withdrawn"},
+          "withdrawsConsentId": {"type": "string"}
+        },
+        "required": ["withdrawsConsentId"]
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moonrockmarketing.com/schemas/nova/model-output/1.0.0",
+  "title": "Nova Website Advisor Model Proposal",
+  "description": "Untrusted advisory output that requires deterministic policy validation before use.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "responseText",
+    "primaryIntent",
+    "secondaryIntents",
+    "intentConfidence",
+    "facts",
+    "visitorStatements",
+    "inferences",
+    "unknowns",
+    "knowledgeCitations",
+    "recommendedState",
+    "recommendedRoute",
+    "riskSignals",
+    "requestedTool",
+    "requestedToolArguments"
+  ],
+  "properties": {
+    "responseText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "primaryIntent": {
+      "$ref": "#/$defs/intent"
+    },
+    "secondaryIntents": {
+      "type": "array",
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/intent"
+      }
+    },
+    "intentConfidence": {
+      "enum": ["high", "medium", "low"]
+    },
+    "facts": {
+      "$ref": "#/$defs/evidenceItems"
+    },
+    "visitorStatements": {
+      "$ref": "#/$defs/evidenceItems"
+    },
+    "inferences": {
+      "$ref": "#/$defs/evidenceItems"
+    },
+    "unknowns": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "knowledgeCitations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/citation"
+      }
+    },
+    "recommendedState": {
+      "enum": [
+        "INTENT_IDENTIFIED",
+        "DISCOVERY_IN_PROGRESS",
+        "ROUTE_PROPOSED",
+        "CONSENT_REQUESTED",
+        "AWAITING_INFORMATION",
+        "AWAITING_HUMAN_REVIEW",
+        "ANSWERED",
+        "RECOMMENDATION_DELIVERED",
+        "RESOURCE_PROVIDED",
+        "ESCALATED",
+        "VISITOR_DECLINED",
+        "CLOSED"
+      ]
+    },
+    "recommendedRoute": {
+      "type": ["string", "null"],
+      "maxLength": 100
+    },
+    "riskSignals": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 10,
+      "items": {
+        "enum": [
+          "safety",
+          "legal",
+          "government",
+          "media",
+          "fraud",
+          "security",
+          "privacy",
+          "discrimination",
+          "abuse",
+          "billing_dispute",
+          "refund",
+          "contract",
+          "credential",
+          "sensitive_data",
+          "prompt_injection",
+          "authority_uncertain",
+          "knowledge_conflict"
+        ]
+      }
+    },
+    "requestedTool": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "find_contact_candidates",
+        "create_contact",
+        "update_contact_with_consent",
+        "create_opportunity_for_review",
+        "create_follow_up_task",
+        "list_approved_slots",
+        "request_appointment",
+        "record_conversation_summary",
+        "record_consent_evidence",
+        "record_escalation"
+      ]
+    },
+    "requestedToolArguments": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "requestedTool": {
+            "type": "string"
+          }
+        },
+        "required": ["requestedTool"]
+      },
+      "then": {
+        "properties": {
+          "requestedToolArguments": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requestedTool": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "requestedToolArguments": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "intent": {
+      "enum": [
+        "LAUNCH",
+        "GROWTH",
+        "MARKETING",
+        "SYSTEMS",
+        "FLIGHT_PLAN",
+        "RESOURCE",
+        "PRICING",
+        "BOOKING",
+        "SUPPORT",
+        "PARTNER",
+        "CAREERS",
+        "PRIVACY",
+        "COMPLAINT",
+        "OTHER",
+        "UNSAFE_OR_PROHIBITED"
+      ]
+    },
+    "evidenceItems": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["statement", "source"],
+        "properties": {
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      }
+    },
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "version", "section"],
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "section": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    }
+  }
+}
+
