@@ -38,7 +38,8 @@
 .mr-homepage h1,
 .mr-homepage h2,
 .mr-homepage h3 {
-  color: var(--mr-text);
+  /* XStore loads its heading palette after child-theme styles. */
+  color: var(--mr-text) !important;
   line-height: 1.02;
   letter-spacing: -0.04em;
 }
