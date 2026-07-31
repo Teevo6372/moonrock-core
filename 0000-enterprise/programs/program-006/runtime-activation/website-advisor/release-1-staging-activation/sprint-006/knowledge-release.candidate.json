@@ -1,0 +1,29 @@
+{
+  "bundleId": "nova-website-advisor-r1",
+  "version": "1.0.0",
+  "status": "candidate",
+  "classification": "public-approved",
+  "sourceCandidates": [
+    {
+      "sourceId": "nova-enterprise-role",
+      "repositoryReference": "program-006/standards/NOVA-ENTERPRISE-ROLE-STANDARD.md",
+      "ownerReference": "pending",
+      "approvalReference": null,
+      "sourceHash": "sha256:pending",
+      "reviewAt": null,
+      "unresolvedConflict": false
+    },
+    {
+      "sourceId": "nova-website-runtime-specification",
+      "repositoryReference": "runtime-activation/website-advisor/NOVA-WEBSITE-ADVISOR-RUNTIME-SPECIFICATION.md",
+      "ownerReference": "pending",
+      "approvalReference": null,
+      "sourceHash": "sha256:pending",
+      "reviewAt": null,
+      "unresolvedConflict": false
+    }
+  ],
+  "contentHash": "sha256:pending",
+  "evidenceHash": "sha256:pending",
+  "approvedBy": null
+}
