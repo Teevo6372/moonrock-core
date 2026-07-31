@@ -14,6 +14,7 @@ import { PolicyEngine, type RuntimeHealth } from "../policy.js";
 import { createModelProposalValidator } from "../schema-validation.js";
 import { InMemorySessionStore } from "../session-store.js";
 import type { Intent, ModelProposal, RiskSignal } from "../domain.js";
+import { BoundedEventStreamHub, projectPublicEvent } from "../event-stream.js";
 
 export interface LocalRuntime {
   orchestrator: NovaOrchestrator;
@@ -23,6 +24,7 @@ export interface LocalRuntime {
   killSwitch: KillSwitch;
   health: RuntimeHealth;
   knowledgeVersion: string;
+  eventStream: BoundedEventStreamHub;
 }
 
 function parseJson(path: string): unknown {
@@ -88,6 +90,10 @@ export function createLocalRuntime(baseDir = process.cwd()): LocalRuntime {
   ) as object;
   const sessions = new InMemorySessionStore();
   const events = new InMemoryEventSink();
+  const eventStream = new BoundedEventStreamHub();
+  events.subscribe((event) => {
+    eventStream.publish(projectPublicEvent(event), event.sessionId);
+  });
   const ghl = new MockGhlAdapter();
   const killSwitch = new KillSwitch();
   const health: RuntimeHealth = {
@@ -102,6 +108,7 @@ export function createLocalRuntime(baseDir = process.cwd()): LocalRuntime {
     killSwitch,
     health,
     knowledgeVersion: knowledge.version,
+    eventStream,
     orchestrator: new NovaOrchestrator({
       sessions,
       events,
