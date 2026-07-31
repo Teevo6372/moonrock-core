@@ -11,3 +11,6 @@ export * from "./schema-validation.js";
 export * from "./session-store.js";
 export * from "./http/app.js";
 export * from "./http/bootstrap.js";
+export * from "./improvement.js";
+export * from "./metrics.js";
+export * from "./release-gate.js";
