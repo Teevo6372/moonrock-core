@@ -38,6 +38,12 @@ export class InMemorySessionStore {
     return structuredClone(session);
   }
 
+  restore(session: Session): Session {
+    const copy = structuredClone(session);
+    this.#sessions.set(copy.id, copy);
+    return structuredClone(copy);
+  }
+
   get(id: string, now = new Date()): Session | null {
     const session = this.#sessions.get(id);
     if (!session) return null;
@@ -74,4 +80,3 @@ export class InMemorySessionStore {
     return structuredClone(session);
   }
 }
-
