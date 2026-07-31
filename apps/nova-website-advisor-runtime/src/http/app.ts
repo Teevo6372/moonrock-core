@@ -109,48 +109,60 @@ export function createApp(options: AppOptions = {}): {
         status: ready ? "ready" : "degraded",
         mode: "local-mock",
         providers: "disconnected",
+        persistenceMode: runtime.persistence.currentMode,
         knowledgeVersion: runtime.knowledgeVersion,
       },
       ready ? 200 : 503,
     );
   });
 
+  app.get("/health/persistence", (context) => context.json({
+    mode: runtime.persistence.currentMode,
+    metrics: runtime.persistence.metrics,
+    evidence: runtime.persistence.evidence,
+  }));
+
   app.post("/v1/sessions", async (context) => {
     validateCreateSession(await jsonBody(context.req.raw));
-    const session = runtime.orchestrator.createSession();
-    return context.json({
-      sessionId: session.id,
-      correlationId: session.correlationId,
-      state: session.state,
-      disclosure,
-      expiresAt: session.expiresAt,
-      streamUrl: `/v1/sessions/${session.id}/events`,
-    }, 201);
+    return runtime.persistence.transactCreate(() => {
+      const session = runtime.orchestrator.createSession();
+      return {
+        session,
+        result: context.json({
+          sessionId: session.id,
+          correlationId: session.correlationId,
+          state: session.state,
+          disclosure,
+          expiresAt: session.expiresAt,
+          streamUrl: `/v1/sessions/${session.id}/events`,
+        }, 201),
+      };
+    });
   });
 
   app.post("/v1/sessions/:sessionId/messages", async (context) => {
+    const sessionId = context.req.param("sessionId");
     const input = validateMessage(await jsonBody(context.req.raw));
-    const reply = await runtime.orchestrator.handleMessage(
-      context.req.param("sessionId"),
-      {
+    return runtime.persistence.transact(sessionId, async () => {
+      const reply = await runtime.orchestrator.handleMessage(sessionId, {
         messageId: input.messageId,
         sequence: input.sequence,
         text: input.text,
         locale: input.client.locale,
         timeZone: input.client.timeZone,
         pagePath: input.page.path,
-      },
-    );
-    return context.json({
-      correlationId: reply.correlationId,
-      status: reply.status === "confirmed" ? "accepted" : reply.status,
-      publicMessage: reply.text,
-    }, 202);
+      });
+      return context.json({
+        correlationId: reply.correlationId,
+        status: reply.status === "confirmed" ? "accepted" : reply.status,
+        publicMessage: reply.text,
+      }, 202);
+    });
   });
 
-  app.get("/v1/sessions/:sessionId/events", (context) => {
+  app.get("/v1/sessions/:sessionId/events", async (context) => {
     const sessionId = context.req.param("sessionId");
-    if (!runtime.sessions.get(sessionId)) {
+    if (!await runtime.persistence.ensureLoaded(sessionId)) {
       return problem(context, {
         type: "urn:nova:problem:not-found",
         title: "Session not found",
@@ -216,79 +228,88 @@ export function createApp(options: AppOptions = {}): {
   });
 
   app.post("/v1/sessions/:sessionId/consents", async (context) => {
-    const session = requireSession(context.req.param("sessionId"), runtime);
+    const sessionId = context.req.param("sessionId");
     const input = validateConsent(await jsonBody(context.req.raw));
     const existing = receipts.get(input.actionId);
     if (existing) return context.json(existing, 201);
-    runtime.sessions.setConsent(
-      session.id,
-      input.category,
-      input.action === "grant" ? "granted" : "withdrawn",
-    );
-    const receipt = actionReceipt(session.correlationId);
-    receipts.set(input.actionId, receipt);
-    return context.json(receipt, 201);
+    return runtime.persistence.transact(sessionId, async () => {
+      const session = requireSession(sessionId, runtime);
+      runtime.sessions.setConsent(
+        session.id,
+        input.category,
+        input.action === "grant" ? "granted" : "withdrawn",
+      );
+      const receipt = actionReceipt(session.correlationId);
+      receipts.set(input.actionId, receipt);
+      return context.json(receipt, 201);
+    });
   });
 
   app.post("/v1/sessions/:sessionId/handoffs", async (context) => {
-    const session = requireSession(context.req.param("sessionId"), runtime);
+    const sessionId = context.req.param("sessionId");
     const input = validateHandoff(await jsonBody(context.req.raw));
-    if (session.consent.save_contact !== "granted") {
-      return consentProblem(context, ["save_contact"]);
-    }
     const existing = receipts.get(input.actionId);
     if (existing) return context.json(existing, 202);
-    const provider = await runtime.ghl.execute({
-      tool: "create_follow_up_task",
-      args: { route: input.route, contact: input.contact },
-      idempotencyKey: `${session.id}:handoff:${input.actionId}`,
+    return runtime.persistence.transact(sessionId, async () => {
+      const session = requireSession(sessionId, runtime);
+      if (session.consent.save_contact !== "granted") {
+        return consentProblem(context, ["save_contact"]);
+      }
+      const provider = await runtime.ghl.execute({
+        tool: "create_follow_up_task",
+        args: { route: input.route, contact: input.contact },
+        idempotencyKey: `${session.id}:handoff:${input.actionId}`,
+      });
+      const response = provider.status === "outcome_unknown"
+        ? { correlationId: session.correlationId, status: "outcome_unknown", publicMessage: "A person must verify the request." }
+        : { correlationId: session.correlationId, status: "accepted", publicMessage: "Your request was recorded for human follow-up." };
+      receipts.set(input.actionId, response);
+      return context.json(response, 202);
     });
-    const response = provider.status === "outcome_unknown"
-      ? { correlationId: session.correlationId, status: "outcome_unknown", publicMessage: "A person must verify the request." }
-      : { correlationId: session.correlationId, status: "accepted", publicMessage: "Your request was recorded for human follow-up." };
-    receipts.set(input.actionId, response);
-    return context.json(response, 202);
   });
 
   app.post("/v1/sessions/:sessionId/bookings", async (context) => {
-    const session = requireSession(context.req.param("sessionId"), runtime);
+    const sessionId = context.req.param("sessionId");
     const input = validateBooking(await jsonBody(context.req.raw));
-    const required = ["save_contact", "appointment_notifications"];
-    if (input.notificationChannels.includes("email")) required.push("email_service");
-    if (input.notificationChannels.includes("sms")) required.push("sms_service");
-    const missing = required.filter(
-      (category) => session.consent[category as keyof typeof session.consent] !== "granted",
-    );
-    if (missing.length) return consentProblem(context, missing);
     const existing = receipts.get(input.actionId);
     if (existing) return context.json(existing, 201);
-    const provider = await runtime.ghl.execute({
-      tool: "request_appointment",
-      args: input,
-      idempotencyKey: `${session.id}:${input.calendarId}:${input.slotStart}`,
-    });
-    if (provider.status === "outcome_unknown") {
-      return context.json({
+    return runtime.persistence.transact(sessionId, async () => {
+      const session = requireSession(sessionId, runtime);
+      const required = ["save_contact", "appointment_notifications"];
+      if (input.notificationChannels.includes("email")) required.push("email_service");
+      if (input.notificationChannels.includes("sms")) required.push("sms_service");
+      const missing = required.filter(
+        (category) => session.consent[category as keyof typeof session.consent] !== "granted",
+      );
+      if (missing.length) return consentProblem(context, missing);
+      const provider = await runtime.ghl.execute({
+        tool: "request_appointment",
+        args: input,
+        idempotencyKey: `${session.id}:${input.calendarId}:${input.slotStart}`,
+      });
+      if (provider.status === "outcome_unknown") {
+        return context.json({
+          correlationId: session.correlationId,
+          status: "outcome_unknown",
+          publicMessage: "The booking could not be confirmed and will not be retried automatically.",
+        }, 202);
+      }
+      const response = {
         correlationId: session.correlationId,
-        status: "outcome_unknown",
-        publicMessage: "The booking could not be confirmed and will not be retried automatically.",
-      }, 202);
-    }
-    const response = {
-      correlationId: session.correlationId,
-      receiptId: provider.receiptId,
-      appointmentId: provider.providerObjectId,
-      status: "confirmed",
-      start: input.slotStart,
-      timeZone: input.timeZone,
-      advisorDisplayName: "Moonrock Advisor (synthetic)",
-    };
-    receipts.set(input.actionId, response);
-    return context.json(response, 201);
+        receiptId: provider.receiptId,
+        appointmentId: provider.providerObjectId,
+        status: "confirmed",
+        start: input.slotStart,
+        timeZone: input.timeZone,
+        advisorDisplayName: "Moonrock Advisor (synthetic)",
+      };
+      receipts.set(input.actionId, response);
+      return context.json(response, 201);
+    });
   });
 
   app.post("/v1/sessions/:sessionId/close", async (context) => {
-    const session = requireSession(context.req.param("sessionId"), runtime);
+    const sessionId = context.req.param("sessionId");
     const root = await jsonBody(context.req.raw) as Record<string, unknown>;
     if (!root || typeof root.actionId !== "string"
       || !["visitor_closed", "visitor_declined", "completed"].includes(String(root.reason))) {
@@ -296,12 +317,15 @@ export function createApp(options: AppOptions = {}): {
     }
     const existing = receipts.get(root.actionId);
     if (existing) return context.json(existing);
-    const target = root.reason === "visitor_declined" ? "VISITOR_DECLINED" : "CLOSED";
-    const closed = runtime.sessions.transition(session.id, target);
-    if (closed.state !== "CLOSED") runtime.sessions.transition(session.id, "CLOSED");
-    const receipt = actionReceipt(session.correlationId);
-    receipts.set(root.actionId, receipt);
-    return context.json(receipt);
+    return runtime.persistence.transact(sessionId, async () => {
+      const session = requireSession(sessionId, runtime);
+      const target = root.reason === "visitor_declined" ? "VISITOR_DECLINED" : "CLOSED";
+      const closed = runtime.sessions.transition(session.id, target);
+      if (closed.state !== "CLOSED") runtime.sessions.transition(session.id, "CLOSED");
+      const receipt = actionReceipt(session.correlationId);
+      receipts.set(root.actionId, receipt);
+      return context.json(receipt);
+    });
   });
 
   app.get("/prototype", (context) => context.redirect("/prototype/"));
@@ -343,7 +367,7 @@ export function createApp(options: AppOptions = {}): {
         code: "SESSION_NOT_FOUND",
       });
     }
-    if (/sequence conflict|not active|Invalid lifecycle/i.test(error.message)) {
+    if (/sequence conflict|not active|Invalid lifecycle|version|conflict/i.test(error.message)) {
       return problem(context, {
         type: "urn:nova:problem:state-conflict",
         title: "State conflict",
