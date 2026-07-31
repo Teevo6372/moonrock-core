@@ -57,3 +57,33 @@ Provider adapters remain mocks in Sprint 006. Health output declares
 `providers: disconnected`, and the bundled knowledge is explicitly synthetic.
 Adding a live adapter, credentials, WordPress integration, staging deployment,
 or production activation requires a later approved sprint.
+
+## PostgreSQL staging adapter
+
+The runtime includes a PostgreSQL implementation of the approved
+`DurableStateRepository` and a checksum-tracked, advisory-locked migration
+runner. When `DATABASE_URL` is present, startup fails closed unless migrations
+are explicitly enabled and the database connection verifies successfully.
+
+Required staging variables:
+
+```text
+DATABASE_URL=<managed secret reference>
+NOVA_RUN_MIGRATIONS=true
+```
+
+Optional bounded settings:
+
+```text
+NOVA_DATABASE_POOL_MAX=4
+NOVA_DATABASE_SSL_MODE=require
+NOVA_MIGRATIONS_DIRECTORY=migrations
+```
+
+`NOVA_DATABASE_SSL_MODE=require` is for certificate-validating external
+connections. Moonrock-controlled private service networking may omit it when
+the platform contract provides the approved encrypted/private boundary.
+
+The adapter and schema are initialized at startup, but conversation sessions
+continue to use the in-memory store. This is intentional: the repository
+cutover remains a separate approval gate, and partial dual-write is prohibited.
