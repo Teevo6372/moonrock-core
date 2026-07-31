@@ -1,0 +1,70 @@
+{
+  "pilotId": "nova-r1-limited-pilot-001",
+  "status": "candidate",
+  "releaseId": "nova-web-r1-staging-candidate-001",
+  "owners": {
+    "releaseOwner": null,
+    "runtimeOperator": null,
+    "incidentOwner": null,
+    "privacyOwner": null,
+    "securityOwner": null,
+    "crmOwner": null,
+    "supportOwner": null,
+    "executiveDecisionOwner": null
+  },
+  "operatingWindow": {
+    "timeZone": "America/Chicago",
+    "days": ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
+    "startLocal": "10:00",
+    "endLocal": "18:00",
+    "startsAt": null,
+    "endsAt": null
+  },
+  "dataBoundary": {
+    "anonymousGuidanceAllowed": true,
+    "allowedContactFields": [
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "company_name",
+      "website_domain",
+      "service_area",
+      "preferred_channel"
+    ],
+    "rawTranscriptStorage": false,
+    "prohibitedDataClasses": [
+      "credentials",
+      "payment_card",
+      "government_identifier",
+      "medical",
+      "child_data",
+      "private_client_data"
+    ],
+    "retentionPolicyReference": null
+  },
+  "limits": {
+    "maxConcurrentSessions": 3,
+    "maxSessionsPerHour": 15,
+    "maxSessionsPerDay": 50,
+    "maxMessagesPerSession": 20,
+    "maxDailyModelTokens": 200000,
+    "maxDailyCostCents": 500,
+    "maxDailyGhlWrites": 10
+  },
+  "support": {
+    "handoffAcknowledgementMinutes": 30,
+    "incidentAcknowledgementMinutes": 15,
+    "fallbackUrl": "https://moonrockmarketing.com/contact/",
+    "supportCoverageReference": null
+  },
+  "approvals": {
+    "stagingRelease": null,
+    "privacy": null,
+    "security": null,
+    "accessibility": null,
+    "crm": null,
+    "operations": null,
+    "pilotLaunch": null
+  }
+}
