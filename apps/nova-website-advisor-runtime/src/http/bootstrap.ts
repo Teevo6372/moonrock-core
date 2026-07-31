@@ -15,6 +15,12 @@ import { createModelProposalValidator } from "../schema-validation.js";
 import { InMemorySessionStore } from "../session-store.js";
 import type { Intent, ModelProposal, RiskSignal } from "../domain.js";
 import { BoundedEventStreamHub, projectPublicEvent } from "../event-stream.js";
+import { InMemoryDurableStateRepository, type DurableStateRepository } from "../durable-state.js";
+import { DurableSessionCoordinator } from "../durable-session-coordinator.js";
+import {
+  SessionPersistenceController,
+  type SessionPersistenceMode,
+} from "../session-persistence-controller.js";
 
 export interface LocalRuntime {
   orchestrator: NovaOrchestrator;
@@ -25,6 +31,12 @@ export interface LocalRuntime {
   health: RuntimeHealth;
   knowledgeVersion: string;
   eventStream: BoundedEventStreamHub;
+  persistence: SessionPersistenceController;
+}
+
+export interface LocalRuntimeOptions {
+  persistenceMode?: SessionPersistenceMode;
+  durableRepository?: DurableStateRepository;
 }
 
 function parseJson(path: string): unknown {
@@ -72,7 +84,10 @@ function proposal(text: string): ModelProposal {
   };
 }
 
-export function createLocalRuntime(baseDir = process.cwd()): LocalRuntime {
+export function createLocalRuntime(
+  baseDir = process.cwd(),
+  options: LocalRuntimeOptions = {},
+): LocalRuntime {
   const rawBundle = parseJson(resolve(baseDir, "fixtures/synthetic-knowledge.json")) as {
     bundleId: KnowledgeBundle["bundleId"];
     version: string;
@@ -89,6 +104,12 @@ export function createLocalRuntime(baseDir = process.cwd()): LocalRuntime {
     ),
   ) as object;
   const sessions = new InMemorySessionStore();
+  const durableRepository = options.durableRepository ?? new InMemoryDurableStateRepository();
+  const persistence = new SessionPersistenceController(
+    options.persistenceMode ?? "memory",
+    sessions,
+    new DurableSessionCoordinator(durableRepository, sessions),
+  );
   const events = new InMemoryEventSink();
   const eventStream = new BoundedEventStreamHub();
   events.subscribe((event) => {
@@ -109,6 +130,7 @@ export function createLocalRuntime(baseDir = process.cwd()): LocalRuntime {
     health,
     knowledgeVersion: knowledge.version,
     eventStream,
+    persistence,
     orchestrator: new NovaOrchestrator({
       sessions,
       events,
