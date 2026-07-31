@@ -15,6 +15,7 @@ import {
   validateHandoff,
   validateMessage,
 } from "./validation.js";
+import type { StreamItem } from "../event-stream.js";
 
 type Variables = { correlationId: string };
 
@@ -163,6 +164,39 @@ export function createApp(options: AppOptions = {}): {
       (event) => event.sessionId === sessionId
         && (!lastEventId || event.eventId !== lastEventId),
     );
+    if (context.req.query("follow") === "1") {
+      const subscription = runtime.eventStream.subscribe(sessionId);
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const event of sessionEvents) {
+            controller.enqueue(encoder.encode(formatSse({
+              type: "event",
+              event: {
+                eventId: event.eventId,
+                eventName: event.eventName,
+                occurredAt: event.occurredAt,
+                state: event.state,
+                outcome: event.outcome,
+                reasonCode: event.reasonCode,
+              },
+            })));
+          }
+          void pumpSubscription(subscription, controller, encoder);
+        },
+        cancel() {
+          subscription.cancel();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          connection: "keep-alive",
+          "x-accel-buffering": "no",
+        },
+      });
+    }
     const stream = sessionEvents.map((event) =>
       `id: ${event.eventId}\nevent: ${event.eventName}\ndata: ${JSON.stringify({
         eventName: event.eventName,
@@ -356,4 +390,39 @@ function consentProblem(context: Parameters<typeof problem>[0], missing: string[
     detail: `Explicit consent is required for: ${missing.join(", ")}.`,
     code: "CONSENT_REQUIRED",
   });
+}
+
+function formatSse(item: StreamItem): string {
+  if (item.type === "reset") {
+    return `event: stream.reset\ndata: ${JSON.stringify({
+      reasonCode: item.reasonCode,
+    })}\n\n`;
+  }
+  return `id: ${item.event.eventId}\nevent: ${item.event.eventName}\ndata: ${JSON.stringify({
+    eventName: item.event.eventName,
+    occurredAt: item.event.occurredAt,
+    state: item.event.state,
+    outcome: item.event.outcome,
+    reasonCode: item.event.reasonCode,
+  })}\n\n`;
+}
+
+async function pumpSubscription(
+  subscription: ReturnType<LocalRuntime["eventStream"]["subscribe"]>,
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: { encode(input?: string): Uint8Array },
+): Promise<void> {
+  try {
+    while (true) {
+      const item = await subscription.next();
+      if (!item) break;
+      controller.enqueue(encoder.encode(formatSse(item)));
+      if (item.type === "reset") break;
+    }
+    controller.close();
+  } catch {
+    controller.error(new Error("Event stream closed"));
+  } finally {
+    subscription.cancel();
+  }
 }
