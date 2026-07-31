@@ -14,3 +14,4 @@ export * from "./http/bootstrap.js";
 export * from "./improvement.js";
 export * from "./metrics.js";
 export * from "./release-gate.js";
+export * from "./staging-config.js";

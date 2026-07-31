@@ -1,7 +1,7 @@
 # Nova Website Advisor Runtime
 
-Non-production Sprint 006 governed learning and closure foundation for the
-governed Nova Website Advisor.
+Non-production Release 1 staging-activation Sprint 001 architecture and
+control-plane foundation for the governed Nova Website Advisor.
 
 ## Included
 
@@ -22,6 +22,7 @@ governed Nova Website Advisor.
 - non-controlling Continuous Learning Queue with role-gated lifecycle;
 - governed experiment authorization and aggregate quality snapshots;
 - deterministic, human-owned production release gate;
+- fail-closed staging configuration and readiness contract;
 - synthetic contract, lifecycle, safety, privacy, and injection tests.
 
 ## Excluded
