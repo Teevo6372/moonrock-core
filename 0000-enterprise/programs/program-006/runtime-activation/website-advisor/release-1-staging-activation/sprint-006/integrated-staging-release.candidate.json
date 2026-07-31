@@ -1,0 +1,39 @@
+{
+  "releaseId": "nova-web-r1-staging-candidate-001",
+  "status": "candidate",
+  "runtimeVersion": "0.1.0",
+  "modelReleaseId": "nova-model-r1-candidate-001",
+  "modelEvaluationEvidenceHash": "sha256:pending",
+  "ghlManifestId": "nova-ghl-sandbox-candidate-001",
+  "ghlValidationEvidenceHash": "sha256:pending",
+  "knowledgeVersion": "1.0.0-candidate",
+  "knowledgeContentHash": "sha256:pending",
+  "knowledgeEvidenceHash": "sha256:pending",
+  "promptVersion": "nova-web-prompt-1.0.0-candidate",
+  "policyVersion": "nova-web-policy-1.0.0",
+  "schemaVersion": "nova-model-output-1.0.0",
+  "migrationVersion": "0001_staging_foundation",
+  "containerContractVersion": "nova-node-container-1.0.0",
+  "providers": {
+    "model": "disconnected",
+    "ghl": "disconnected",
+    "externalWritesEnabled": false
+  },
+  "observability": {
+    "rawMessageLogging": false,
+    "rawTranscriptStorage": false,
+    "redactionVerified": true,
+    "alertExercisePassed": false
+  },
+  "reviews": {
+    "privacy": null,
+    "security": null,
+    "accessibility": null,
+    "operations": null
+  },
+  "incidentExerciseHash": null,
+  "rollbackExerciseHash": null,
+  "deploymentTargetReference": null,
+  "secretStoreReference": null,
+  "credentialsPresent": false
+}
