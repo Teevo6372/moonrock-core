@@ -1,0 +1,11 @@
+{
+  "authorizationId": "REQUIRED_UNIQUE_AUTHORIZATION_ID",
+  "approvedBy": "REQUIRED_HUMAN_RELEASE_OWNER_REFERENCE",
+  "validFrom": "REQUIRED_ISO_8601_TIMESTAMP",
+  "expiresAt": "REQUIRED_ISO_8601_TIMESTAMP",
+  "maxWrites": 1,
+  "allowedTools": [
+    "create_contact"
+  ],
+  "fixturePrefix": "NOVA-SYNTHETIC-"
+}
