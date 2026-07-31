@@ -15,3 +15,7 @@ export * from "./improvement.js";
 export * from "./metrics.js";
 export * from "./release-gate.js";
 export * from "./staging-config.js";
+export * from "./config-loader.js";
+export * from "./dependency-health.js";
+export * from "./durable-state.js";
+export * from "./event-stream.js";
