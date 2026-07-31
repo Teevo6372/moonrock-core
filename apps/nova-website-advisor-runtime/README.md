@@ -1,7 +1,7 @@
 # Nova Website Advisor Runtime
 
-Non-production Release 1 staging-activation Sprint 001 architecture and
-control-plane foundation for the governed Nova Website Advisor.
+Non-production Release 1 staging-activation Sprint 002 portable platform
+foundation for the governed Nova Website Advisor.
 
 ## Included
 
@@ -23,6 +23,7 @@ control-plane foundation for the governed Nova Website Advisor.
 - governed experiment authorization and aggregate quality snapshots;
 - deterministic, human-owned production release gate;
 - fail-closed staging configuration and readiness contract;
+- portable container, durable-state, health, and bounded live-SSE contracts;
 - synthetic contract, lifecycle, safety, privacy, and injection tests.
 
 ## Excluded

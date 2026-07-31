@@ -52,9 +52,17 @@ export interface EventSink {
 
 export class InMemoryEventSink implements EventSink {
   readonly events: RuntimeEvent[] = [];
+  readonly #listeners = new Set<(event: RuntimeEvent) => void>();
 
   emit(event: RuntimeEvent): void {
-    this.events.push(structuredClone(event));
+    const safeEvent = structuredClone(event);
+    this.events.push(safeEvent);
+    for (const listener of this.#listeners) listener(structuredClone(safeEvent));
+  }
+
+  subscribe(listener: (event: RuntimeEvent) => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
 }
 
@@ -89,4 +97,3 @@ export function createEvent(input: {
     },
   };
 }
-
