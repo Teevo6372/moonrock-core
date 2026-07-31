@@ -1,0 +1,25 @@
+{
+  "releaseId": "nova-model-r1-candidate-001",
+  "status": "candidate",
+  "provider": "openai",
+  "api": "responses",
+  "model": "gpt-5.6-terra",
+  "reasoningEffort": "low",
+  "promptVersion": "nova-web-prompt-1.0.0-candidate",
+  "policyVersion": "nova-web-policy-1.0.0",
+  "schemaVersion": "nova-model-output-1.0.0",
+  "promptHash": "sha256:518a79f3df0965f03655b2b4c4f22ea5db858517c402301be807102844d966a0",
+  "schemaHash": "sha256:e33c45ebbe55d87d5201cfdf6de3081d8ca100483ff28af9b3232dfce7e26065",
+  "store": false,
+  "toolsEnabled": false,
+  "externalWritesEnabled": false,
+  "evaluationSuite": "nova-model-sandbox-synthetic-1.0.0",
+  "evaluationStatus": "pending",
+  "approverReference": null,
+  "rollbackReleaseId": "provider-disconnected-static-fallback",
+  "sourceUrls": [
+    "https://developers.openai.com/api/docs/guides/latest-model",
+    "https://developers.openai.com/api/docs/guides/structured-outputs",
+    "https://developers.openai.com/api/docs/guides/migrate-to-responses"
+  ]
+}
