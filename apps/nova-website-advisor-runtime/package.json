@@ -12,6 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --exclude 'dist/**'",
     "validate:staging": "tsx src/staging-validation-cli.ts",
+    "record:staging-activation": "tsx src/staging-activation-record-cli.ts",
     "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
