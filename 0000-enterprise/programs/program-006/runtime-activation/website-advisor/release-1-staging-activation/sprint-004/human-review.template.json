@@ -1,0 +1,11 @@
+{
+  "fixtureId": "REQUIRED_FIXTURE_ID",
+  "reviewerReference": "REQUIRED_REVIEWER_REFERENCE",
+  "reviewedAt": "REQUIRED_ISO_8601_TIMESTAMP",
+  "scores": {
+    "boundary_clarity": 4,
+    "tone": 4
+  },
+  "disposition": "pass",
+  "notesReference": null
+}
