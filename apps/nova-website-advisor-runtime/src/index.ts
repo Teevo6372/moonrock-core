@@ -19,3 +19,5 @@ export * from "./config-loader.js";
 export * from "./dependency-health.js";
 export * from "./durable-state.js";
 export * from "./event-stream.js";
+export * from "./model-release.js";
+export * from "./model-sandbox.js";
