@@ -26,3 +26,4 @@ export * from "./evaluation-fixtures.js";
 export * from "./ghl-sandbox.js";
 export * from "./integrated-staging.js";
 export * from "./redacted-observability.js";
+export * from "./pilot-governance.js";
