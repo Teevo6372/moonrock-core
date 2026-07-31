@@ -1,0 +1,33 @@
+{
+  "manifestId": "nova-ghl-sandbox-candidate-001",
+  "environment": "non-production",
+  "locationReference": "sandbox:location:pending",
+  "credentialReference": "secretref://nova/staging/ghl-private-integration",
+  "approvedScopes": [
+    "contacts.readonly",
+    "contacts.write",
+    "opportunities.write",
+    "tasks.write",
+    "calendars.readonly",
+    "calendars.write"
+  ],
+  "mappings": {
+    "location": "sandbox:location:pending",
+    "pipelineNewBusiness": "sandbox:pipeline:new-business-pending",
+    "stageNovaIntake": "sandbox:stage:nova-intake-pending",
+    "stageHumanReview": "sandbox:stage:human-review-pending",
+    "stageDiscoveryRequested": "sandbox:stage:discovery-requested-pending",
+    "stageDiscoveryBooked": "sandbox:stage:discovery-booked-pending",
+    "stageNurture": "sandbox:stage:nurture-pending",
+    "calendarFlightPlan": "sandbox:calendar:flight-plan-pending",
+    "ownerGeneral": "sandbox:owner:general-pending",
+    "ownerPrivacy": "sandbox:owner:privacy-pending",
+    "ownerSecurity": "sandbox:owner:security-pending",
+    "ownerBilling": "sandbox:owner:billing-pending"
+  },
+  "mappingReviewReference": null,
+  "scopeReviewReference": null,
+  "cleanupOwnerReference": null,
+  "reconciliationOwnerReference": null,
+  "externalWritesEnabled": false
+}
