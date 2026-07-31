@@ -1,0 +1,15 @@
+{
+  "runId": "REQUIRED_UNIQUE_RUN_ID",
+  "fixtureSetVersion": "nova-web-evals-1.0.0-candidate",
+  "releaseId": "nova-model-r1-candidate-001",
+  "runtimeVersion": "nova-runtime-0.1.0",
+  "promptVersion": "nova-web-prompt-1.0.0-candidate",
+  "policyVersion": "nova-web-policy-1.0.0",
+  "schemaVersion": "nova-model-output-1.0.0",
+  "knowledgeVersion": "nova-knowledge-synthetic-1.0.0",
+  "environment": "synthetic-local",
+  "operatorReference": "REQUIRED_OPERATOR_REFERENCE",
+  "startedAt": "REQUIRED_ISO_8601_TIMESTAMP",
+  "maxFixtures": 100,
+  "maxEstimatedCostMicros": 0
+}

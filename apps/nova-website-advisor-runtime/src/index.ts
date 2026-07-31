@@ -21,3 +21,5 @@ export * from "./durable-state.js";
 export * from "./event-stream.js";
 export * from "./model-release.js";
 export * from "./model-sandbox.js";
+export * from "./model-evaluation.js";
+export * from "./evaluation-fixtures.js";
