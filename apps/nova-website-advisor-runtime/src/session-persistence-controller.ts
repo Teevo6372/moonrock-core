@@ -157,9 +157,9 @@ export class SessionPersistenceController {
       operation,
       sessionId,
       mode: this.mode,
-      durableVersion,
-      durationMs,
-      reason,
+      ...(durableVersion === undefined ? {} : { durableVersion }),
+      ...(durationMs === undefined ? {} : { durationMs }),
+      ...(reason === undefined ? {} : { reason }),
       recordedAt: new Date().toISOString(),
     });
   }
