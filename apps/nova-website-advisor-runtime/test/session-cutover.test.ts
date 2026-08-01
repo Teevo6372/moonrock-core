@@ -6,7 +6,7 @@ import type { Session } from "../src/domain.js";
 const session: Session = {
   id: "session-sprint-009",
   correlationId: "correlation-sprint-009",
-  state: "DISCLOSURE_PRESENTED",
+  state: "DISCLOSED",
   disclosureVersion: "nova-disclosure-1.0.0",
   disclosurePresented: true,
   sequence: 0,
@@ -15,9 +15,13 @@ const session: Session = {
   discoveryQuestionCount: 0,
   consent: {
     save_contact: "not_requested",
+    save_transcript: "not_requested",
     email_service: "not_requested",
     sms_service: "not_requested",
+    phone_service: "not_requested",
     appointment_notifications: "not_requested",
+    email_marketing: "not_requested",
+    sms_marketing: "not_requested",
   },
   pendingAction: null,
   createdAt: "2026-07-31T03:30:00.000Z",

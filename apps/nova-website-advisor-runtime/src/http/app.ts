@@ -315,15 +315,17 @@ export function createApp(options: AppOptions = {}): {
       || !["visitor_closed", "visitor_declined", "completed"].includes(String(root.reason))) {
       throw new RequestValidationError([{ path: "$", message: "actionId and approved reason are required" }]);
     }
-    const existing = receipts.get(root.actionId);
+    const actionId = root.actionId;
+    const reason = String(root.reason);
+    const existing = receipts.get(actionId);
     if (existing) return context.json(existing);
     return runtime.persistence.transact(sessionId, async () => {
       const session = requireSession(sessionId, runtime);
-      const target = root.reason === "visitor_declined" ? "VISITOR_DECLINED" : "CLOSED";
+      const target = reason === "visitor_declined" ? "VISITOR_DECLINED" : "CLOSED";
       const closed = runtime.sessions.transition(session.id, target);
       if (closed.state !== "CLOSED") runtime.sessions.transition(session.id, "CLOSED");
       const receipt = actionReceipt(session.correlationId);
-      receipts.set(root.actionId, receipt);
+      receipts.set(actionId, receipt);
       return context.json(receipt);
     });
   });
