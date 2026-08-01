@@ -12,6 +12,7 @@ if (providerMode !== 'mock' && providerMode !== 'disabled') {
   throw new Error('NOVA_PROVIDER_MODE must be mock or disabled');
 }
 
+const operatorNotes = process.env.NOVA_STAGING_OPERATOR_NOTES;
 const record = await createActivationRecord({
   validationEvidencePath: required('NOVA_STAGING_EVIDENCE_PATH'),
   outputPath,
@@ -25,7 +26,7 @@ const record = await createActivationRecord({
   rollbackEvidenceReference: required('NOVA_STAGING_ROLLBACK_EVIDENCE'),
   operatorName: required('NOVA_STAGING_OPERATOR'),
   operatorDecision: process.env.NOVA_STAGING_OPERATOR_DECISION === 'accepted' ? 'accepted' : 'rejected',
-  operatorNotes: process.env.NOVA_STAGING_OPERATOR_NOTES,
+  ...(operatorNotes === undefined ? {} : { operatorNotes }),
 });
 
 await writeActivationRecord(outputPath, record);
