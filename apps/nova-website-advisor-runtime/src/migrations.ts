@@ -68,11 +68,22 @@ async function applyMigration(
 ): Promise<void> {
   await client.query("BEGIN");
   try {
+    // Some early staging migrations recorded their own version before the
+    // checksum column was introduced. Allow that legacy insert inside the
+    // transaction, then normalize the ledger before commit.
+    await client.query(
+      "ALTER TABLE nova_schema_migrations ALTER COLUMN checksum DROP NOT NULL",
+    );
     await client.query(stripTransactionBoundary(source));
     await client.query(
       `INSERT INTO nova_schema_migrations (version, checksum)
-       VALUES ($1, $2)`,
+       VALUES ($1, $2)
+       ON CONFLICT (version)
+       DO UPDATE SET checksum = EXCLUDED.checksum`,
       [version, checksum],
+    );
+    await client.query(
+      "ALTER TABLE nova_schema_migrations ALTER COLUMN checksum SET NOT NULL",
     );
     await client.query("COMMIT");
   } catch (error) {
