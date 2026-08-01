@@ -7,6 +7,12 @@ import { PostgresDurableStateRepository } from "./postgres-durable-state.js";
 
 const port = Number(process.env.NOVA_LOCAL_PORT ?? "8787");
 const hostname = process.env.NOVA_BIND_HOST ?? "127.0.0.1";
+const localOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:8787",
+  "http://127.0.0.1:8787",
+];
 
 async function start(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
@@ -36,8 +42,30 @@ async function start(): Promise<void> {
     );
   }
 
-  const { app } = createApp();
-  const server = serve({ fetch: app.fetch, hostname, port }, (info) => {
+  const allowedOrigins = parseAllowedOrigins(process.env.NOVA_ALLOWED_ORIGINS);
+  const { app } = createApp({ allowedOrigins });
+  const fetch = async (request: Request): Promise<Response> => {
+    const origin = request.headers.get("origin");
+    const originAllowed = origin !== null && allowedOrigins.includes(origin);
+    if (request.method === "OPTIONS" && originAllowed) {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders(origin),
+      });
+    }
+    const response = await app.fetch(request);
+    if (!originAllowed) return response;
+    const headers = new Headers(response.headers);
+    for (const [name, value] of Object.entries(corsHeaders(origin))) {
+      headers.set(name, value);
+    }
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
+  const server = serve({ fetch, hostname, port }, (info) => {
     process.stdout.write(
       `Nova provider-disconnected runtime listening on ${hostname}:${info.port}\n`,
     );
@@ -49,6 +77,30 @@ async function start(): Promise<void> {
   };
   process.once("SIGTERM", close);
   process.once("SIGINT", close);
+}
+
+function parseAllowedOrigins(raw: string | undefined): string[] {
+  const configured = (raw ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+  for (const origin of configured) {
+    const parsed = new URL(origin);
+    if (parsed.origin !== origin || !["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error(`NOVA_ALLOWED_ORIGINS contains an invalid origin: ${origin}`);
+    }
+  }
+  return [...new Set([...localOrigins, ...configured])];
+}
+
+function corsHeaders(origin: string): Record<string, string> {
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers": "content-type,x-correlation-id,last-event-id",
+    "access-control-max-age": "600",
+    "vary": "Origin",
+  };
 }
 
 function boundedInteger(
