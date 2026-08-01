@@ -5,7 +5,7 @@
     "buildCommand": "npm ci && npm run build"
   },
   "deploy": {
-    "startCommand": "node dist/server.js",
+    "startCommand": "node dist/src/server.js",
     "healthcheckPath": "/health/ready",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",
