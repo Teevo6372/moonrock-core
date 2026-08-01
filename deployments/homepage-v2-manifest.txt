@@ -5,7 +5,9 @@ xstore-child/style.css|wp-content/themes/xstore-child/style.css
 xstore-child/template-moonrock-homepage.php|wp-content/themes/xstore-child/template-moonrock-homepage.php
 xstore-child/template-parts/moonrock-homepage-content.php|wp-content/themes/xstore-child/template-parts/moonrock-homepage-content.php
 xstore-child/assets/css/moonrock-homepage.css|wp-content/themes/xstore-child/assets/css/moonrock-homepage.css
+xstore-child/assets/css/moonrock-nova-chat.css|wp-content/themes/xstore-child/assets/css/moonrock-nova-chat.css
 xstore-child/assets/js/moonrock-homepage.js|wp-content/themes/xstore-child/assets/js/moonrock-homepage.js
+xstore-child/assets/js/moonrock-nova-chat.js|wp-content/themes/xstore-child/assets/js/moonrock-nova-chat.js
 xstore-child/assets/images/moonrock-brand.webp|wp-content/themes/xstore-child/assets/images/moonrock-brand.webp
 xstore-child/assets/images/nova-hero.webp|wp-content/themes/xstore-child/assets/images/nova-hero.webp
 xstore-child/assets/images/nova-profile.webp|wp-content/themes/xstore-child/assets/images/nova-profile.webp
