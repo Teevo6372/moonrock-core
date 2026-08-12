@@ -69,12 +69,32 @@ jobs:
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.FUSIONARC_SSH_PRIVATE_KEY }}
+          SSH_KEY_PASSPHRASE: ${{ secrets.FUSIONARC_SSH_KEY_PASSPHRASE }}
           SSH_HOST_KEY: ${{ secrets.FUSIONARC_SSH_HOST_KEY }}
         run: |
+          set -euo pipefail
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/fusionarc_deploy_key
+          chmod 600 ~/.ssh/fusionarc_deploy_key
           printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+
+          askpass="$RUNNER_TEMP/ssh-askpass.sh"
+          cat > "$askpass" <<'ASKPASS'
+          #!/usr/bin/env bash
+          printf '%s\n' "$SSH_KEY_PASSPHRASE"
+          ASKPASS
+          chmod 700 "$askpass"
+
+          export SSH_ASKPASS="$askpass"
+          export SSH_ASKPASS_REQUIRE=force
+          export DISPLAY=:0
+          setsid -w ssh-add ~/.ssh/fusionarc_deploy_key < /dev/null
+          ssh-add -l
 
       - name: Deploy manifest-owned files with rsync
         env:
