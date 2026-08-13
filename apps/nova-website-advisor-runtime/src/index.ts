@@ -29,3 +29,5 @@ export * from "./redacted-observability.js";
 export * from "./pilot-governance.js";
 export * from "./postgres-durable-state.js";
 export * from "./migrations.js";
+export * from "./ai-employee-catalog.js";
+export * from "./diagnostic-engine.js";
