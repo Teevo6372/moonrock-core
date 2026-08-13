@@ -34,5 +34,6 @@ export * from "./diagnostic-engine.js";
 export * from "./flight-plan.js";
 export * from "./discovery-graph.js";
 export * from "./discovery-session.js";
+export * from "./ghl-field-registry.js";
 export * from "./ghl-discovery-mapping.js";
 export * from "./discovery-api-contract.js";
