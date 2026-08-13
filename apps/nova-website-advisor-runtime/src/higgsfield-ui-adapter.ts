@@ -40,10 +40,10 @@ export function toImmersiveNovaView(response: NovaDiscoveryResponse): ImmersiveN
       progressPercent: 100,
       flightPlanReady: true,
       recommendedOffer: {
-        name: result.flightPlan.recommendedOffer.name,
-        monthlyUsd: result.flightPlan.recommendedOffer.monthlyUsd,
-        setupUsd: result.flightPlan.recommendedOffer.setupUsd,
-        autonomousCloseAllowed: result.diagnostic.autonomousCloseAllowed,
+        name: result.flightPlan.recommendation.offerName,
+        monthlyUsd: result.flightPlan.recommendation.monthlyFeeUsd,
+        setupUsd: result.flightPlan.recommendation.setupFeeUsd,
+        autonomousCloseAllowed: result.flightPlan.recommendation.autonomousCloseAllowed,
       },
       ...(result.diagnostic.opportunityEstimate
         ? { estimatedOpportunityUsd: result.diagnostic.opportunityEstimate.monthlyOpportunityUsd }
