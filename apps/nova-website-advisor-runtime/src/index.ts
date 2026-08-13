@@ -40,5 +40,7 @@ export * from "./discovery-state-repository.js";
 export * from "./ghl-field-registry.js";
 export * from "./ghl-discovery-mapping.js";
 export * from "./ghl-flight-plan-sync.js";
+export * from "./ghl-location-inspector.js";
+export * from "./ghl-registry-resolver.js";
 export * from "./discovery-api-contract.js";
 export * from "./higgsfield-ui-adapter.js";
