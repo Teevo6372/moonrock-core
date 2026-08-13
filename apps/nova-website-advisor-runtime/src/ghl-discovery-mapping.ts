@@ -45,7 +45,7 @@ export function mapDiscoveryToGhl(
 
   const note = [
     `Moonrock Flight Plan generated for ${flightPlan.businessName}.`,
-    `Recommended offer: ${flightPlan.recommendedOffer.name}.`,
+    `Recommended offer: ${flightPlan.recommendation.offerName}.`,
     `Primary bottlenecks: ${diagnostic.bottlenecks.slice(0, 3).map((finding) => finding.id).join(", ") || "none confirmed"}.`,
     diagnostic.opportunityEstimate
       ? `Estimated monthly opportunity: $${diagnostic.opportunityEstimate.monthlyOpportunityUsd}.`

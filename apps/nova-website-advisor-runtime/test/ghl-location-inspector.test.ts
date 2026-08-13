@@ -5,7 +5,7 @@ const response = (value: unknown) => new Response(JSON.stringify(value), { statu
 
 describe("HighLevel location inspector", () => {
   it("collects location, fields, and pipelines", async () => {
-    const fakeFetch = async (input: RequestInfo | URL): Promise<Response> => {
+    const fakeFetch = async (input: string | URL | Request): Promise<Response> => {
       const url = String(input);
       if (url.includes("customFields")) return response({ customFields: [{ id: "field-1", name: "Moonrock Path", fieldKey: "contact.moonrock_path", model: "contact" }] });
       if (url.includes("opportunities/pipelines")) return response({ pipelines: [{ id: "pipeline-1", name: "New Business", stages: [] }] });

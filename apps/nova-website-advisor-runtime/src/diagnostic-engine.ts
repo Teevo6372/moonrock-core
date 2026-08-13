@@ -209,6 +209,7 @@ export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
   const offer = AI_EMPLOYEE_CATALOG[recommendedOfferId];
   const autonomousCloseAllowed = offer.autonomousSaleAllowed && escalationReasons.length === 0;
   const primary = findings[0];
+  const opportunityEstimate = estimateOpportunity(input);
   const recommendationReason = primary
     ? `${offer.name} is the smallest approved Moonrock offer that addresses the strongest detected bottlenecks, led by ${primary.id.replaceAll("_", " ")}.`
     : `${offer.name} is the default entry recommendation pending additional discovery.`;
@@ -220,6 +221,6 @@ export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
     recommendationReason,
     autonomousCloseAllowed,
     escalationReasons,
-    ...(estimateOpportunity(input) ? { opportunityEstimate: estimateOpportunity(input) } : {}),
+    ...(opportunityEstimate ? { opportunityEstimate } : {}),
   };
 }
