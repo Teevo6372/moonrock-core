@@ -1,5 +1,6 @@
 import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
 import type { FlightPlan } from "./flight-plan.js";
+import { DEFAULT_GHL_FIELD_REGISTRY, type GhlFieldRegistry } from "./ghl-field-registry.js";
 
 export interface GhlDiscoveryPayload {
   contactFields: Record<string, string | number | boolean>;
@@ -12,26 +13,27 @@ export function mapDiscoveryToGhl(
   input: DiagnosticInput,
   diagnostic: DiagnosticResult,
   flightPlan: FlightPlan,
+  fields: GhlFieldRegistry = DEFAULT_GHL_FIELD_REGISTRY,
 ): GhlDiscoveryPayload {
   const contactFields: Record<string, string | number | boolean> = {
-    moonrock_path: input.path,
-    moonrock_recommended_offer: diagnostic.recommendedOfferId,
-    moonrock_autonomous_close_allowed: diagnostic.autonomousCloseAllowed,
+    [fields.contact.path]: input.path,
+    [fields.contact.recommendedOffer]: diagnostic.recommendedOfferId,
+    [fields.contact.autonomousCloseAllowed]: diagnostic.autonomousCloseAllowed,
   };
 
-  if (input.businessName) contactFields.business_name = input.businessName;
-  if (input.industry) contactFields.industry = input.industry;
-  if (input.monthlyLeads !== undefined) contactFields.monthly_leads = input.monthlyLeads;
-  if (input.expectedVoiceMinutesPerMonth !== undefined) contactFields.expected_voice_minutes = input.expectedVoiceMinutesPerMonth;
+  if (input.businessName) contactFields[fields.contact.businessName] = input.businessName;
+  if (input.industry) contactFields[fields.contact.industry] = input.industry;
+  if (input.monthlyLeads !== undefined) contactFields[fields.contact.monthlyLeads] = input.monthlyLeads;
+  if (input.expectedVoiceMinutesPerMonth !== undefined) contactFields[fields.contact.expectedVoiceMinutes] = input.expectedVoiceMinutesPerMonth;
 
   const opportunityFields: Record<string, string | number | boolean> = {
-    moonrock_flight_plan_status: "generated",
-    moonrock_primary_bottleneck: diagnostic.bottlenecks[0]?.id ?? "unknown",
-    moonrock_bottleneck_count: diagnostic.bottlenecks.length,
+    [fields.opportunity.flightPlanStatus]: "generated",
+    [fields.opportunity.primaryBottleneck]: diagnostic.bottlenecks[0]?.id ?? "unknown",
+    [fields.opportunity.bottleneckCount]: diagnostic.bottlenecks.length,
   };
 
   if (diagnostic.opportunityEstimate) {
-    opportunityFields.estimated_monthly_opportunity = diagnostic.opportunityEstimate.monthlyOpportunityUsd;
+    opportunityFields[fields.opportunity.estimatedMonthlyOpportunity] = diagnostic.opportunityEstimate.monthlyOpportunityUsd;
   }
 
   const tags = [
