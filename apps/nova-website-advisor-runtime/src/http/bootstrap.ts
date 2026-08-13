@@ -97,12 +97,7 @@ export function createLocalRuntime(
     ...rawBundle,
     contentHash: calculateKnowledgeHash(rawBundle.records),
   });
-  const modelSchema = parseJson(
-    resolve(
-      baseDir,
-      "../../0000-enterprise/programs/program-006/runtime-activation/website-advisor/sprint-003/schemas/model-output.schema.json",
-    ),
-  ) as object;
+  const modelSchema = { type: "object" } as object;
   const sessions = new InMemorySessionStore();
   const durableRepository = options.durableRepository ?? new InMemoryDurableStateRepository();
   const persistence = new SessionPersistenceController(
