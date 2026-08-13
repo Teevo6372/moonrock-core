@@ -18,7 +18,6 @@ COPY --from=build /workspace/apps/nova-website-advisor-runtime/dist ./dist
 COPY --from=build /workspace/apps/nova-website-advisor-runtime/fixtures ./fixtures
 COPY --from=build /workspace/apps/nova-website-advisor-runtime/prototype ./prototype
 COPY --from=build /workspace/apps/nova-website-advisor-runtime/migrations ./migrations
-COPY 0000-enterprise/programs/program-006/runtime-activation/website-advisor/sprint-003/schemas/model-output.schema.json /workspace/0000-enterprise/programs/program-006/runtime-activation/website-advisor/sprint-003/schemas/model-output.schema.json
 USER node
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
