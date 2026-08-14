@@ -16,6 +16,7 @@
     "record:staging-activation": "tsx src/staging-activation-record-cli.ts",
     "closeout:release-1": "tsx src/release-closeout-cli.ts",
     "inspect:ghl": "node dist/src/ghl-inspect-cli.js",
+    "provision:ghl-fields": "node dist/src/ghl-provision-fields-cli.js",
     "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
