@@ -39,6 +39,7 @@ export * from "./discovery-router.js";
 export * from "./discovery-state-repository.js";
 export * from "./ghl-field-registry.js";
 export * from "./ghl-production-registry.js";
+export * from "./ghl-production-handoff.js";
 export * from "./ghl-discovery-mapping.js";
 export * from "./ghl-flight-plan-sync.js";
 export * from "./ghl-location-inspector.js";
