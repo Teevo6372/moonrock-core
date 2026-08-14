@@ -14,6 +14,24 @@ export const MOONROCK_CONFIRMED_GHL_FIELDS = {
   },
 } as const;
 
+export const MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY: GhlFieldRegistry = {
+  contact: {
+    path: "0r0NN3cha7lNFauM8B0s",
+    recommendedOffer: "f99suFeJQk9gIqwLtboU",
+    autonomousCloseAllowed: "xhokoSQR8bH8fRf7rWYC",
+    businessName: "9QhB9KlcBlAVmUPh8k7R",
+    industry: "sawfd5G93MRMFjg96RfZ",
+    monthlyLeads: "NwYVzpLhCTHUDFBU2bFF",
+    expectedVoiceMinutes: "lZYqPQI9BMUXfLAD4xAe",
+  },
+  opportunity: {
+    flightPlanStatus: "cVaTeGYQsaGRgcUjRww9",
+    primaryBottleneck: "o4NIIqzKkENbZoZiF2vS",
+    bottleneckCount: "s1rrAe4WOthKI1bxxo9i",
+    estimatedMonthlyOpportunity: "usvl3t6DzplG8njv766c",
+  },
+};
+
 export const MOONROCK_GHL_FIELD_PROVISIONING = [
   { logicalKey: "contact.recommendedOffer", model: "contact", name: "Moonrock Recommended AI Employee", dataType: "TEXT", fieldKey: "contact.moonrock_recommended_offer" },
   { logicalKey: "contact.autonomousCloseAllowed", model: "contact", name: "Moonrock Autonomous Close Allowed", dataType: "TEXT", fieldKey: "contact.moonrock_autonomous_close_allowed" },
@@ -28,13 +46,17 @@ export const MOONROCK_GHL_FIELD_PROVISIONING = [
 
 export function buildMoonrockProductionFieldRegistry(
   resolved: Partial<GhlFieldRegistry> = {},
-): Partial<GhlFieldRegistry> {
+): GhlFieldRegistry {
   return {
     contact: {
+      ...MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY.contact,
       ...resolved.contact,
       path: MOONROCK_CONFIRMED_GHL_FIELDS.contact.path,
       businessName: MOONROCK_CONFIRMED_GHL_FIELDS.contact.businessName,
-    } as GhlFieldRegistry["contact"],
-    ...(resolved.opportunity ? { opportunity: resolved.opportunity } : {}),
+    },
+    opportunity: {
+      ...MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY.opportunity,
+      ...resolved.opportunity,
+    },
   };
 }
