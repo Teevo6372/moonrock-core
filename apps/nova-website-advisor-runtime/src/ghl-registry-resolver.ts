@@ -9,17 +9,28 @@ export interface GhlRegistryResolution {
 }
 
 const aliases: Record<string, string[]> = {
-  "contact.path": ["moonrock_path", "contact.moonrock_path"],
-  "contact.recommendedOffer": ["moonrock_recommended_offer", "contact.moonrock_recommended_offer"],
+  "contact.path": [
+    "moonrock_path",
+    "contact.moonrock_path",
+    "which_path_describes_you",
+    "contact.which_path_describes_you",
+    "which path describes you",
+  ],
+  "contact.recommendedOffer": [
+    "moonrock_recommended_offer",
+    "contact.moonrock_recommended_offer",
+    "moonrock_recommended_ai_employee",
+    "contact.moonrock_recommended_ai_employee",
+  ],
   "contact.autonomousCloseAllowed": ["moonrock_autonomous_close_allowed", "contact.moonrock_autonomous_close_allowed"],
   "contact.businessName": ["business_name", "contact.business_name"],
-  "contact.industry": ["industry", "contact.industry"],
-  "contact.monthlyLeads": ["monthly_leads", "contact.monthly_leads"],
-  "contact.expectedVoiceMinutes": ["expected_voice_minutes", "contact.expected_voice_minutes"],
+  "contact.industry": ["moonrock_industry", "contact.moonrock_industry", "industry", "contact.industry"],
+  "contact.monthlyLeads": ["moonrock_monthly_leads", "contact.moonrock_monthly_leads", "monthly_leads", "contact.monthly_leads"],
+  "contact.expectedVoiceMinutes": ["moonrock_expected_voice_minutes", "contact.moonrock_expected_voice_minutes", "expected_voice_minutes", "contact.expected_voice_minutes"],
   "opportunity.flightPlanStatus": ["moonrock_flight_plan_status", "opportunity.moonrock_flight_plan_status"],
   "opportunity.primaryBottleneck": ["moonrock_primary_bottleneck", "opportunity.moonrock_primary_bottleneck"],
   "opportunity.bottleneckCount": ["moonrock_bottleneck_count", "opportunity.moonrock_bottleneck_count"],
-  "opportunity.estimatedMonthlyOpportunity": ["estimated_monthly_opportunity", "opportunity.estimated_monthly_opportunity"],
+  "opportunity.estimatedMonthlyOpportunity": ["moonrock_estimated_monthly_opportunity", "opportunity.moonrock_estimated_monthly_opportunity", "estimated_monthly_opportunity", "opportunity.estimated_monthly_opportunity"],
 };
 
 export function resolveGhlFieldRegistry(inspection: HighLevelLocationInspection): GhlRegistryResolution {
