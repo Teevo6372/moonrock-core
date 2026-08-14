@@ -35,7 +35,7 @@ async function main(): Promise<void> {
       email: "nova.production.handoff.validation@example.com",
       firstName: "Nova",
       lastName: "Production Handoff Validation",
-      companyName: diagnosticInput.businessName,
+      ...(diagnosticInput.businessName ? { companyName: diagnosticInput.businessName } : {}),
     },
     diagnosticInput,
     diagnostic,
