@@ -1,6 +1,8 @@
 import { serve } from "@hono/node-server";
 import { resolve } from "node:path";
 import { Pool } from "pg";
+import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "./ghl-production-registry.js";
+import { loadGhlRuntimeConfig } from "./ghl-runtime-config.js";
 import { createMoonrock2App } from "./http/moonrock2-app.js";
 import { runMigrations } from "./migrations.js";
 import { PostgresDiscoveryStateRepository } from "./postgres-discovery-state.js";
@@ -36,9 +38,26 @@ async function start(): Promise<void> {
   }
 
   const allowedOrigins = parseAllowedOrigins(process.env.NOVA_ALLOWED_ORIGINS);
+  const ghlHandoffEnabled = process.env.NOVA_GHL_HANDOFF_ENABLED === "true";
+  const ghlWritesEnabled = process.env.NOVA_GHL_WRITES_ENABLED === "true";
+  const ghlFieldsVerified = process.env.NOVA_GHL_FIELDS_VERIFIED === "true";
+  const productionGhl = ghlHandoffEnabled ? (() => {
+    const runtime = loadGhlRuntimeConfig();
+    return {
+      enabled: true,
+      fieldsVerified: ghlFieldsVerified,
+      writesEnabled: ghlWritesEnabled,
+      locationId: runtime.locationId,
+      accessToken: runtime.privateIntegrationToken,
+      baseUrl: runtime.baseUrl,
+      fieldRegistry: MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY,
+    };
+  })() : undefined;
+
   const { app } = createMoonrock2App({
     allowedOrigins,
     ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}),
+    ...(productionGhl ? { productionGhl } : {}),
   });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");

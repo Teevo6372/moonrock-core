@@ -1,4 +1,5 @@
 import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
+import { AI_EMPLOYEE_CATALOG } from "./ai-employee-catalog.js";
 import type { FlightPlan } from "./flight-plan.js";
 import { buildGhlFlightPlanSyncPlan } from "./ghl-flight-plan-sync.js";
 import type { GhlFieldRegistry } from "./ghl-field-registry.js";
@@ -154,6 +155,9 @@ function normalizeContactFieldValue(
   registry: GhlFieldRegistry,
 ): string | number | boolean {
   if (id === registry.contact.autonomousCloseAllowed) return "false";
+  if (id === registry.contact.recommendedOffer && typeof value === "string" && value in AI_EMPLOYEE_CATALOG) {
+    return AI_EMPLOYEE_CATALOG[value as keyof typeof AI_EMPLOYEE_CATALOG].name;
+  }
   if (id !== registry.contact.path) return value;
   if (value === "startup") return "I'm starting something";
   if (value === "existing_business") return "My business needs to grow";

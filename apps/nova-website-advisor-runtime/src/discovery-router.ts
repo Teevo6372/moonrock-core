@@ -2,9 +2,17 @@ import { Hono } from "hono";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { startNovaDiscovery, submitNovaDiscoveryAnswer } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
+import { handoffFlightPlanToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 
-export function createDiscoveryRouter(repository: DiscoveryStateRepository = new InMemoryDiscoveryStateRepository()): Hono {
+export interface DiscoveryRouterOptions {
+  productionGhl?: ProductionGhlHandoffConfig;
+}
+
+export function createDiscoveryRouter(
+  repository: DiscoveryStateRepository = new InMemoryDiscoveryStateRepository(),
+  options: DiscoveryRouterOptions = {},
+): Hono {
   const router = new Hono();
 
   router.post("/:sessionId/start", async (context) => {
@@ -21,11 +29,29 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const current = await repository.load(sessionId);
     if (!current) return context.json({ code: "DISCOVERY_NOT_FOUND" }, 404);
     if (current.state.completed) return context.json({ code: "DISCOVERY_COMPLETE" }, 409);
-    const body = await context.req.json() as { field?: unknown; value?: unknown };
+    const body = await context.req.json() as { field?: unknown; value?: unknown; identity?: ProductionGhlContactIdentity };
     if (typeof body.field !== "string" || !("value" in body)) return context.json({ code: "INVALID_DISCOVERY_ANSWER" }, 400);
     const result = submitNovaDiscoveryAnswer(current.state, body.field as keyof DiagnosticInput, body.value);
     try { await repository.save(sessionId, result.state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
-    return context.json({ ...result.response, view: toImmersiveNovaView(result.response) });
+
+    let ghlHandoff: Awaited<ReturnType<typeof handoffFlightPlanToGhl>> | undefined;
+    if (result.response.completed && result.response.result && options.productionGhl && body.identity?.email) {
+      ghlHandoff = await handoffFlightPlanToGhl({
+        sessionId,
+        identity: body.identity,
+        diagnosticInput: result.state.answers as DiagnosticInput,
+        diagnostic: result.response.result.diagnostic,
+        flightPlan: result.response.result.flightPlan,
+      }, options.productionGhl, {
+        apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled,
+      });
+    }
+
+    return context.json({
+      ...result.response,
+      ...(ghlHandoff ? { ghlHandoff } : {}),
+      view: toImmersiveNovaView(result.response),
+    });
   });
 
   router.get("/:sessionId", async (context) => {
