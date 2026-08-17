@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { resolve } from "node:path";
 import { Pool } from "pg";
+import { corsHeaders, isOriginAllowed, parseAllowedOrigins } from "./cors-policy.js";
 import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "./ghl-production-registry.js";
 import { loadGhlRuntimeConfig } from "./ghl-runtime-config.js";
 import { createMoonrock2App } from "./http/moonrock2-app.js";
@@ -10,12 +11,6 @@ import { PostgresDurableStateRepository } from "./postgres-durable-state.js";
 
 const port = Number(process.env.PORT ?? process.env.NOVA_LOCAL_PORT ?? "8787");
 const hostname = process.env.NOVA_BIND_HOST ?? (process.env.RAILWAY_ENVIRONMENT ? "0.0.0.0" : "127.0.0.1");
-const localOrigins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://localhost:8787",
-  "http://127.0.0.1:8787",
-];
 
 async function start(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
@@ -61,7 +56,7 @@ async function start(): Promise<void> {
   });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
-    const originAllowed = origin !== null && allowedOrigins.includes(origin);
+    const originAllowed = isOriginAllowed(origin, allowedOrigins);
     if (request.method === "OPTIONS" && originAllowed) {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
@@ -82,25 +77,6 @@ async function start(): Promise<void> {
   };
   process.once("SIGTERM", close);
   process.once("SIGINT", close);
-}
-
-function parseAllowedOrigins(raw: string | undefined): string[] {
-  const configured = (raw ?? "").split(",").map((origin) => origin.trim()).filter(Boolean);
-  for (const origin of configured) {
-    const parsed = new URL(origin);
-    if (parsed.origin !== origin || !["http:", "https:"].includes(parsed.protocol)) throw new Error(`NOVA_ALLOWED_ORIGINS contains an invalid origin: ${origin}`);
-  }
-  return [...new Set([...localOrigins, ...configured])];
-}
-
-function corsHeaders(origin: string): Record<string, string> {
-  return {
-    "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type,x-correlation-id,last-event-id",
-    "access-control-max-age": "600",
-    vary: "Origin",
-  };
 }
 
 function boundedInteger(raw: string | undefined, fallback: number, minimum: number, maximum: number): number {
