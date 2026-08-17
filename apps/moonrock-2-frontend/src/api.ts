@@ -9,9 +9,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : {};
+  let payload: Record<string, unknown> = {};
+  try { payload = text ? JSON.parse(text) as Record<string, unknown> : {}; } catch { payload = {}; }
   if (!response.ok) {
-    throw new Error(payload.detail ?? payload.title ?? `Nova request failed (${response.status})`);
+    const detail = typeof payload.detail === "string" ? payload.detail : undefined;
+    const title = typeof payload.title === "string" ? payload.title : undefined;
+    throw new Error(detail ?? title ?? `Nova request failed (${response.status})`);
   }
   return payload as T;
 }
