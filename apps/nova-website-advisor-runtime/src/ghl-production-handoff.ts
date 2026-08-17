@@ -153,6 +153,7 @@ function normalizeContactFieldValue(
   value: string | number | boolean,
   registry: GhlFieldRegistry,
 ): string | number | boolean {
+  if (id === registry.contact.autonomousCloseAllowed) return "false";
   if (id !== registry.contact.path) return value;
   if (value === "startup") return "I'm starting something";
   if (value === "existing_business") return "My business needs to grow";
