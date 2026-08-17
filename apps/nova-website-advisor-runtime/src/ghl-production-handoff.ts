@@ -52,7 +52,7 @@ export async function handoffFlightPlanToGhl(
   config: ProductionGhlHandoffConfig,
   options: { apply?: boolean; fetchImpl?: typeof fetch } = {},
 ): Promise<ProductionGhlHandoffResult> {
-  assertProductionHandoffReady(input, config);
+  assertProductionHandoffReady(input, config, Boolean(options.apply));
 
   const plan = buildGhlFlightPlanSyncPlan({
     sessionId: input.sessionId,
@@ -137,10 +137,14 @@ export async function handoffFlightPlanToGhl(
   };
 }
 
-function assertProductionHandoffReady(input: ProductionGhlHandoffInput, config: ProductionGhlHandoffConfig): void {
+function assertProductionHandoffReady(
+  input: ProductionGhlHandoffInput,
+  config: ProductionGhlHandoffConfig,
+  apply: boolean,
+): void {
   if (!config.enabled) throw new ProductionGhlHandoffBlockedError("Production GHL handoff is disabled");
   if (!config.fieldsVerified) throw new ProductionGhlHandoffBlockedError("Production GHL field registry is not verified");
-  if (!config.writesEnabled) throw new ProductionGhlHandoffBlockedError("Production GHL writes are not enabled");
+  if (apply && !config.writesEnabled) throw new ProductionGhlHandoffBlockedError("Production GHL writes are not enabled");
   if (!config.locationId.trim()) throw new ProductionGhlHandoffBlockedError("GHL location ID is required");
   if (!config.accessToken.trim()) throw new ProductionGhlHandoffBlockedError("GHL access token is required");
   if (!input.identity.email.trim()) throw new ProductionGhlHandoffBlockedError("A verified lead email is required before CRM handoff");
