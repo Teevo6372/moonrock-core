@@ -1,0 +1,33 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #f8f7ff;
+  background: #070712;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(circle at 20% 10%, #2a1245 0, transparent 38%), radial-gradient(circle at 80% 20%, #102b52 0, transparent 35%), #070712; }
+button { font: inherit; }
+
+.shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 72px 0; }
+.hero { min-height: 72vh; display: grid; align-content: center; gap: 22px; }
+.eyebrow { margin: 0; letter-spacing: .18em; font-size: .78rem; font-weight: 800; color: #ff4fd8; }
+h1, h2 { margin: 0; line-height: 1.02; text-wrap: balance; }
+h1 { max-width: 900px; font-size: clamp(2.7rem, 8vw, 6.5rem); }
+h2 { font-size: clamp(2rem, 5vw, 4rem); }
+.lede, #nova-body { max-width: 760px; color: #c8c4d7; font-size: clamp(1.05rem, 2vw, 1.35rem); line-height: 1.65; }
+.paths { display: flex; flex-wrap: wrap; gap: 14px; }
+.paths button { border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 15px 22px; color: #fff; background: rgba(255,255,255,.07); cursor: pointer; backdrop-filter: blur(14px); }
+.paths button:hover, .paths button:focus-visible { border-color: #ff4fd8; box-shadow: 0 0 30px rgba(255,79,216,.2); outline: none; }
+.status { min-height: 1.5em; color: #9be7ff; }
+.nova-panel { margin: 40px 0 100px; padding: clamp(24px, 5vw, 54px); border: 1px solid rgba(255,255,255,.14); border-radius: 30px; background: rgba(9,9,25,.7); box-shadow: 0 30px 100px rgba(0,0,0,.35); backdrop-filter: blur(22px); }
+.progress { height: 6px; margin-top: 28px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.08); }
+.progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ff4fd8, #8d5cff, #46c8ff); transition: width .35s ease; }
+.foundation-note { margin: 20px 0 0; color: #7f7a91; font-size: .85rem; }
+
+@media (max-width: 640px) {
+  .shell { width: min(100% - 24px, 1120px); padding-top: 44px; }
+  .hero { min-height: 82vh; }
+  .paths { display: grid; }
+  .paths button { width: 100%; }
+}
