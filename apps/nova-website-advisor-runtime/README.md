@@ -87,3 +87,20 @@ the platform contract provides the approved encrypted/private boundary.
 The adapter and schema are initialized at startup, but conversation sessions
 continue to use the in-memory store. This is intentional: the repository
 cutover remains a separate approval gate, and partial dual-write is prohibited.
+
+## Browser origins / Railway
+
+Browser clients must be explicitly allowlisted with `NOVA_ALLOWED_ORIGINS`.
+The value is a comma-separated list of exact HTTP(S) origins. Wildcards, paths,
+trailing slashes, and non-HTTP(S) schemes are rejected at startup.
+
+For the initial Moonrock 2.0 Cloudflare Pages deployment, configure Railway:
+
+```text
+NOVA_ALLOWED_ORIGINS=https://moonrock-2.pages.dev
+```
+
+Local development origins remain allowed automatically. Requests from an
+unlisted browser origin do not receive CORS authorization headers, and allowed
+origins receive bounded `GET,POST,OPTIONS` preflight support. Add future custom
+domains explicitly rather than replacing this value with `*`.
