@@ -1,3 +1,4 @@
+import "./visual-stage.css";
 import { mediaForState, type NovaVisualState } from "./visual-media.js";
 
 export interface NovaVisualStage {
