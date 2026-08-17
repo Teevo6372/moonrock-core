@@ -1,5 +1,5 @@
 import { assertFrontendConfig, config } from "./config.js";
-import type { BusinessPath, DiscoveryResponse } from "./types.js";
+import type { BusinessPath, ContactIdentity, DiscoveryResponse } from "./types.js";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   assertFrontendConfig();
@@ -27,6 +27,11 @@ export function answerDiscovery(
   sessionId: string,
   field: string,
   value: string | number | boolean,
+  identity?: ContactIdentity,
 ): Promise<DiscoveryResponse> {
-  return post(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, { field, value });
+  return post(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, {
+    field,
+    value,
+    ...(identity ? { identity } : {}),
+  });
 }
