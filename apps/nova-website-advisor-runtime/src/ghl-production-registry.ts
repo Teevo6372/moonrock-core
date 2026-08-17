@@ -1,10 +1,19 @@
 import type { GhlFieldRegistry } from "./ghl-field-registry.js";
 
+// Legacy pipeline retained only for the original controlled integration harness.
 export const MOONROCK_GHL_PIPELINE = {
   pipelineId: "dP2p5CjL8YowL3SKTlKL",
   pipelineName: "Pipeline",
   inboundLeadStageId: "eed97fc8-87c8-4c66-81a5-e625ea2419e1",
   inboundLeadStageName: "😃 Inbound Lead",
+} as const;
+
+// Dedicated Moonrock 2.0 production sales pipeline. Stage IDs are resolved from
+// HighLevel by name so production cannot silently fall back to a legacy stage.
+export const MOONROCK_NOVA_SALES_PIPELINE = {
+  pipelineId: "Nq2JicXfVz6bPgxsDbtd",
+  pipelineName: "Moonrock 2.0 — Nova Sales",
+  flightPlanGeneratedStageName: "Flight Plan Generated",
 } as const;
 
 export const MOONROCK_CONFIRMED_GHL_FIELDS = {
