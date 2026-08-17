@@ -1,8 +1,9 @@
 export type BusinessPath = "startup" | "existing_business";
 export type AnswerType = "text" | "number" | "boolean" | "single_select";
+export type NovaVisualState = "idle" | "listening" | "thinking" | "speaking" | "diagnosis" | "recommendation" | "handoff";
 
 export interface DiscoveryView {
-  visualState: string;
+  visualState: NovaVisualState;
   eyebrow: string;
   headline: string;
   body?: string;

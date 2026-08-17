@@ -1,5 +1,6 @@
 import "./styles.css";
 import { answerDiscovery, startDiscovery } from "./api.js";
+import { createNovaVisualStage } from "./visual-stage.js";
 import type { BusinessPath, ContactIdentity, DiscoveryQuestion, DiscoveryResponse } from "./types.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -8,14 +9,16 @@ if (!app) throw new Error("Moonrock frontend root not found");
 app.innerHTML = `
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">MOONROCK 2.0</p>
-      <h1>AI Employees built around the way your business actually works.</h1>
-      <p class="lede">Nova is becoming Moonrock's first autonomous AI Employee. Start with the path that best matches where you are today.</p>
-      <div class="paths" role="group" aria-label="Choose your business path">
-        <button data-path="startup">I'm starting something</button>
-        <button data-path="existing_business">My business needs to grow</button>
+      <div class="hero-copy">
+        <p class="eyebrow">MOONROCK 2.0</p>
+        <h1>AI Employees built around the way your business actually works.</h1>
+        <p class="lede">Nova is becoming Moonrock's first autonomous AI Employee. Start with the path that best matches where you are today.</p>
+        <div class="paths" role="group" aria-label="Choose your business path">
+          <button data-path="startup">I'm starting something</button>
+          <button data-path="existing_business">My business needs to grow</button>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
       </div>
-      <p id="status" class="status" aria-live="polite"></p>
     </section>
     <section id="nova-panel" class="nova-panel" hidden>
       <p id="nova-eyebrow" class="eyebrow"></p>
@@ -36,6 +39,8 @@ const body = document.querySelector<HTMLParagraphElement>("#nova-body")!;
 const progress = document.querySelector<HTMLSpanElement>("#nova-progress")!;
 const controls = document.querySelector<HTMLDivElement>("#nova-controls")!;
 const result = document.querySelector<HTMLDivElement>("#nova-result")!;
+const hero = document.querySelector<HTMLElement>(".hero")!;
+const visualStage = createNovaVisualStage(hero);
 let sessionId = "";
 let businessName = "";
 let busy = false;
@@ -46,12 +51,14 @@ function newSessionId(): string {
 
 function setBusy(value: boolean): void {
   busy = value;
+  visualStage.setBusy(value);
   controls.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("input,button,select").forEach((element) => {
     element.disabled = value;
   });
 }
 
 function renderResponse(response: DiscoveryResponse): void {
+  visualStage.setState(response.view.visualState);
   eyebrow.textContent = response.view.eyebrow;
   headline.textContent = response.view.headline;
   body.textContent = response.view.body ?? "";
@@ -179,6 +186,7 @@ async function begin(path: BusinessPath): Promise<void> {
   if (busy) return;
   sessionId = newSessionId();
   businessName = "";
+  visualStage.setState("idle");
   status.textContent = "Nova is opening your discovery session…";
   document.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => { button.disabled = true; });
   try {
