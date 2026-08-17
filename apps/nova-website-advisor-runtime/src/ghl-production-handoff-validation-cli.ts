@@ -4,6 +4,9 @@ import { handoffFlightPlanToGhl } from "./ghl-production-handoff.js";
 import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "./ghl-production-registry.js";
 import { loadGhlRuntimeConfig, redactedGhlRuntimeConfig } from "./ghl-runtime-config.js";
 
+const APPLY = process.argv.includes("--apply");
+const VALIDATION_EMAIL = "nova.production.handoff.validation@example.com";
+
 async function main(): Promise<void> {
   const runtime = loadGhlRuntimeConfig();
   const diagnosticInput: DiagnosticInput = {
@@ -32,7 +35,7 @@ async function main(): Promise<void> {
   const handoff = await handoffFlightPlanToGhl({
     sessionId: "validation-production-handoff-001",
     identity: {
-      email: "nova.production.handoff.validation@example.com",
+      email: VALIDATION_EMAIL,
       firstName: "Nova",
       lastName: "Production Handoff Validation",
       ...(diagnosticInput.businessName ? { companyName: diagnosticInput.businessName } : {}),
@@ -49,22 +52,31 @@ async function main(): Promise<void> {
     baseUrl: runtime.baseUrl,
     fieldRegistry: MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY,
   }, {
-    apply: false,
+    apply: APPLY,
   });
 
   process.stdout.write(`${JSON.stringify({
-    mode: "dry-run",
+    mode: APPLY ? "apply" : "dry-run",
     config: redactedGhlRuntimeConfig(runtime),
+    validationIdentity: {
+      email: VALIDATION_EMAIL,
+      label: "Moonrock Handoff Validation",
+    },
     diagnosticInput,
     diagnostic,
     flightPlan,
     handoff,
     safety: {
-      crmWritePerformed: false,
+      crmWritePerformed: handoff.status === "confirmed",
       autonomousCloseEnabled: false,
       followUpEnabled: false,
+      explicitApplyRequired: true,
     },
   }, null, 2)}\n`);
+
+  if (!APPLY) {
+    process.stdout.write("Dry run only. Re-run with --apply to perform one controlled production-style CRM handoff.\n");
+  }
 }
 
 main().catch((error) => {
