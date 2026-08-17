@@ -37,9 +37,11 @@ export interface ProductionGhlHandoffResult {
   opportunityId?: string;
   pipelineId?: string;
   pipelineStageId?: string;
+  tagsApplied?: string[];
+  noteCreated?: boolean;
   autonomousCloseAllowed: false;
   followUpEnabled: false;
-  deferredOperations: readonly ["add_tags", "add_note"];
+  deferredOperations: readonly [];
 }
 
 export class ProductionGhlHandoffBlockedError extends Error {
@@ -69,7 +71,7 @@ export async function handoffFlightPlanToGhl(
       status: "dry_run",
       autonomousCloseAllowed: false,
       followUpEnabled: false,
-      deferredOperations: ["add_tags", "add_note"],
+      deferredOperations: [],
     };
   }
 
@@ -85,8 +87,10 @@ export async function handoffFlightPlanToGhl(
 
   const contactOperation = plan.operations.find((operation) => operation.kind === "upsert_contact");
   const opportunityOperation = plan.operations.find((operation) => operation.kind === "upsert_opportunity");
-  if (!contactOperation || !opportunityOperation) {
-    throw new ProductionGhlHandoffBlockedError("Flight Plan sync plan is missing required CRM write operations");
+  const tagsOperation = plan.operations.find((operation) => operation.kind === "add_tags");
+  const noteOperation = plan.operations.find((operation) => operation.kind === "add_note");
+  if (!contactOperation || !opportunityOperation || !tagsOperation || !noteOperation) {
+    throw new ProductionGhlHandoffBlockedError("Flight Plan sync plan is missing required CRM handoff operations");
   }
 
   const contactPayload = await postJson<{ contact?: { id?: string }; id?: string }>(fetchImpl, `${baseUrl}/contacts/upsert`, headers, {
@@ -115,15 +119,27 @@ export async function handoffFlightPlanToGhl(
   const opportunityId = opportunityPayload.opportunity?.id ?? opportunityPayload.id;
   if (!opportunityId) throw new Error("HighLevel opportunity upsert succeeded without returning an opportunity ID");
 
+  if (tagsOperation.tags.length > 0) {
+    await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/tags`, headers, {
+      tags: tagsOperation.tags,
+    }, "contact tag write");
+  }
+
+  await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/notes`, headers, {
+    body: noteOperation.note,
+  }, "Flight Plan note write");
+
   return {
     status: "confirmed",
     contactId,
     opportunityId,
     pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId,
     pipelineStageId,
+    tagsApplied: [...tagsOperation.tags],
+    noteCreated: true,
     autonomousCloseAllowed: false,
     followUpEnabled: false,
-    deferredOperations: ["add_tags", "add_note"],
+    deferredOperations: [],
   };
 }
 
