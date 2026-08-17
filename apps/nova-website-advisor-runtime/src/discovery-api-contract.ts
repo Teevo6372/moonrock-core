@@ -1,5 +1,6 @@
 import type { BusinessPath, DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
 import type { FlightPlan } from "./flight-plan.js";
+import { getDiscoveryQuestions } from "./discovery-graph.js";
 import { applyDiscoveryAnswer, createDiscoverySession, resumeDiscovery, type DiscoverySessionState } from "./discovery-session.js";
 import { mapDiscoveryToGhl, type GhlDiscoveryPayload } from "./ghl-discovery-mapping.js";
 
@@ -16,6 +17,8 @@ export interface NovaDiscoveryResponse {
     prompt: string;
     helpText?: string;
     answerType: string;
+    required: boolean;
+    isFinalRequired: boolean;
     options?: readonly string[];
   };
   result?: {
@@ -28,12 +31,17 @@ export interface NovaDiscoveryResponse {
 function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof resumeDiscovery>): NovaDiscoveryResponse {
   const answered = Object.keys(state.answers).filter((key) => key !== "path").length;
   const nextQuestion = progress.nextQuestion;
+  const requiredRemaining = state.completed
+    ? 0
+    : getDiscoveryQuestions(state.path, state.answers)
+      .filter((question) => question.required && state.answers[question.field] === undefined)
+      .length;
   const response: NovaDiscoveryResponse = {
     path: state.path,
     completed: state.completed,
     progress: {
       answered,
-      requiredRemaining: state.completed ? 0 : 1,
+      requiredRemaining,
     },
   };
 
@@ -43,6 +51,8 @@ function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof re
       field: nextQuestion.field,
       prompt: nextQuestion.prompt,
       answerType: nextQuestion.answerType,
+      required: nextQuestion.required,
+      isFinalRequired: nextQuestion.required && requiredRemaining === 1,
       ...(nextQuestion.helpText ? { helpText: nextQuestion.helpText } : {}),
       ...(nextQuestion.options ? { options: nextQuestion.options } : {}),
     };

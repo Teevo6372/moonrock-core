@@ -1,6 +1,6 @@
 import "./styles.css";
 import { answerDiscovery, startDiscovery } from "./api.js";
-import type { BusinessPath, DiscoveryQuestion, DiscoveryResponse } from "./types.js";
+import type { BusinessPath, ContactIdentity, DiscoveryQuestion, DiscoveryResponse } from "./types.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Moonrock frontend root not found");
@@ -37,6 +37,7 @@ const progress = document.querySelector<HTMLSpanElement>("#nova-progress")!;
 const controls = document.querySelector<HTMLDivElement>("#nova-controls")!;
 const result = document.querySelector<HTMLDivElement>("#nova-result")!;
 let sessionId = "";
+let businessName = "";
 let busy = false;
 
 function newSessionId(): string {
@@ -68,22 +69,24 @@ function renderResponse(response: DiscoveryResponse): void {
 
 function renderQuestion(question: DiscoveryQuestion): void {
   const help = question.helpText ? `<p class="help">${escapeHtml(question.helpText)}</p>` : "";
+  const identity = question.isFinalRequired ? identityFieldsHtml() : "";
+
   if (question.answerType === "boolean") {
-    controls.innerHTML = `${help}<div class="choice-grid"><button data-answer="true">Yes</button><button data-answer="false">No</button></div>`;
+    controls.innerHTML = `${help}${identity}<div class="choice-grid"><button data-answer="true">Yes</button><button data-answer="false">No</button></div>`;
     controls.querySelectorAll<HTMLButtonElement>("[data-answer]").forEach((button) => {
-      button.addEventListener("click", () => void submit(question.field, button.dataset.answer === "true"));
+      button.addEventListener("click", () => void submit(question, button.dataset.answer === "true"));
     });
     return;
   }
   if (question.answerType === "single_select") {
-    controls.innerHTML = `${help}<div class="choice-grid">${(question.options ?? []).map((option) => `<button data-choice="${escapeHtml(option)}">${escapeHtml(labelOption(option))}</button>`).join("")}</div>`;
+    controls.innerHTML = `${help}${identity}<div class="choice-grid">${(question.options ?? []).map((option) => `<button data-choice="${escapeHtml(option)}">${escapeHtml(labelOption(option))}</button>`).join("")}</div>`;
     controls.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((button) => {
-      button.addEventListener("click", () => void submit(question.field, button.dataset.choice ?? ""));
+      button.addEventListener("click", () => void submit(question, button.dataset.choice ?? ""));
     });
     return;
   }
   const inputType = question.answerType === "number" ? "number" : "text";
-  controls.innerHTML = `${help}<form id="nova-answer-form" class="answer-form"><label class="sr-only" for="nova-answer">${escapeHtml(question.prompt)}</label><input id="nova-answer" name="answer" type="${inputType}" ${inputType === "number" ? "inputmode=\"decimal\" step=\"any\"" : "autocomplete=\"off\""} required><button type="submit">Continue</button></form>`;
+  controls.innerHTML = `${help}${identity}<form id="nova-answer-form" class="answer-form"><label class="sr-only" for="nova-answer">${escapeHtml(question.prompt)}</label><input id="nova-answer" name="answer" type="${inputType}" ${inputType === "number" ? "inputmode=\"decimal\" step=\"any\"" : "autocomplete=\"off\""} required><button type="submit">${question.isFinalRequired ? "Build my Flight Plan" : "Continue"}</button></form>`;
   const form = controls.querySelector<HTMLFormElement>("#nova-answer-form")!;
   const input = controls.querySelector<HTMLInputElement>("#nova-answer")!;
   form.addEventListener("submit", (event) => {
@@ -91,19 +94,62 @@ function renderQuestion(question: DiscoveryQuestion): void {
     const value = inputType === "number" ? Number(input.value) : input.value.trim();
     if (inputType === "number" && !Number.isFinite(value)) return;
     if (inputType === "text" && !value) return;
-    void submit(question.field, value);
+    void submit(question, value);
   });
   input.focus();
 }
 
-async function submit(field: string, value: string | number | boolean): Promise<void> {
+function identityFieldsHtml(): string {
+  return `
+    <section class="identity-card" aria-labelledby="identity-title">
+      <p class="identity-kicker">SAVE YOUR FLIGHT PLAN</p>
+      <h3 id="identity-title">Where should I attach your recommendation?</h3>
+      <p>Enter your contact details so Moonrock can save this Flight Plan to your inquiry. Automated follow-up remains disabled during this controlled launch.</p>
+      <div class="identity-grid">
+        <label>First name<input id="identity-first-name" autocomplete="given-name" required></label>
+        <label>Last name<input id="identity-last-name" autocomplete="family-name" required></label>
+        <label class="identity-email">Email<input id="identity-email" type="email" autocomplete="email" required></label>
+      </div>
+      <label class="consent-row"><input id="identity-consent" type="checkbox" required><span>I agree to have this Flight Plan and inquiry saved by Moonrock Marketing.</span></label>
+    </section>
+  `;
+}
+
+function readIdentity(): ContactIdentity | undefined {
+  const firstName = controls.querySelector<HTMLInputElement>("#identity-first-name")?.value.trim() ?? "";
+  const lastName = controls.querySelector<HTMLInputElement>("#identity-last-name")?.value.trim() ?? "";
+  const emailInput = controls.querySelector<HTMLInputElement>("#identity-email");
+  const email = emailInput?.value.trim() ?? "";
+  const consent = controls.querySelector<HTMLInputElement>("#identity-consent")?.checked ?? false;
+  if (!firstName || !lastName || !email || !emailInput?.validity.valid || !consent) {
+    status.textContent = "Please enter your name, a valid email, and confirm permission to save your Flight Plan.";
+    return undefined;
+  }
+  return {
+    firstName,
+    lastName,
+    email,
+    ...(businessName ? { companyName: businessName } : {}),
+  };
+}
+
+async function submit(question: DiscoveryQuestion, value: string | number | boolean): Promise<void> {
   if (busy || !sessionId) return;
+  const identity = question.isFinalRequired ? readIdentity() : undefined;
+  if (question.isFinalRequired && !identity) return;
+  if (question.field === "businessName" && typeof value === "string") businessName = value;
   setBusy(true);
-  status.textContent = "Nova is analyzing your answer…";
+  status.textContent = question.isFinalRequired ? "Nova is building and saving your Flight Plan…" : "Nova is analyzing your answer…";
   try {
-    const response = await answerDiscovery(sessionId, field, value);
+    const response = await answerDiscovery(sessionId, question.field, value, identity);
     renderResponse(response);
-    status.textContent = response.completed ? "Your Moonrock Flight Plan is ready." : "Connected to Nova.";
+    if (response.completed) {
+      status.textContent = response.ghlHandoff?.status === "confirmed"
+        ? "Your Moonrock Flight Plan is ready and saved."
+        : "Your Moonrock Flight Plan is ready.";
+    } else {
+      status.textContent = "Connected to Nova.";
+    }
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : "Nova could not process that answer.";
   } finally {
@@ -114,9 +160,11 @@ async function submit(field: string, value: string | number | boolean): Promise<
 function renderFlightPlan(response: DiscoveryResponse): void {
   const flightPlan = response.result!.flightPlan;
   const opportunity = flightPlan.opportunity;
+  const saved = response.ghlHandoff?.status === "confirmed";
   controls.innerHTML = "";
   result.hidden = false;
   result.innerHTML = `
+    ${saved ? `<div class="save-confirmation">Flight Plan saved to Moonrock</div>` : ""}
     <div class="result-kicker">RECOMMENDED AI EMPLOYEE</div>
     <h3>${escapeHtml(flightPlan.recommendation.offerName)}</h3>
     <p>${escapeHtml(flightPlan.recommendation.reason)}</p>
@@ -130,6 +178,7 @@ function renderFlightPlan(response: DiscoveryResponse): void {
 async function begin(path: BusinessPath): Promise<void> {
   if (busy) return;
   sessionId = newSessionId();
+  businessName = "";
   status.textContent = "Nova is opening your discovery session…";
   document.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => { button.disabled = true; });
   try {

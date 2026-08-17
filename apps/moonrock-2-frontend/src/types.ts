@@ -28,8 +28,30 @@ export interface DiscoveryQuestion {
   field: string;
   prompt: string;
   answerType: AnswerType;
+  required: boolean;
+  isFinalRequired: boolean;
   helpText?: string;
   options?: string[];
+}
+
+export interface ContactIdentity {
+  email: string;
+  firstName: string;
+  lastName: string;
+  companyName?: string;
+}
+
+export interface GhlHandoffResult {
+  status: string;
+  contactId?: string;
+  opportunityId?: string;
+  pipelineId?: string;
+  pipelineStageId?: string;
+  tagsApplied?: string[];
+  noteCreated?: boolean;
+  autonomousCloseAllowed?: boolean;
+  followUpEnabled?: boolean;
+  deferredOperations?: string[];
 }
 
 export interface FlightPlanResult {
@@ -67,5 +89,5 @@ export interface DiscoveryResponse {
   nextQuestion?: DiscoveryQuestion;
   view: DiscoveryView;
   result?: FlightPlanResult;
-  ghlHandoff?: unknown;
+  ghlHandoff?: GhlHandoffResult;
 }
