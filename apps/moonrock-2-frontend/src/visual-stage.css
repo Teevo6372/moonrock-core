@@ -1,0 +1,68 @@
+.hero { position: relative; grid-template-columns: minmax(0, 1.08fr) minmax(300px, .92fr); gap: clamp(32px, 7vw, 88px); align-items: center; overflow: visible; }
+.hero-copy { position: relative; z-index: 3; display: grid; gap: 22px; }
+
+.nova-visual-stage {
+  position: relative;
+  z-index: 2;
+  min-height: min(70vh, 720px);
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.nova-media-shell {
+  position: relative;
+  width: min(100%, 520px);
+  aspect-ratio: .82;
+  border-radius: 46% 46% 38% 38% / 36% 36% 50% 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255,255,255,.18), transparent 8%),
+    radial-gradient(circle at 50% 46%, rgba(255,79,216,.18), transparent 34%),
+    linear-gradient(160deg, rgba(141,92,255,.12), rgba(70,200,255,.04));
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 40px 130px rgba(0,0,0,.48), inset 0 0 70px rgba(141,92,255,.08);
+  backdrop-filter: blur(18px);
+}
+
+.nova-state-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.nova-fallback { position: absolute; inset: 0; display: grid; place-items: center; }
+.nova-core { width: 34%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 3%, #9be7ff 7%, #8d5cff 34%, #ff4fd8 62%, rgba(255,79,216,.04) 73%); box-shadow: 0 0 80px rgba(255,79,216,.55), 0 0 150px rgba(70,200,255,.26); animation: nova-breathe 4.6s ease-in-out infinite; }
+.nova-aura { position: absolute; width: 66%; aspect-ratio: 1; border-radius: 50%; border: 1px solid rgba(155,231,255,.3); box-shadow: inset 0 0 40px rgba(70,200,255,.12), 0 0 60px rgba(141,92,255,.14); animation: nova-rotate 12s linear infinite; }
+
+.nova-orbit { position: absolute; width: 76%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; pointer-events: none; }
+.nova-orbit::before { content: ""; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #ff4fd8; box-shadow: 0 0 18px #ff4fd8; top: 8%; left: 20%; }
+.nova-orbit-a { transform: rotate(24deg) scaleY(.46); animation: nova-rotate 16s linear infinite; }
+.nova-orbit-b { transform: rotate(-38deg) scaleY(.62); animation: nova-rotate-reverse 22s linear infinite; opacity: .72; }
+
+.nova-state-chip { position: absolute; bottom: 7%; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.15); background: rgba(7,7,18,.68); color: #d9d5e6; font-size: .72rem; font-weight: 800; letter-spacing: .12em; backdrop-filter: blur(14px); }
+.nova-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #9be7ff; box-shadow: 0 0 13px #46c8ff; }
+
+.nova-visual-stage[data-state="listening"] .nova-core { box-shadow: 0 0 90px rgba(70,200,255,.68), 0 0 180px rgba(70,200,255,.22); }
+.nova-visual-stage[data-state="thinking"] .nova-core,
+.nova-visual-stage.is-busy .nova-core { animation-duration: 1.2s; filter: saturate(1.35); }
+.nova-visual-stage[data-state="diagnosis"] .nova-orbit-a { animation-duration: 7s; }
+.nova-visual-stage[data-state="recommendation"] .nova-media-shell { border-color: rgba(155,231,255,.34); box-shadow: 0 40px 140px rgba(0,0,0,.44), 0 0 80px rgba(70,200,255,.12); }
+.nova-visual-stage[data-state="handoff"] .nova-live-dot { background: #ffcf70; box-shadow: 0 0 13px #ffcf70; }
+.nova-visual-stage.has-media .nova-fallback { opacity: 0; }
+
+@keyframes nova-breathe { 0%, 100% { transform: scale(.94); filter: brightness(.9); } 50% { transform: scale(1.06); filter: brightness(1.12); } }
+@keyframes nova-rotate { to { transform: rotate(384deg) scaleY(.46); } }
+@keyframes nova-rotate-reverse { to { transform: rotate(-398deg) scaleY(.62); } }
+
+@media (max-width: 820px) {
+  .hero { grid-template-columns: 1fr; padding-top: 28px; }
+  .hero-copy { order: 2; }
+  .nova-visual-stage { order: 1; min-height: 420px; }
+  .nova-media-shell { width: min(86vw, 430px); }
+}
+
+@media (max-width: 520px) {
+  .nova-visual-stage { min-height: 350px; }
+  .nova-media-shell { width: min(88vw, 340px); border-radius: 42% 42% 34% 34% / 34% 34% 46% 46%; }
+  .nova-state-chip { bottom: 3%; font-size: .64rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nova-core, .nova-orbit-a, .nova-orbit-b { animation: none !important; }
+}
