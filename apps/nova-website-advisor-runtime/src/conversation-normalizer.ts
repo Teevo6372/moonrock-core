@@ -11,6 +11,13 @@ const NUMERIC_FIELDS = new Set<keyof DiagnosticInput>([
   "expectedVoiceMinutesPerMonth",
 ]);
 
+const BOOLEAN_FIELDS = new Set<keyof DiagnosticInput>([
+  "appointmentsNeedManualScheduling",
+  "estimatesNeedManualFollowUp",
+  "dormantCustomerList",
+  "founderHandlesMostAdmin",
+]);
+
 export interface NormalizedDiscoveryAnswer {
   value: unknown;
   interpreted: boolean;
@@ -49,13 +56,47 @@ function cadenceToMonthly(text: string, number: number): number {
   return number;
 }
 
+function booleanFromText(text: string): boolean | undefined {
+  if (/\b(no|nope|not really|never|already automated|doesn't|does not|don't|do not)\b/i.test(text)) return false;
+  if (/\b(yes|yeah|yep|usually|mostly|manual|someone|person|we do|i do|depends on me|depends on us)\b/i.test(text)) return true;
+  return undefined;
+}
+
 export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unknown): NormalizedDiscoveryAnswer {
-  if (!NUMERIC_FIELDS.has(field) || typeof raw !== "string") return { value: raw, interpreted: false };
+  if (typeof raw !== "string") return { value: raw, interpreted: false };
   const text = raw.trim();
   if (!text) return { value: raw, interpreted: false };
 
-  let number = field === "closeRatePercent" ? fractionPercent(text) ?? firstNumber(text) : firstNumber(text);
+  if (BOOLEAN_FIELDS.has(field)) {
+    const value = booleanFromText(text);
+    return value === undefined ? { value: raw, interpreted: false } : { value, interpreted: true, note: text };
+  }
 
+  if (field === "repetitiveSupportLoad") {
+    const value = /high|a lot|constant|tons?|heavy|all day|too much/i.test(text)
+      ? "high"
+      : /medium|some|sometimes|moderate|fair amount/i.test(text)
+        ? "medium"
+        : /low|little|not much|rare|hardly/i.test(text)
+          ? "low"
+          : undefined;
+    return value ? { value, interpreted: true, note: text } : { value: raw, interpreted: false };
+  }
+
+  if (field === "reviewRequestProcess") {
+    const value = /automat|system|workflow|trigger/i.test(text)
+      ? "automated"
+      : /manual|ask them|we ask|person|remember/i.test(text)
+        ? "manual"
+        : /none|don't ask|do not ask|no process|never/i.test(text)
+          ? "none"
+          : undefined;
+    return value ? { value, interpreted: true, note: text } : { value: raw, interpreted: false };
+  }
+
+  if (!NUMERIC_FIELDS.has(field)) return { value: raw, interpreted: false };
+
+  let number = field === "closeRatePercent" ? fractionPercent(text) ?? firstNumber(text) : firstNumber(text);
   if (number === undefined) {
     const qualitative: Partial<Record<keyof DiagnosticInput, number>> = {
       requestedCustomIntegrations: /none|no other|nothing custom/i.test(text) ? 0 : undefined,
@@ -65,18 +106,11 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
     number = qualitative[field];
   }
 
-  if (number === undefined || !Number.isFinite(number)) {
-    return { value: 0, interpreted: true, note: `No reliable numeric estimate was found in: ${text}` };
-  }
-
+  if (number === undefined || !Number.isFinite(number)) return { value: 0, interpreted: true, note: text };
   if (field === "expectedVoiceMinutesPerMonth") number = voiceToMinutes(text, number);
   if (field === "medianLeadResponseMinutes") number = timeToMinutes(text, number);
   if (field === "monthlyLeads" || field === "missedCallsPerMonth") number = cadenceToMonthly(text, number);
   if (field === "closeRatePercent") number = Math.max(0, Math.min(100, number));
 
-  return {
-    value: Math.max(0, Math.round(number * 100) / 100),
-    interpreted: true,
-    note: text,
-  };
+  return { value: Math.max(0, Math.round(number * 100) / 100), interpreted: true, note: text };
 }
