@@ -1,3 +1,22 @@
+.nova-panel:has(.nova-visual-stage.conversation-docked) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  column-gap: 28px;
+  align-items: start;
+}
+.nova-panel:has(.nova-visual-stage.conversation-docked) > :not(.conversation-docked) { grid-column: 1; }
+.nova-panel .nova-visual-stage.conversation-docked {
+  grid-column: 2;
+  grid-row: 1 / span 8;
+  position: sticky;
+  top: 18px;
+  min-height: 430px;
+  align-self: start;
+}
+.nova-panel .nova-visual-stage.conversation-docked .nova-media-shell { width: min(100%, 320px); }
+.nova-panel .nova-visual-stage.conversation-docked .nova-orbit { width: 88%; }
+.nova-panel .nova-visual-stage.conversation-docked .nova-state-chip { bottom: 4%; }
+
 .nova-live-chat {
   display: grid;
   gap: 12px;
@@ -46,6 +65,12 @@
 @keyframes nova-mic-pulse {
   0%,100% { box-shadow: 0 0 0 0 rgba(255,79,216,.15); }
   50% { box-shadow: 0 0 0 8px rgba(255,79,216,0); }
+}
+
+@media (max-width: 900px) {
+  .nova-panel:has(.nova-visual-stage.conversation-docked) { display: block; }
+  .nova-panel .nova-visual-stage.conversation-docked { position: relative; top: auto; min-height: 390px; margin-bottom: 18px; }
+  .nova-panel .nova-visual-stage.conversation-docked .nova-media-shell { width: min(86vw, 390px); }
 }
 
 @media (max-width: 640px) {
