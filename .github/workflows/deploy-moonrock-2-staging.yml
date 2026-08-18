@@ -86,15 +86,28 @@ jobs:
           test -n "$FRONTEND_URL"
 
           frontend_body="$(curl --fail --silent --show-error --location --retry 4 --retry-delay 2 "$FRONTEND_URL/")"
-          printf '%s' "$frontend_body" | grep -q '<title>Moonrock 2.0</title>'
+          if ! printf '%s' "$frontend_body" | grep -q '<title>Moonrock 2.0</title>'; then
+            echo "Smoke failure: deployed frontend did not contain the expected Moonrock 2.0 title." >&2
+            exit 1
+          fi
 
           headers="$(mktemp)"
           runtime_body="$(curl --fail --silent --show-error --retry 4 --retry-delay 2 \
             -D "$headers" \
             -H "Origin: $PUBLIC_ORIGIN" \
             "$NOVA_ORIGIN/health/live")"
-          printf '%s' "$runtime_body" | grep -q '"status":"live"'
-          grep -i -q "^access-control-allow-origin: ${PUBLIC_ORIGIN}\r\{0,1\}$" "$headers"
+          echo "Railway health response: $runtime_body"
+          cors_origin="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+          echo "Railway CORS allow-origin: ${cors_origin:-<missing>}"
+
+          if ! printf '%s' "$runtime_body" | grep -q '"status":"live"'; then
+            echo "Smoke failure: Railway health response did not report status=live." >&2
+            exit 1
+          fi
+          if [[ "$cors_origin" != "$PUBLIC_ORIGIN" ]]; then
+            echo "Smoke failure: Railway did not authorize expected origin $PUBLIC_ORIGIN." >&2
+            exit 1
+          fi
 
           echo "Smoke validation passed: frontend loaded and Railway accepted $PUBLIC_ORIGIN."
 
