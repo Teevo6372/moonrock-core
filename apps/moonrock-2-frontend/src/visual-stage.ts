@@ -1,9 +1,13 @@
 import "./visual-stage.css";
 import { mediaForBehavior, mediaForState, type NovaPersonalityBehavior, type NovaVisualState, type NovaMediaManifestEntry } from "./visual-media.js";
 
+type NovaProcessingState = "thinking" | "diagnosis";
+type NovaTransientState = "speaking";
+
 export interface NovaVisualStage {
   setState: (state: NovaVisualState) => void;
-  setBusy: (busy: boolean) => void;
+  setBusy: (busy: boolean, processingState?: NovaProcessingState) => void;
+  playTransientState: (state: NovaTransientState, durationMs?: number) => void;
   playBehavior: (behavior: NovaPersonalityBehavior) => void;
 }
 
@@ -33,6 +37,7 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
   let isBusy = false;
   let activeBehavior: NovaPersonalityBehavior | undefined;
   let behaviorTimer: number | undefined;
+  let transientTimer: number | undefined;
 
   const showFallback = (): void => {
     video.hidden = true;
@@ -43,6 +48,11 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
   const clearBehaviorTimer = (): void => {
     if (behaviorTimer !== undefined) window.clearTimeout(behaviorTimer);
     behaviorTimer = undefined;
+  };
+
+  const clearTransientTimer = (): void => {
+    if (transientTimer !== undefined) window.clearTimeout(transientTimer);
+    transientTimer = undefined;
   };
 
   const loadMedia = (media: NovaMediaManifestEntry, loop: boolean): void => {
@@ -70,14 +80,9 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
 
   const restoreOperationalState = (): void => {
     clearBehaviorTimer();
+    clearTransientTimer();
     activeBehavior = undefined;
-    if (isBusy) {
-      stage.dataset.state = "thinking";
-      delete stage.dataset.behavior;
-      label.textContent = "NOVA · THINKING";
-      loadMedia(mediaForState("thinking"), true);
-      return;
-    }
+    if (isBusy) return;
     renderOperationalState(currentState);
   };
 
@@ -100,37 +105,50 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
 
   const setState = (state: NovaVisualState): void => {
     currentState = state;
-    if (activeBehavior || isBusy) return;
+    if (activeBehavior || isBusy || transientTimer !== undefined) return;
     renderOperationalState(state);
   };
 
-  const setBusy = (busy: boolean): void => {
+  const setBusy = (busy: boolean, processingState: NovaProcessingState = "thinking"): void => {
     isBusy = busy;
     stage.classList.toggle("is-busy", busy);
+    clearTransientTimer();
     if (busy) {
       clearBehaviorTimer();
       activeBehavior = undefined;
-      stage.dataset.state = "thinking";
+      stage.dataset.state = processingState;
       delete stage.dataset.behavior;
-      label.textContent = "NOVA · THINKING";
-      loadMedia(mediaForState("thinking"), true);
+      label.textContent = `NOVA · ${processingState.toUpperCase()}`;
+      loadMedia(mediaForState(processingState), true);
     } else {
       renderOperationalState(currentState);
     }
   };
 
+  const playTransientState = (state: NovaTransientState, durationMs = 1200): void => {
+    if (isBusy || activeBehavior) return;
+    clearTransientTimer();
+    stage.dataset.state = state;
+    delete stage.dataset.behavior;
+    label.textContent = `NOVA · ${state.toUpperCase()}`;
+    loadMedia(mediaForState(state), true);
+    transientTimer = window.setTimeout(() => {
+      transientTimer = undefined;
+      renderOperationalState(currentState);
+    }, durationMs);
+  };
+
   const playBehavior = (behavior: NovaPersonalityBehavior): void => {
     if (isBusy) return;
     clearBehaviorTimer();
+    clearTransientTimer();
     activeBehavior = behavior;
     stage.dataset.behavior = behavior;
     label.textContent = `NOVA · ${behavior.toUpperCase()}`;
     loadMedia(mediaForBehavior(behavior), false);
-    // The approved clips are five seconds. This fallback restores state if a
-    // browser never emits `ended` because of media/network behavior.
     behaviorTimer = window.setTimeout(restoreOperationalState, 6500);
   };
 
   setState("idle");
-  return { setState, setBusy, playBehavior };
+  return { setState, setBusy, playTransientState, playBehavior };
 }
