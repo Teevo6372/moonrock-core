@@ -3,6 +3,7 @@ import { mediaForBehavior, mediaForState, type NovaPersonalityBehavior, type Nov
 
 type NovaProcessingState = "thinking" | "diagnosis";
 type NovaTransientState = "speaking";
+type VoiceState = "idle" | "listening" | "thinking" | "speaking";
 
 export interface NovaVisualStage {
   setState: (state: NovaVisualState) => void;
@@ -148,6 +149,33 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
     loadMedia(mediaForBehavior(behavior), false);
     behaviorTimer = window.setTimeout(restoreOperationalState, 6500);
   };
+
+  const handleVoiceState = (event: Event): void => {
+    const detail = (event as CustomEvent<{ state?: VoiceState; durationMs?: number }>).detail;
+    if (!detail?.state) return;
+    if (detail.state === "listening") {
+      clearBehaviorTimer();
+      clearTransientTimer();
+      activeBehavior = undefined;
+      stage.dataset.state = "listening";
+      label.textContent = "NOVA · LISTENING";
+      loadMedia(mediaForState("listening"), true);
+      return;
+    }
+    if (detail.state === "thinking") {
+      setBusy(true, "thinking");
+      return;
+    }
+    if (detail.state === "speaking") {
+      if (isBusy) setBusy(false);
+      playTransientState("speaking", detail.durationMs ?? 1500);
+      return;
+    }
+    if (isBusy) setBusy(false);
+    else restoreOperationalState();
+  };
+
+  window.addEventListener("nova:voice-state", handleVoiceState);
 
   setState("idle");
   return { setState, setBusy, playTransientState, playBehavior };
