@@ -24,15 +24,16 @@ jobs:
       run:
         working-directory: apps/moonrock-2-frontend
     env:
-      VITE_NOVA_API_BASE_URL: ${{ vars.NOVA_RAILWAY_ORIGIN }}
+      VITE_NOVA_API_BASE_URL: ${{ vars.NOVA_RAILWAY_ORIGIN || 'https://moonrock-core-production.up.railway.app' }}
       MOONROCK_PUBLIC_ORIGIN: ${{ vars.MOONROCK_2_PUBLIC_ORIGIN || 'https://moonrock-2.pages.dev' }}
+      MOONROCK_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'moonrock-2' }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Validate production confirmation and configuration
         env:
-          PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
-          NOVA_ORIGIN: ${{ vars.NOVA_RAILWAY_ORIGIN }}
+          PAGES_PROJECT: ${{ env.MOONROCK_PAGES_PROJECT }}
+          NOVA_ORIGIN: ${{ env.VITE_NOVA_API_BASE_URL }}
           PUBLIC_ORIGIN: ${{ env.MOONROCK_PUBLIC_ORIGIN }}
         run: |
           set -euo pipefail
@@ -67,14 +68,14 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/moonrock-2-frontend
-          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main
+          command: pages deploy dist --project-name=${{ env.MOONROCK_PAGES_PROJECT }} --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Smoke test deployed frontend and Nova runtime
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
           FALLBACK_URL: ${{ steps.deploy.outputs.deployment-url }}
-          NOVA_ORIGIN: ${{ vars.NOVA_RAILWAY_ORIGIN }}
+          NOVA_ORIGIN: ${{ env.VITE_NOVA_API_BASE_URL }}
           PUBLIC_ORIGIN: ${{ env.MOONROCK_PUBLIC_ORIGIN }}
         run: |
           set -euo pipefail
