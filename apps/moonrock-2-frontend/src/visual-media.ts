@@ -50,6 +50,12 @@ export const novaMediaManifest: Record<string, NovaMediaManifestEntry> = {
   },
 };
 
+const idleMedia: NovaMediaManifestEntry = {
+  poster: "/nova/nova-idle.webp",
+  video: "/nova/nova-idle.webm",
+  alt: "Nova, Moonrock's AI growth advisor, waiting to begin.",
+};
+
 export function mediaForState(state: NovaVisualState): NovaMediaManifestEntry {
-  return novaMediaManifest[state] ?? novaMediaManifest.idle;
+  return novaMediaManifest[state] ?? idleMedia;
 }
