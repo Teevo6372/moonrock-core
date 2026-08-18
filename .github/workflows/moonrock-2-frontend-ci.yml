@@ -1,0 +1,34 @@
+name: Moonrock 2 Frontend CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/moonrock-2-frontend/**"
+      - ".github/workflows/moonrock-2-frontend-ci.yml"
+      - ".github/workflows/deploy-moonrock-2-staging.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/moonrock-2-frontend/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/moonrock-2-frontend
+    env:
+      VITE_NOVA_API_BASE_URL: https://nova-runtime.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck and build
+        run: npm run build
