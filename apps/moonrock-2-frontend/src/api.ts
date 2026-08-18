@@ -1,3 +1,4 @@
+import "./voice-chat-experience.js";
 import { assertFrontendConfig, config } from "./config.js";
 import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
 import type { BusinessPath, ContactIdentity, DiscoveryResponse, NovaConversationTurn } from "./types.js";
@@ -81,11 +82,14 @@ async function renderRuntimeConversation(question: string): Promise<void> {
   const target = conversationAnswerTarget();
   if (!target) return;
   target.textContent = "Nova is thinking about that in the context of your Flight Plan…";
+  window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "thinking" } }));
   try {
     const turn = await askNova(question);
     target.textContent = turn.answer;
+    window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "speaking", durationMs: 1800 } }));
   } catch (error) {
     target.textContent = error instanceof Error ? error.message : "Nova could not answer that question right now.";
+    window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "idle" } }));
   }
 }
 
