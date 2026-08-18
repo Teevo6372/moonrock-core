@@ -24,7 +24,14 @@ export interface ImmersiveNovaViewModel {
   escalationRequired: boolean;
 }
 
-/** Framework-neutral contract for the Higgsfield/mobile-first experience. */
+/**
+ * Framework-neutral settled-state contract for the immersive Nova experience.
+ *
+ * Request lifecycle states such as `thinking`, `diagnosis`, and `speaking` are
+ * intentionally controlled by the client while a request is in flight or a
+ * response is being delivered. The server only returns the stable state the UI
+ * should settle into once the current response has been rendered.
+ */
 export function toImmersiveNovaView(response: NovaDiscoveryResponse): ImmersiveNovaViewModel {
   const result = response.result;
   const question = response.nextQuestion;
@@ -53,9 +60,9 @@ export function toImmersiveNovaView(response: NovaDiscoveryResponse): ImmersiveN
   }
 
   return {
-    visualState: answered === 0 ? "listening" : "diagnosis",
+    visualState: question ? "listening" : "idle",
     eyebrow: response.path === "startup" ? "STARTUP FLIGHT PLAN" : "GROWTH DIAGNOSIS",
-    headline: question?.prompt ?? "Nova is analyzing your business.",
+    headline: question?.prompt ?? "Nova is ready when you are.",
     ...(question?.helpText ? { body: question.helpText } : {}),
     progressPercent,
     ...(question ? {
