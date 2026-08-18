@@ -9,7 +9,7 @@ export interface NovaMediaManifestEntry {
   alt: string;
 }
 
-const canonicalPoster = "https://d2ol7oe51mr4n9.cloudfront.net/user_3GXnsT6BQBJvIqUvUof0HyScdTK/d753d689-4cc4-4258-b655-1d0e3086a88d.webp";
+const canonicalPoster = "https://d2ol7oe51mr4n9.cloudfront.net/user_3GXnsT6BQBJvIqUvUof0HyScdTK/1895357a-fd6d-42e7-89c6-969a37c9d58b.png";
 
 function envVideo(name: string, fallback: string): string {
   const value = import.meta.env[name];
@@ -24,7 +24,6 @@ function envVideo(name: string, fallback: string): string {
 export const novaMediaManifest: Record<NovaVisualState, NovaMediaManifestEntry> = {
   idle: {
     poster: canonicalPoster,
-    video: envVideo("VITE_NOVA_IDLE_VIDEO", "https://d8j0ntlcm91z4.cloudfront.net/user_3GXnsT6BQBJvIqUvUof0HyScdTK/hf_20260818_010052_310b8f33-28cc-47e0-9339-ff6bdaa7bd91.mp4"),
     alt: "Nova, Moonrock's AI growth advisor, waiting to begin.",
   },
   listening: {
