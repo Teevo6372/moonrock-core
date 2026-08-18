@@ -24,6 +24,7 @@ function envVideo(name: string, fallback: string): string {
 export const novaMediaManifest: Record<NovaVisualState, NovaMediaManifestEntry> = {
   idle: {
     poster: canonicalPoster,
+    video: envVideo("VITE_NOVA_IDLE_VIDEO", "https://d8j0ntlcm91z4.cloudfront.net/user_3GXnsT6BQBJvIqUvUof0HyScdTK/hf_20260818_060937_bb7e6351-6a89-4373-a0b4-925aed6d7a91.mp4"),
     alt: "Nova, Moonrock's AI growth advisor, waiting to begin.",
   },
   listening: {
