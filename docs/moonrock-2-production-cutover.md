@@ -33,6 +33,24 @@ Configure GitHub environment `production` with:
 
 - `CLOUDFLARE_PAGES_PROJECT` — expected project name for the existing Moonrock 2 Pages project.
 - `NOVA_RAILWAY_ORIGIN` — the public Nova Railway HTTPS origin.
+- `MOONROCK_2_PUBLIC_ORIGIN` — the exact browser origin Railway must accept for the production frontend. Before DNS cutover this can be `https://moonrock-2.pages.dev`; after custom-domain cutover use the canonical production origin and ensure Railway `NOVA_ALLOWED_ORIGINS` contains it.
+
+Configure GitHub environment `staging` with the equivalent Cloudflare/Railway settings plus:
+
+- `MOONROCK_2_STAGING_ORIGIN` — the exact stable staging Pages origin that Railway allows.
+
+The deployment workflows fail closed when these origin variables are missing or do not use HTTPS.
+
+## Automated post-deploy smoke gate
+
+Both staging and production deployment workflows now validate the deployment before reporting success:
+
+1. Fetch the deployed Cloudflare Pages URL and verify the Moonrock 2.0 HTML title is present.
+2. Request Railway `/health/live` using the configured frontend origin as the `Origin` header.
+3. Verify the runtime reports `status: live`.
+4. Verify Railway returns `Access-Control-Allow-Origin` for that exact frontend origin.
+
+This catches broken Pages deploys, unavailable Railway deployments, and Cloudflare/Railway CORS mismatches before a deployment is considered cutover-ready. The smoke gate does not create discovery sessions, contacts, opportunities, or other customer records.
 
 ## Required pre-cutover validation
 
@@ -51,7 +69,7 @@ Run GitHub Actions workflow `Deploy Moonrock 2 Production` and enter:
 
 `DEPLOY-MOONROCK-2-PRODUCTION`
 
-The workflow builds `apps/moonrock-2-frontend` with the configured Railway origin and deploys `dist` to the Cloudflare Pages production branch (`main`).
+The workflow builds `apps/moonrock-2-frontend` with the configured Railway origin and deploys `dist` to the Cloudflare Pages production branch (`main`). The post-deploy smoke gate must pass before the workflow is considered successful.
 
 ## DNS cutover
 
