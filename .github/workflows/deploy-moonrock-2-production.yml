@@ -1,0 +1,73 @@
+name: Deploy Moonrock 2 Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: Type DEPLOY-MOONROCK-2-PRODUCTION to deploy the standalone frontend to Cloudflare Pages production
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: moonrock-2-production
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: apps/moonrock-2-frontend
+    env:
+      VITE_NOVA_API_BASE_URL: ${{ vars.NOVA_RAILWAY_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate production confirmation and configuration
+        env:
+          PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          NOVA_ORIGIN: ${{ vars.NOVA_RAILWAY_ORIGIN }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.confirm_production }}" != "DEPLOY-MOONROCK-2-PRODUCTION" ]]; then
+            echo "Production confirmation did not match." >&2
+            exit 1
+          fi
+          test -n "$PAGES_PROJECT"
+          test -n "$NOVA_ORIGIN"
+          case "$NOVA_ORIGIN" in
+            https://*) ;;
+            *) echo "NOVA_RAILWAY_ORIGIN must be an https origin." >&2; exit 1 ;;
+          esac
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Moonrock 2 frontend
+        run: npm run build
+
+      - name: Deploy Cloudflare Pages production
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/moonrock-2-frontend
+          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report production deployment URL
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+          FALLBACK_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          echo "Moonrock 2 production deployment URL: ${DEPLOYMENT_URL:-$FALLBACK_URL}"

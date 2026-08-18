@@ -6,9 +6,12 @@ Standalone Moonrock 2.0 application frontend. This app intentionally has no Word
 
 - Higgsfield Supercomputer: visual design and creative asset generation
 - GitHub: source of truth
-- Cloudflare Pages: intended production frontend hosting
+- Cloudflare Pages: active production frontend target
 - Railway: Nova runtime and `/v1/discovery` API
 - HighLevel: CRM, Nova sales pipeline, tags, notes, and later onboarding automation
+- WordPress/Elementor/XStore: legacy rollback/reference only
+
+New Moonrock 2 product work must target this standalone frontend and the Railway runtime rather than the legacy WordPress/Elementor implementation.
 
 ## Local development
 
@@ -28,8 +31,17 @@ Use `apps/moonrock-2-frontend` as the project root.
 - Build output directory: `dist`
 - Environment variable: `VITE_NOVA_API_BASE_URL=<Nova Railway public origin>`
 
-The Railway runtime must allow the Cloudflare Pages preview/production origins before browser requests are enabled.
+The Railway runtime must allow the Cloudflare Pages preview/production origins and the final Moonrock custom-domain origins before browser requests are enabled.
 
-## Mission 20 scope
+Repository-owned deployment workflows:
 
-PR #112 establishes the independent frontend, responsive Moonrock design shell, two-path entry, typed Nova discovery API client, and environment contract. It intentionally does not cut DNS over from WordPress and does not enable autonomous closing, follow-up, agreements, or payments.
+- `Deploy Moonrock 2 Staging` — manually gated Pages staging deployment.
+- `Deploy Moonrock 2 Production` — manually gated Pages production deployment.
+
+See `docs/moonrock-2-staging-deployment.md` and `docs/moonrock-2-production-cutover.md` for deployment, cutover, and rollback procedures.
+
+## Migration status
+
+The prior WordPress/Elementor delivery path is superseded. Legacy assets remain preserved for rollback/reference, but production migration now proceeds through Cloudflare Pages + Railway + HighLevel.
+
+Autonomous closing, follow-up, agreements, payments, and onboarding remain separately gated capabilities and are not implied by the frontend hosting cutover.
