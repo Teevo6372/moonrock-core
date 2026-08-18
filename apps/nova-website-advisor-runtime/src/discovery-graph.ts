@@ -108,15 +108,17 @@ const existingBusinessQuestions: DiscoveryQuestion[] = [
     askWhen: (answers) => ((answers.missedCallsPerMonth ?? 0) > 0 || (answers.medianLeadResponseMinutes ?? 0) > 30) && answers.averageJobValueUsd !== undefined,
   },
   {
-    id: "dormant-list", path: "existing_business", field: "dormantCustomerList",
-    prompt: "Do you have old leads or past customers who are not being followed up with consistently?", answerType: "boolean", required: false,
-    askWhen: (answers) => challengeMentions(answers, /old lead|past customer|reactivat|follow.?up|database|crm/) || answers.estimatesNeedManualFollowUp === true,
-  },
-  {
     id: "departments-existing", path: "existing_business", field: "departmentsAffected",
     prompt: "How many parts of the business appear affected by the bottlenecks you've described?",
     helpText: "A number is fine, but you can also just tell me which parts feel connected.", answerType: "text", required: false,
     askWhen: (answers) => challengeMentions(answers, /multiple|everything|sales|support|operations|admin|marketing|phone|scheduling/) || Object.keys(answers).length >= 7,
+  },
+  {
+    id: "dormant-list", path: "existing_business", field: "dormantCustomerList",
+    prompt: "One last check: do you have old leads or past customers sitting there without consistent follow-up?",
+    helpText: "A simple yes/no is fine, or tell me what that list looks like if there is more context.",
+    answerType: "boolean",
+    required: true,
   },
 ];
 
