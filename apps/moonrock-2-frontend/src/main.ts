@@ -49,9 +49,9 @@ function newSessionId(): string {
   return `web-${crypto.randomUUID()}`;
 }
 
-function setBusy(value: boolean): void {
+function setBusy(value: boolean, processingState: "thinking" | "diagnosis" = "thinking"): void {
   busy = value;
-  visualStage.setBusy(value);
+  visualStage.setBusy(value, processingState);
   controls.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("input,button,select").forEach((element) => {
     element.disabled = value;
   });
@@ -145,21 +145,23 @@ async function submit(question: DiscoveryQuestion, value: string | number | bool
   const identity = question.isFinalRequired ? readIdentity() : undefined;
   if (question.isFinalRequired && !identity) return;
   if (question.field === "businessName" && typeof value === "string") businessName = value;
-  setBusy(true);
+  const processingState = question.isFinalRequired ? "diagnosis" : "thinking";
+  setBusy(true, processingState);
   status.textContent = question.isFinalRequired ? "Nova is building and saving your Flight Plan…" : "Nova is analyzing your answer…";
   try {
     const response = await answerDiscovery(sessionId, question.field, value, identity);
+    setBusy(false);
     renderResponse(response);
     if (response.completed) {
       status.textContent = response.ghlHandoff?.status === "confirmed"
         ? "Your Moonrock Flight Plan is ready and saved."
         : "Your Moonrock Flight Plan is ready.";
     } else {
+      visualStage.playTransientState("speaking");
       status.textContent = "Connected to Nova.";
     }
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : "Nova could not process that answer.";
-  } finally {
     setBusy(false);
   }
 }
@@ -187,14 +189,18 @@ async function begin(path: BusinessPath): Promise<void> {
   sessionId = newSessionId();
   businessName = "";
   visualStage.setState("idle");
+  setBusy(true, "thinking");
   status.textContent = "Nova is opening your discovery session…";
   document.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => { button.disabled = true; });
   try {
     const response = await startDiscovery(sessionId, path);
+    setBusy(false);
     renderResponse(response);
+    visualStage.playTransientState("speaking");
     panel.scrollIntoView({ behavior: "smooth", block: "center" });
     status.textContent = "Connected to Nova.";
   } catch (error) {
+    setBusy(false);
     status.textContent = error instanceof Error ? error.message : "Nova could not start the session.";
     document.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => { button.disabled = false; });
   }
