@@ -32,8 +32,8 @@ describe("SessionGroundedNovaConversationEngine", () => {
     const turn = await engine.respond(completedState(), "What would this cost me?");
     expect(turn.mode).toBe("grounded_fallback");
     expect(turn.answer).toContain("Prairie Service Co");
-    expect(turn.answer).toContain("$499/month");
-    expect(turn.answer).toContain("$799");
+    expect(turn.answer).toContain("$749/month");
+    expect(turn.answer).toContain("$1499");
   });
 
   it("keeps implementation answers grounded without exposing vendor names", async () => {
