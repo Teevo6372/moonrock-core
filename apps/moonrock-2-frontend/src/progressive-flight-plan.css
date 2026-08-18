@@ -1,0 +1,30 @@
+.progressive-flight-plan {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid rgba(70,200,255,.16);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(70,200,255,.045), rgba(141,92,255,.045));
+}
+.progressive-header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+.progressive-header h3 { margin-top: 7px; font-size: clamp(1.25rem, 3vw, 1.9rem); }
+.progressive-live { flex: 0 0 auto; padding: 7px 10px; border: 1px solid rgba(70,200,255,.3); border-radius: 999px; color: #9be7ff; background: rgba(70,200,255,.07); font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
+.progressive-summary, .progressive-empty { margin: 0; color: #a8a3b8; line-height: 1.55; font-size: .95rem; }
+.progressive-signals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.progressive-signal { display: grid; gap: 8px; padding: 14px 15px; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: rgba(255,255,255,.025); }
+.progressive-signal[data-status="confirmed"] { border-color: rgba(255,79,216,.24); }
+.progressive-signal[data-status="healthy"] { border-color: rgba(70,200,255,.22); }
+.progressive-signal-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.progressive-signal-head strong { font-size: .94rem; color: #f8f7ff; }
+.progressive-signal-head span { color: #9be7ff; font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-align: right; }
+.progressive-signal[data-status="confirmed"] .progressive-signal-head span { color: #ff9bea; }
+.progressive-signal p { margin: 0; color: #918ca2; font-size: .86rem; line-height: 1.48; }
+.progressive-focus { display: grid; gap: 3px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.07); }
+.progressive-focus span { color: #777185; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; }
+.progressive-focus strong { color: #c9eefa; font-size: .92rem; font-weight: 650; }
+@media (max-width: 640px) {
+  .progressive-flight-plan { padding: 16px; border-radius: 18px; }
+  .progressive-signals { grid-template-columns: 1fr; }
+  .progressive-header { align-items: center; }
+}
