@@ -2,11 +2,13 @@ import { Hono } from "hono";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { startNovaDiscovery, submitNovaDiscoveryAnswer } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
+import { SessionGroundedNovaConversationEngine, type NovaConversationEngine } from "./dynamic-conversation-engine.js";
 import { handoffFlightPlanToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 
 export interface DiscoveryRouterOptions {
   productionGhl?: ProductionGhlHandoffConfig;
+  conversationEngine?: NovaConversationEngine;
 }
 
 export function createDiscoveryRouter(
@@ -14,6 +16,7 @@ export function createDiscoveryRouter(
   options: DiscoveryRouterOptions = {},
 ): Hono {
   const router = new Hono();
+  const conversationEngine = options.conversationEngine ?? new SessionGroundedNovaConversationEngine();
 
   router.post("/:sessionId/start", async (context) => {
     const sessionId = context.req.param("sessionId");
@@ -52,6 +55,22 @@ export function createDiscoveryRouter(
       ...(ghlHandoff ? { ghlHandoff } : {}),
       view: toImmersiveNovaView(result.response),
     });
+  });
+
+  router.post("/:sessionId/conversation", async (context) => {
+    const current = await repository.load(context.req.param("sessionId"));
+    if (!current) return context.json({ code: "DISCOVERY_NOT_FOUND" }, 404);
+    const body = await context.req.json() as { question?: unknown };
+    if (typeof body.question !== "string" || !body.question.trim()) return context.json({ code: "INVALID_NOVA_QUESTION" }, 400);
+    try {
+      const turn = await conversationEngine.respond(current.state, body.question);
+      return context.json(turn);
+    } catch (error) {
+      return context.json({
+        code: "NOVA_CONVERSATION_UNAVAILABLE",
+        detail: error instanceof Error ? error.message : "Nova could not answer that question right now.",
+      }, 503);
+    }
   });
 
   router.get("/:sessionId", async (context) => {
