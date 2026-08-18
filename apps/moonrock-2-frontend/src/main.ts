@@ -12,7 +12,7 @@ app.innerHTML = `
       <div class="hero-copy">
         <p class="eyebrow">MOONROCK 2.0</p>
         <h1>AI Employees built around the way your business actually works.</h1>
-        <p class="lede">Nova is becoming Moonrock's first autonomous AI Employee. Start with the path that best matches where you are today.</p>
+        <p class="lede">Meet Nova, Moonrock's Virtual Growth Advisor. She'll learn how your business works, spot practical opportunities, and build a Flight Plan around what you actually need.</p>
         <div class="paths" role="group" aria-label="Choose your business path">
           <button data-path="startup">I'm starting something</button>
           <button data-path="existing_business">My business needs to grow</button>
@@ -45,11 +45,12 @@ const controls = document.querySelector<HTMLDivElement>("#nova-controls")!;
 const result = document.querySelector<HTMLDivElement>("#nova-result")!;
 const hero = document.querySelector<HTMLElement>(".hero")!;
 const visualStage = createNovaVisualStage(hero);
+
 let sessionId = "";
 let businessName = "";
 let busy = false;
 let currentPath: BusinessPath | undefined;
-let lastTurn: { field: string; value: string | number | boolean } | undefined;
+let lastTurn: { field: string; raw: string | number | boolean } | undefined;
 
 function newSessionId(): string {
   return `web-${crypto.randomUUID()}`;
@@ -72,10 +73,10 @@ function renderResponse(response: DiscoveryResponse, isOpening = false): void {
 
   if (response.completed && response.result) {
     reaction.hidden = false;
-    reaction.textContent = "I have enough to connect the dots. Here's the move I'd make based on what you told me.";
-    eyebrow.textContent = response.view.eyebrow;
+    reaction.textContent = "All right, I’ve got enough to connect the dots. This isn’t a grade on your business—it’s a practical starting point based on what you shared.";
+    eyebrow.textContent = "NOVA · YOUR FLIGHT PLAN";
     headline.textContent = response.view.headline;
-    body.textContent = response.view.body ?? "";
+    body.textContent = "I’ll show you what I’m seeing, why it matters, and a few reasonable ways Moonrock could help. You can keep asking me questions after the plan—there’s no pressure to make a decision right now.";
     renderFlightPlan(response);
     return;
   }
@@ -87,134 +88,109 @@ function renderResponse(response: DiscoveryResponse, isOpening = false): void {
 }
 
 function renderConversation(question: DiscoveryQuestion, response: DiscoveryResponse, isOpening: boolean): void {
-  const copy = conversationForQuestion(question, response, isOpening);
-  eyebrow.textContent = copy.eyebrow;
-  reaction.hidden = !copy.reaction;
-  reaction.textContent = copy.reaction;
-  headline.textContent = copy.question;
-  body.textContent = copy.context;
-}
-
-function conversationForQuestion(
-  question: DiscoveryQuestion,
-  response: DiscoveryResponse,
-  isOpening: boolean,
-): { eyebrow: string; reaction: string; question: string; context: string } {
+  eyebrow.textContent = response.view.progressPercent >= 70 ? "NOVA · CONNECTING THE DOTS" : "NOVA · DISCOVERY";
   if (isOpening) {
-    return {
-      eyebrow: currentPath === "startup" ? "NOVA · STARTUP DISCOVERY" : "NOVA · GROWTH DISCOVERY",
-      reaction: currentPath === "startup"
-        ? "Perfect. I’m going to help you pressure-test the idea before you build too much around assumptions."
-        : "Good. I’m going to trace where opportunities are getting slowed down, missed, or handled manually.",
-      question: friendlyPrompt(question),
-      context: whyNovaAsks(question),
-    };
+    reaction.hidden = false;
+    reaction.textContent = currentPath === "startup"
+      ? "Hey, I’m Nova. I’m Moonrock’s Virtual Growth Advisor. Think of this less like filling out an assessment and more like sitting down with somebody who wants to understand what you’re building before recommending anything. I’ll help pressure-test the idea, look for bottlenecks before they become expensive, and build a practical Flight Plan around where AI can actually take work off your plate. Nothing fancy—you tell me what’s going on, and we’ll work through it together."
+      : "Hey, I’m Nova. I’m Moonrock’s Virtual Growth Advisor. My job is to learn how the business really works—not just what it says on the website—then look for places where leads get missed, customers wait, repetitive work piles up, or good opportunities stall. I’ll turn what we learn into a practical Flight Plan and explain where an AI Employee could help. No hard sell. Just tell me what’s going on and we’ll sort through it together.";
+  } else {
+    reaction.hidden = false;
+    reaction.textContent = interpretLastTurn(response);
   }
-
-  return {
-    eyebrow: response.view.progressPercent >= 70 ? "NOVA · CONNECTING THE DOTS" : "NOVA · DISCOVERY",
-    reaction: lastTurn ? reactionToAnswer(lastTurn.field, lastTurn.value) : "That gives me another useful signal.",
-    question: friendlyPrompt(question),
-    context: whyNovaAsks(question),
-  };
+  headline.textContent = friendlyPrompt(question);
+  body.textContent = whyNovaAsks(question);
 }
 
 function friendlyPrompt(question: DiscoveryQuestion): string {
   const prompts: Record<string, string> = {
-    businessName: "First, what should I call your business?",
+    businessName: "First off, what should I call the business?",
     industry: "Give me the quick version—what kind of business are you building or running?",
-    monthlyLeads: "About how many new leads or customer inquiries hit the business in a typical month?",
-    appointmentsNeedManualScheduling: "When someone wants to book, does a person still have to step in and handle the scheduling?",
-    estimatesNeedManualFollowUp: "What happens after a quote or qualified lead—does someone have to remember to chase it down?",
-    repetitiveSupportLoad: "How much of your team's time gets eaten up answering the same customer questions over and over?",
-    reviewRequestProcess: "How are you asking happy customers for reviews today?",
-    requestedCustomIntegrations: "How many systems would Nova or another AI Employee realistically need to connect with?",
-    expectedVoiceMinutesPerMonth: "If AI handled some of your calls, roughly how much phone traffic would you expect it to cover each month?",
-    founderHandlesMostAdmin: "At launch, are you going to be the one wearing most of the hats—calls, scheduling, follow-up, and customer admin?",
+    businessChallenges: currentPath === "startup"
+      ? "Before we get into numbers, what are you most unsure about or worried could get messy as you launch?"
+      : "Before we get into numbers, what feels harder than it should in the business right now?",
+    monthlyLeads: "What kind of lead or inquiry volume are you dealing with in a normal month?",
+    appointmentsNeedManualScheduling: "When somebody wants to book, how much of that still depends on a person stepping in?",
+    estimatesNeedManualFollowUp: "What happens after a quote, estimate, or qualified lead—does follow-up mostly take care of itself, or does somebody have to remember it?",
+    repetitiveSupportLoad: "How much time gets chewed up answering the same customer questions over and over?",
+    reviewRequestProcess: "How are you asking happy customers for reviews these days?",
+    requestedCustomIntegrations: "What systems would this need to work with—CRM, calendars, forms, phones, anything custom?",
+    expectedVoiceMinutesPerMonth: "If AI helped with the phones, what kind of coverage would actually be useful?",
+    founderHandlesMostAdmin: "At launch, are you going to be the one wearing most of the hats—calls, scheduling, follow-up, customer admin, all of it?",
     departmentsAffected: currentPath === "startup"
-      ? "How many parts of the business do you already expect AI could help you carry at launch?"
-      : "Looking at what we've uncovered so far, how many parts of the business feel affected?",
-    missedCallsPerMonth: "Think about a normal month. Roughly how many calls are missed or don't get a fast response?",
-    medianLeadResponseMinutes: "When a new lead comes in, how long does it usually take before a real response goes out?",
-    averageJobValueUsd: "If one of those opportunities turns into a customer, what's an average job or sale worth?",
-    closeRatePercent: "Of the qualified opportunities you actually talk to, about what percentage become customers?",
-    dormantCustomerList: "Do you have old leads or past customers sitting there without consistent follow-up?",
+      ? "Which parts of the business do you already expect you’ll want help carrying at launch?"
+      : "Looking at what we’ve uncovered, which parts of the business seem tied into the same problem?",
+    missedCallsPerMonth: "On a normal week or month, what happens with calls you can’t get to right away?",
+    medianLeadResponseMinutes: "When a new lead comes in, what does response time usually look like?",
+    averageJobValueUsd: "When one of those opportunities turns into a customer, what’s a typical job or sale worth?",
+    closeRatePercent: "Of the qualified opportunities you actually talk to, about how many usually become customers?",
+    dormantCustomerList: "Do you have old leads or past customers sitting there without much consistent follow-up?",
   };
   return prompts[question.field] ?? question.prompt;
 }
 
 function whyNovaAsks(question: DiscoveryQuestion): string {
   const reasons: Record<string, string> = {
-    businessName: "I’ll use it to make the rest of this feel like your Flight Plan—not a generic assessment.",
-    industry: "The workflow that helps a contractor is very different from the one that helps a retail shop, consultant, or service company.",
-    monthlyLeads: "Volume tells me whether the first priority should be creating demand or protecting the opportunities you already have.",
-    appointmentsNeedManualScheduling: "Scheduling is one of the easiest places for good leads to stall while everyone is busy doing the actual work.",
-    estimatesNeedManualFollowUp: "I’m checking whether revenue depends on somebody’s memory. That’s usually an automation opportunity hiding in plain sight.",
-    repetitiveSupportLoad: "Repeated questions are often a sign that an AI Employee can give your team time back without hurting the customer experience.",
-    reviewRequestProcess: "Reviews compound over time, but only when the request happens consistently instead of whenever someone remembers.",
-    requestedCustomIntegrations: "This helps me separate a clean deployment from something that needs custom engineering before I recommend a package.",
-    expectedVoiceMinutesPerMonth: "Voice volume affects both architecture and operating cost, so I’d rather size it honestly than guess later.",
-    founderHandlesMostAdmin: "I’m looking for the work that will quietly consume your time once customers start showing up.",
-    departmentsAffected: "This tells me whether we’re solving one isolated bottleneck or designing a broader AI workforce around the business.",
-    missedCallsPerMonth: "Missed calls can be more than a service issue—they can be measurable lost revenue if the caller simply moves to the next company.",
-    medianLeadResponseMinutes: "Lead response speed is one of the clearest places automation can protect intent while it’s still hot.",
-    averageJobValueUsd: "That lets me put the missed-opportunity problem into dollars instead of vague percentages.",
-    closeRatePercent: "I don’t want to pretend every missed call is a lost sale. Your real conversion rate gives me a more grounded estimate.",
-    dormantCustomerList: "A neglected database can sometimes be the fastest source of revenue because those people already know the business.",
+    businessName: "It just makes this easier to talk about like your business instead of some generic worksheet.",
+    industry: "Different businesses have very different customer rhythms. I don’t want to recommend a process that makes sense for somebody else but not for you.",
+    businessChallenges: "This is usually more useful than starting with software. If I understand what’s frustrating you first, I can focus on the outcome—faster response, fewer dropped balls, less repetitive work, better visibility—and keep the underlying tools in the background where they belong.",
+    monthlyLeads: "I’m trying to figure out whether the bigger opportunity is creating more demand or doing a better job protecting the demand you already have.",
+    appointmentsNeedManualScheduling: "Scheduling is one of those little handoffs that can quietly slow everything down when the team is busy doing the actual work.",
+    estimatesNeedManualFollowUp: "I’m checking whether revenue depends on somebody remembering what to do next. That’s often a good place for automation to monitor the process and step in consistently.",
+    repetitiveSupportLoad: "If the same questions keep showing up, an AI Employee can often handle the routine part and escalate the unusual stuff instead of replacing the human relationship.",
+    reviewRequestProcess: "Reviews matter, but consistency matters more than fancy tooling. I’m just checking whether the process happens every time or only when somebody remembers.",
+    requestedCustomIntegrations: "I care more about whether the systems need to work together than which vendor logo is on the screen. Moonrock can connect and automate the workflow without turning your Flight Plan into a shopping list of tools.",
+    expectedVoiceMinutesPerMonth: "Don’t worry about giving me a perfect number. Tell me the situation—after-hours, weekends, overflow, full coverage—and I’ll translate that into something we can size later.",
+    founderHandlesMostAdmin: "Founder time disappears fast once customers start showing up. I’m looking for the routine work that can be monitored or automated before it owns your calendar.",
+    departmentsAffected: "That helps me decide whether this is one focused AI Employee or whether several functions need to work together as a small AI workforce.",
+    missedCallsPerMonth: "Phone coverage can be a customer-experience issue and a revenue issue. I want to understand the pattern before treating every missed call like a lost sale.",
+    medianLeadResponseMinutes: "Speed matters when intent is high. We can monitor new inquiries, respond immediately where appropriate, and escalate anything that needs a person.",
+    averageJobValueUsd: "That lets me translate process friction into dollars without pretending every missed opportunity would have closed.",
+    closeRatePercent: "Your real conversion pattern gives me a more grounded estimate than using some generic industry assumption.",
+    dormantCustomerList: "Past customers and old leads can be valuable because the relationship already exists. Consistent re-engagement is often easier than constantly buying new attention.",
   };
   return reasons[question.field] ?? question.helpText ?? "I’m using this to decide what should—and should not—be automated first.";
 }
 
-function reactionToAnswer(field: string, value: string | number | boolean): string {
-  if (field === "businessName" && typeof value === "string") return `Got it—${value}. Now I can make this about the business you're actually building.`;
-  if (field === "industry" && typeof value === "string") return `That helps. A ${value} business has its own customer rhythm, so I’ll keep the recommendations grounded in that.`;
-  if (field === "monthlyLeads" && typeof value === "number") {
-    if (value >= 100) return `That's meaningful volume. At around ${value} inquiries a month, small delays and missed follow-up can become expensive fast.`;
-    if (value >= 25) return `That's enough activity for process gaps to matter. I’m watching for places where those opportunities can slip through.`;
-    return `Okay—at that volume I don't want to overbuild automation. The priority may be making each opportunity count while you grow demand.`;
+function interpretLastTurn(response: DiscoveryResponse): string {
+  if (!lastTurn) return "That gives me another useful signal.";
+  const field = lastTurn.field;
+  const normalized = response.interpretation?.normalized;
+  const raw = String(lastTurn.raw).toLowerCase();
+
+  if (field === "businessName") return "Good deal. I’ll keep the rest of this centered on your situation instead of talking in generic business terms.";
+  if (field === "industry") return "That gives me the operating context I needed. I’m going to pay attention to how customers typically enter, wait, buy, schedule, and follow up in that kind of business.";
+  if (field === "businessChallenges") {
+    if (/follow.?up|quote|estimate|proposal/.test(raw)) return "That sounds less like a lead-generation problem and more like a consistency problem after interest already exists. That’s useful, because monitoring stalled opportunities and triggering the right follow-up is exactly the kind of repetitive work automation can own without changing how you sell.";
+    if (/call|phone|voicemail|after.?hours|weekend/.test(raw)) return "I’d treat that as a coverage problem before I call it a staffing problem. An AI Employee can handle routine questions and capture intent when nobody is available, then route the situations that actually need a person.";
+    if (/time|busy|admin|overwhelm|wearing/.test(raw)) return "That sounds like capacity pressure. I’m going to look for work that repeats often enough to automate or monitor so your time stays focused on the parts that actually require judgment.";
+    if (/lead|response|slow|miss/.test(raw)) return "There may be an opportunity leak between interest and response. I’m going to trace that handoff rather than assuming the answer is simply 'get more leads.'";
+    return "That’s the kind of context I was looking for. I’m not going to force it into a canned category—I’ll use the rest of the questions to figure out whether the best answer is automation, better monitoring, a cleaner workflow, or simply leaving something alone.";
   }
-  if (field === "appointmentsNeedManualScheduling") return value === true
-    ? "That’s a useful signal. Every manual scheduling handoff creates another place where a ready customer can get stuck."
-    : "Good—scheduling may already be one of the stronger parts of the operation, so I won’t force automation where it isn’t needed.";
-  if (field === "estimatesNeedManualFollowUp") return value === true
-    ? "There it is. Follow-up that depends on memory is exactly the kind of bottleneck an AI Employee can take ownership of."
-    : "Good. That tells me your follow-up process may already have some discipline, so I’ll look elsewhere for higher-impact gaps.";
-  if (field === "repetitiveSupportLoad") return value === "high"
-    ? "That’s a real capacity drain. Repetitive support is a strong candidate for automation because the team gets time back immediately."
-    : value === "medium"
-      ? "That’s enough repetition to be worth watching. It may not be priority one, but it belongs on the board."
-      : "Good—support repetition doesn’t sound like the main pain point, so I won’t make it one.";
-  if (field === "reviewRequestProcess") return value === "automated"
-    ? "Nice. Reviews are already systemized, so there’s no reason for me to sell you a solution to a problem you’ve handled."
-    : value === "manual"
-      ? "That works when people remember. I’m flagging consistency—not effort—as the issue there."
-      : "That’s an easy visibility gap to understand. I’ll keep it in the Flight Plan, but only if higher-value bottlenecks don’t outrank it.";
-  if (field === "founderHandlesMostAdmin") return value === true
-    ? "That’s exactly what I wanted to catch early. Founder time is expensive, and admin work expands faster than most launch plans expect."
-    : "Good. You already have some separation between founder work and operational work, which gives us more options.";
-  if (field === "missedCallsPerMonth" && typeof value === "number") return value > 0
-    ? `Even ${value} missed or delayed calls a month can be worth measuring. Let me see what one converted opportunity is actually worth before I call it a revenue problem.`
-    : "That’s a strong sign. If calls are consistently being answered, I’ll shift attention toward what happens after the lead arrives.";
-  if (field === "medianLeadResponseMinutes" && typeof value === "number") return value > 60
-    ? `That response window is long enough that I’d treat speed-to-lead as a serious candidate for automation.`
-    : value > 15
-      ? "That’s not catastrophic, but there’s room to tighten it—especially when buyer intent is high."
-      : "That’s a healthy response window. I’m less interested in fixing what already works and more interested in what happens next.";
-  if (field === "averageJobValueUsd" && typeof value === "number") return `At roughly $${value.toLocaleString()} per job, we can stop talking about missed opportunities abstractly and start sizing the impact.`;
-  if (field === "closeRatePercent" && typeof value === "number") return `A ${value}% close rate gives me a much more realistic basis for the opportunity estimate. I’ll use that instead of assuming every lead becomes revenue.`;
-  if (field === "dormantCustomerList") return value === true
-    ? "That may be one of the quickest wins in the whole diagnosis. Those contacts already know the business; the gap is consistent re-engagement."
-    : "Good to know. I won’t invent a reactivation opportunity if there isn’t a meaningful list to work.";
-  if (field === "requestedCustomIntegrations" && typeof value === "number") return value > 2
-    ? "That integration count changes the implementation picture. I’m treating this as a more customized deployment, not a plug-and-play setup."
-    : "That sounds manageable. The technical footprint shouldn’t dominate the recommendation.";
-  if (field === "expectedVoiceMinutesPerMonth" && typeof value === "number") return value > 1000
-    ? "That’s substantial call volume. Voice can still make sense, but usage economics need to be part of the recommendation from day one."
-    : "That gives me enough to size voice without making it the center of the plan unless the diagnosis supports it.";
-  if (field === "departmentsAffected" && typeof value === "number") return value >= 3
-    ? "That’s broader than a single automation. I’m starting to look at this as an AI workforce design problem rather than one isolated fix."
-    : "Good—that keeps the scope focused. I’d rather solve the highest-impact area well before expanding into everything at once.";
-  return "That helps. I’m updating the picture as we go rather than treating each answer like an isolated form field.";
+  if (field === "monthlyLeads" && typeof normalized === "number") return normalized >= 100
+    ? "That’s enough volume that small process gaps can compound quickly. I’m watching response and follow-up closely from here."
+    : normalized >= 25
+      ? "That’s enough activity for consistency to matter. We don’t need to automate everything—just protect the places where good opportunities can slip."
+      : "At that volume, I’d rather keep the system lean and make each opportunity count than build a bunch of automation you don’t need yet.";
+  if (field === "appointmentsNeedManualScheduling") return normalized === false || lastTurn.raw === false
+    ? "Sounds like scheduling is already reasonably controlled. Good—I won’t manufacture a problem there."
+    : "That tells me there’s a handoff worth tightening. The goal wouldn’t be to remove people; it’d be to keep customers from waiting on routine coordination.";
+  if (field === "estimatesNeedManualFollowUp") return normalized === false || lastTurn.raw === false
+    ? "Good. If follow-up is already consistent, we can spend our attention somewhere with more upside."
+    : "That’s a useful bottleneck. A system can watch for stalled estimates, follow the agreed cadence, and flag exceptions so the team isn’t relying on memory.";
+  if (field === "expectedVoiceMinutesPerMonth") return typeof normalized === "number" && normalized > 0
+    ? `I can work with that. I translated the coverage you described into roughly ${Math.round(normalized)} voice minutes a month for planning purposes, but I’d validate actual usage before locking anything in.`
+    : "That’s fine. You don’t need to know the usage number yet. The important part is the coverage pattern; we can measure real call volume before final pricing.";
+  if (field === "medianLeadResponseMinutes" && typeof normalized === "number") return normalized > 60
+    ? "That response window is long enough that I’d put speed-to-lead near the top of the board. Immediate acknowledgement plus smart escalation can protect intent without making the experience robotic."
+    : "That response time doesn’t look like the biggest fire. I’ll keep moving and see whether the real friction shows up later in the customer journey.";
+  if (field === "missedCallsPerMonth" && typeof normalized === "number") return normalized > 0
+    ? "There’s enough missed-call activity to measure, but I’m not going to label all of it lost revenue. I want the job value and close rate before I size the opportunity."
+    : "Phone coverage sounds fairly healthy. That lets me shift attention to what happens after contact is made.";
+  if (field === "dormantCustomerList") return normalized === true || lastTurn.raw === true
+    ? "That could be a quick-win area. Those people already know the business, so consistent re-engagement may be more efficient than chasing entirely cold demand."
+    : "Good to know. I won’t build a reactivation recommendation around a list that isn’t really there.";
+  return "That helps. I’m using the meaning behind the answer, not just copying it into a field.";
 }
 
 function playDiscoveryBehavior(response: DiscoveryResponse): void {
@@ -222,12 +198,17 @@ function playDiscoveryBehavior(response: DiscoveryResponse): void {
     visualStage.playBehavior("excited");
     return;
   }
-  const progressPercent = response.view.progressPercent;
-  if (progressPercent >= 70) {
-    visualStage.playBehavior("energetic");
-  } else if (progressPercent >= 35) {
-    visualStage.playBehavior("playful");
-  }
+  if (response.view.progressPercent >= 70) visualStage.playBehavior("energetic");
+  else if (response.view.progressPercent >= 35) visualStage.playBehavior("playful");
+}
+
+function conversationalInput(question: DiscoveryQuestion, compact = false): string {
+  const placeholder = question.field === "expectedVoiceMinutesPerMonth"
+    ? "Example: Mostly evenings and weekends—maybe 80 hours a month?"
+    : question.field === "businessChallenges"
+      ? "Tell Nova what’s going on in your own words…"
+      : "Tell Nova in your own words…";
+  return `<form class="answer-form conversational-answer" data-conversation-form><label class="sr-only" for="nova-answer-${escapeHtml(question.id)}">${escapeHtml(question.prompt)}</label><input id="nova-answer-${escapeHtml(question.id)}" name="answer" type="text" autocomplete="off" placeholder="${escapeHtml(placeholder)}" required><button type="submit">${question.isFinalRequired ? "Build my Flight Plan" : compact ? "Tell Nova" : "Send"}</button></form>`;
 }
 
 function renderQuestion(question: DiscoveryQuestion): void {
@@ -235,45 +216,49 @@ function renderQuestion(question: DiscoveryQuestion): void {
   const identity = question.isFinalRequired ? identityFieldsHtml() : "";
 
   if (question.answerType === "boolean") {
-    controls.innerHTML = `${help}${identity}<div class="choice-grid"><button data-answer="true">Yes</button><button data-answer="false">No</button></div>`;
-    controls.querySelectorAll<HTMLButtonElement>("[data-answer]").forEach((button) => {
-      button.addEventListener("click", () => void submit(question, button.dataset.answer === "true"));
-    });
+    controls.innerHTML = `${help}${identity}<div class="choice-grid"><button data-answer="true">Yes, mostly</button><button data-answer="false">No, not really</button></div><div class="or-divider"><span>or answer naturally</span></div>${conversationalInput(question, true)}`;
+    controls.querySelectorAll<HTMLButtonElement>("[data-answer]").forEach((button) => button.addEventListener("click", () => void submit(question, button.dataset.answer === "true")));
+    bindConversationForm(question);
     return;
   }
+
   if (question.answerType === "single_select") {
-    controls.innerHTML = `${help}${identity}<div class="choice-grid">${(question.options ?? []).map((option) => `<button data-choice="${escapeHtml(option)}">${escapeHtml(labelOption(option))}</button>`).join("")}</div>`;
-    controls.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((button) => {
-      button.addEventListener("click", () => void submit(question, button.dataset.choice ?? ""));
-    });
+    controls.innerHTML = `${help}${identity}<div class="choice-grid">${(question.options ?? []).map((option) => `<button data-choice="${escapeHtml(option)}">${escapeHtml(labelOption(option))}</button>`).join("")}</div><div class="or-divider"><span>or answer naturally</span></div>${conversationalInput(question, true)}`;
+    controls.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((button) => button.addEventListener("click", () => void submit(question, button.dataset.choice ?? "")));
+    bindConversationForm(question);
     return;
   }
-  const inputType = question.answerType === "number" ? "number" : "text";
-  controls.innerHTML = `${help}${identity}<form id="nova-answer-form" class="answer-form"><label class="sr-only" for="nova-answer">${escapeHtml(question.prompt)}</label><input id="nova-answer" name="answer" type="${inputType}" ${inputType === "number" ? "inputmode=\"decimal\" step=\"any\"" : "autocomplete=\"off\""} required><button type="submit">${question.isFinalRequired ? "Build my Flight Plan" : "Tell Nova"}</button></form>`;
-  const form = controls.querySelector<HTMLFormElement>("#nova-answer-form")!;
-  const input = controls.querySelector<HTMLInputElement>("#nova-answer")!;
+
+  controls.innerHTML = `${help}${identity}${conversationalInput(question)}`;
+  bindConversationForm(question);
+}
+
+function bindConversationForm(question: DiscoveryQuestion): void {
+  const form = controls.querySelector<HTMLFormElement>("[data-conversation-form]");
+  const input = form?.querySelector<HTMLInputElement>("input[name=answer]");
+  if (!form || !input) return;
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    const value = inputType === "number" ? Number(input.value) : input.value.trim();
-    if (inputType === "number" && !Number.isFinite(value)) return;
-    if (inputType === "text" && !value) return;
-    void submit(question, value);
+    const value = input.value.trim();
+    if (value) void submit(question, value);
   });
-  input.focus();
+  if (question.answerType === "text") input.focus();
 }
 
 function identityFieldsHtml(): string {
   return `
     <section class="identity-card" aria-labelledby="identity-title">
-      <p class="identity-kicker">SAVE YOUR FLIGHT PLAN</p>
-      <h3 id="identity-title">Where should I attach your recommendation?</h3>
-      <p>Enter your contact details so Moonrock can save this Flight Plan to your inquiry. Automated follow-up remains disabled during this controlled launch.</p>
+      <p class="identity-kicker">KEEP YOUR FLIGHT PLAN</p>
+      <h3 id="identity-title">Want me to save this and send you a copy?</h3>
+      <p>I can attach the recommendation to your Moonrock inquiry so you don’t have to remember everything we covered. If you’d like, Moonrock can also follow up to answer questions or help you work through next steps. No pressure either way.</p>
       <div class="identity-grid">
         <label>First name<input id="identity-first-name" autocomplete="given-name" required></label>
         <label>Last name<input id="identity-last-name" autocomplete="family-name" required></label>
-        <label class="identity-email">Email<input id="identity-email" type="email" autocomplete="email" required></label>
+        <label>Email<input id="identity-email" type="email" autocomplete="email" required></label>
+        <label>Phone <span class="optional">optional</span><input id="identity-phone" type="tel" autocomplete="tel"></label>
       </div>
-      <label class="consent-row"><input id="identity-consent" type="checkbox" required><span>I agree to have this Flight Plan and inquiry saved by Moonrock Marketing.</span></label>
+      <label class="consent-row"><input id="identity-consent" type="checkbox" required><span>Yes, save my Flight Plan and Moonrock inquiry and use my email to provide the requested copy.</span></label>
+      <label class="consent-row"><input id="identity-followup" type="checkbox"><span>Moonrock may also follow up with me about this Flight Plan and questions I may have. Optional.</span></label>
     </section>
   `;
 }
@@ -283,17 +268,14 @@ function readIdentity(): ContactIdentity | undefined {
   const lastName = controls.querySelector<HTMLInputElement>("#identity-last-name")?.value.trim() ?? "";
   const emailInput = controls.querySelector<HTMLInputElement>("#identity-email");
   const email = emailInput?.value.trim() ?? "";
+  const phone = controls.querySelector<HTMLInputElement>("#identity-phone")?.value.trim() ?? "";
   const consent = controls.querySelector<HTMLInputElement>("#identity-consent")?.checked ?? false;
+  const followUpConsent = controls.querySelector<HTMLInputElement>("#identity-followup")?.checked ?? false;
   if (!firstName || !lastName || !email || !emailInput?.validity.valid || !consent) {
-    status.textContent = "Please enter your name, a valid email, and confirm permission to save your Flight Plan.";
+    status.textContent = "I just need your name, a valid email, and permission to save the Flight Plan before I build the final copy.";
     return undefined;
   }
-  return {
-    firstName,
-    lastName,
-    email,
-    ...(businessName ? { companyName: businessName } : {}),
-  };
+  return { firstName, lastName, email, ...(phone ? { phone } : {}), followUpConsent, ...(businessName ? { companyName: businessName } : {}) };
 }
 
 async function submit(question: DiscoveryQuestion, value: string | number | boolean): Promise<void> {
@@ -301,23 +283,20 @@ async function submit(question: DiscoveryQuestion, value: string | number | bool
   const identity = question.isFinalRequired ? readIdentity() : undefined;
   if (question.isFinalRequired && !identity) return;
   if (question.field === "businessName" && typeof value === "string") businessName = value;
-  lastTurn = { field: question.field, value };
-  const processingState = question.isFinalRequired ? "diagnosis" : "thinking";
-  setBusy(true, processingState);
+  lastTurn = { field: question.field, raw: value };
+  setBusy(true, question.isFinalRequired ? "diagnosis" : "thinking");
   reaction.hidden = false;
   reaction.textContent = question.isFinalRequired
-    ? "I have what I need. Give me a second to connect this into a practical recommendation."
-    : "Let me connect that to what you've already told me…";
-  status.textContent = question.isFinalRequired ? "Nova is building and saving your Flight Plan…" : "Nova is thinking…";
+    ? "Give me a second. I’m turning what we covered into something practical instead of just dumping your answers back at you."
+    : "Hang on a second—I’m fitting that into the bigger picture…";
+  status.textContent = question.isFinalRequired ? "Nova is building your Flight Plan…" : "Nova is thinking…";
   try {
     const response = await answerDiscovery(sessionId, question.field, value, identity);
     setBusy(false);
     renderResponse(response);
     if (response.completed) {
       playDiscoveryBehavior(response);
-      status.textContent = response.ghlHandoff?.status === "confirmed"
-        ? "Your Moonrock Flight Plan is ready and saved."
-        : "Your Moonrock Flight Plan is ready.";
+      status.textContent = response.ghlHandoff?.status === "confirmed" ? "Your Flight Plan is ready and saved to Moonrock." : "Your Flight Plan is ready.";
     } else {
       visualStage.playTransientState("speaking");
       window.setTimeout(() => playDiscoveryBehavior(response), 1350);
@@ -337,14 +316,72 @@ function renderFlightPlan(response: DiscoveryResponse): void {
   result.hidden = false;
   result.innerHTML = `
     ${saved ? `<div class="save-confirmation">Flight Plan saved to Moonrock</div>` : ""}
-    <div class="result-kicker">RECOMMENDED AI EMPLOYEE</div>
+    <div class="result-kicker">NOVA'S RECOMMENDATION</div>
     <h3>${escapeHtml(flightPlan.recommendation.offerName)}</h3>
     <p>${escapeHtml(flightPlan.recommendation.reason)}</p>
     <div class="price-row"><strong>$${flightPlan.recommendation.monthlyFeeUsd}/mo</strong><span>+$${flightPlan.recommendation.setupFeeUsd} setup</span></div>
-    ${opportunity ? `<div class="opportunity"><span>Estimated monthly opportunity</span><strong>$${opportunity.monthlyOpportunityUsd.toLocaleString()}</strong><small>${escapeHtml(opportunity.basis)}</small></div>` : ""}
-    <div class="bottlenecks"><h4>Primary bottlenecks</h4>${flightPlan.primaryBottlenecks.map((item) => `<div class="bottleneck"><strong>${escapeHtml(labelOption(item.id))}</strong><span>${escapeHtml(item.explanation)}</span></div>`).join("")}</div>
+    ${opportunity ? `<div class="opportunity"><span>Directional monthly opportunity</span><strong>$${opportunity.monthlyOpportunityUsd.toLocaleString()}</strong><small>${escapeHtml(opportunity.basis)}</small></div>` : ""}
+    <div class="bottlenecks"><h4>What I’d work on first</h4>${flightPlan.primaryBottlenecks.map((item) => `<div class="bottleneck"><strong>${escapeHtml(labelOption(item.id))}</strong><span>${escapeHtml(item.explanation)}</span></div>`).join("")}</div>
+    <div class="plan-guidance">
+      <h4>What this means</h4>
+      <p>This Flight Plan is a starting recommendation, not a judgment on how you run the business. Moonrock would validate the workflow with you before changing anything. The goal is to use reliable automation, monitoring, and AI-assisted customer handling where it removes repetitive work or protects opportunities—while keeping human judgment where it matters.</p>
+    </div>
     <p class="disclaimer">${escapeHtml(opportunity?.disclaimer ?? flightPlan.disclosures[0] ?? "")}</p>
+    <section class="next-steps" aria-labelledby="next-steps-title">
+      <div class="result-kicker">KEEP EXPLORING</div>
+      <h4 id="next-steps-title">You don’t have to decide anything right now.</h4>
+      <p>Ask me about the recommendation, pricing, payment options, implementation, Moonrock’s other services, or what working with a local partner looks like.</p>
+      <div class="resource-grid">
+        <button data-resource="pricing">Pricing</button>
+        <button data-resource="payments">Payment options</button>
+        <button data-resource="implementation">How implementation works</button>
+        <button data-resource="local">Working with Moonrock locally</button>
+        <button data-resource="services">Other ways Moonrock can help</button>
+      </div>
+      <div id="resource-answer" class="resource-answer" aria-live="polite"></div>
+      <form id="post-plan-question" class="answer-form post-plan-question">
+        <input id="post-plan-input" type="text" placeholder="Ask Nova another question…" autocomplete="off">
+        <button type="submit">Ask Nova</button>
+      </form>
+    </section>
   `;
+
+  result.querySelectorAll<HTMLButtonElement>("[data-resource]").forEach((button) => {
+    button.addEventListener("click", () => answerResourceQuestion(button.dataset.resource ?? ""));
+  });
+  result.querySelector<HTMLFormElement>("#post-plan-question")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = result.querySelector<HTMLInputElement>("#post-plan-input");
+    if (input?.value.trim()) answerOpenQuestion(input.value.trim());
+  });
+}
+
+function answerResourceQuestion(topic: string): void {
+  const answers: Record<string, string> = {
+    pricing: "The Flight Plan shows the current recommended monthly and setup pricing for this configuration. Final scope can change if we uncover unusual integrations, compliance needs, or substantially different usage. I’d rather tell you that up front than surprise you later.",
+    payments: "Moonrock can discuss practical payment timing and available payment arrangements before anything is signed. The goal is to make implementation understandable and predictable—not pressure you into a payment decision during discovery.",
+    implementation: "Implementation starts by validating the workflow we just discussed. Then Moonrock configures the customer-facing experience, automations, monitoring, integrations, and escalation rules behind the scenes. We focus on the business outcome rather than asking you to become an expert in the underlying software stack.",
+    local: "Moonrock is based in Lawrence, Kansas. For local businesses, that means we can understand the market and work like a nearby technology partner while still using systems that support customers remotely and around the clock.",
+    services: "AI Employees are the center of Moonrock 2.0, but the work can include customer response, lead capture, follow-up, scheduling, CRM workflows, reporting, operational automation, voice handling, integrations, and other supporting systems when they are part of the same business outcome.",
+  };
+  showResourceAnswer(answers[topic] ?? "Tell me what you want to dig into and I’ll explain it without turning it into a sales pitch.");
+}
+
+function answerOpenQuestion(question: string): void {
+  const q = question.toLowerCase();
+  if (/price|cost|month|setup/.test(q)) return answerResourceQuestion("pricing");
+  if (/pay|financ|installment|payment/.test(q)) return answerResourceQuestion("payments");
+  if (/implement|setup|how long|onboard/.test(q)) return answerResourceQuestion("implementation");
+  if (/local|lawrence|kansas|nearby|partner/.test(q)) return answerResourceQuestion("local");
+  if (/service|website|crm|automation|phone|voice|follow.?up/.test(q)) return answerResourceQuestion("services");
+  showResourceAnswer("That’s a good question, and I don’t want to fake a specific answer from a keyword. I’d save that with your Flight Plan for a Moonrock follow-up, or we can keep narrowing it down through the options above while the full conversational answer layer is expanded.");
+}
+
+function showResourceAnswer(answer: string): void {
+  const target = result.querySelector<HTMLDivElement>("#resource-answer");
+  if (!target) return;
+  target.textContent = answer;
+  visualStage.playTransientState("speaking");
 }
 
 async function begin(path: BusinessPath): Promise<void> {
@@ -355,14 +392,14 @@ async function begin(path: BusinessPath): Promise<void> {
   lastTurn = undefined;
   visualStage.setState("idle");
   setBusy(true, "thinking");
-  status.textContent = "Nova is opening your discovery session…";
+  status.textContent = "Nova is getting things ready…";
   document.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => { button.disabled = true; });
   try {
     const response = await startDiscovery(sessionId, path);
     setBusy(false);
     renderResponse(response, true);
     visualStage.playTransientState("speaking");
-    window.setTimeout(() => visualStage.playBehavior(path === "startup" ? "excited" : "energetic"), 1350);
+    window.setTimeout(() => visualStage.playBehavior(path === "startup" ? "excited" : "energetic"), 1600);
     panel.scrollIntoView({ behavior: "smooth", block: "center" });
     status.textContent = "Nova is with you.";
   } catch (error) {
@@ -377,13 +414,7 @@ function labelOption(value: string): string {
 }
 
 function escapeHtml(value: string): string {
-  const replacements: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;",
-  };
+  const replacements: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" };
   return value.replace(/[&<>'"]/g, (character) => replacements[character] ?? character);
 }
 

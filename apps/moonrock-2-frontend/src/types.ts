@@ -8,19 +8,10 @@ export interface DiscoveryView {
   headline: string;
   body?: string;
   progressPercent: number;
-  input?: {
-    field: string;
-    type: AnswerType;
-    options?: string[];
-  };
+  input?: { field: string; type: AnswerType; options?: string[] };
   flightPlanReady: boolean;
   escalationRequired: boolean;
-  recommendedOffer?: {
-    name: string;
-    monthlyUsd: number;
-    setupUsd: number;
-    autonomousCloseAllowed: boolean;
-  };
+  recommendedOffer?: { name: string; monthlyUsd: number; setupUsd: number; autonomousCloseAllowed: boolean };
   estimatedOpportunityUsd?: number;
 }
 
@@ -39,7 +30,9 @@ export interface ContactIdentity {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   companyName?: string;
+  followUpConsent?: boolean;
 }
 
 export interface GhlHandoffResult {
@@ -58,26 +51,13 @@ export interface GhlHandoffResult {
 export interface FlightPlanResult {
   diagnostic: {
     recommendationReason: string;
-    opportunityEstimate?: {
-      monthlyOpportunityUsd: number;
-      basis: string;
-      disclaimer: string;
-    };
+    opportunityEstimate?: { monthlyOpportunityUsd: number; basis: string; disclaimer: string };
   };
   flightPlan: {
     headline: string;
     primaryBottlenecks: Array<{ id: string; score: number; explanation: string }>;
-    recommendation: {
-      offerName: string;
-      setupFeeUsd: number;
-      monthlyFeeUsd: number;
-      reason: string;
-    };
-    opportunity?: {
-      monthlyOpportunityUsd: number;
-      basis: string;
-      disclaimer: string;
-    };
+    recommendation: { offerName: string; setupFeeUsd: number; monthlyFeeUsd: number; reason: string };
+    opportunity?: { monthlyOpportunityUsd: number; basis: string; disclaimer: string };
     nextAction: string;
     disclosures: string[];
   };
@@ -89,6 +69,7 @@ export interface DiscoveryResponse {
   progress: { answered: number; requiredRemaining: number };
   nextQuestion?: DiscoveryQuestion;
   view: DiscoveryView;
+  interpretation?: { field: string; raw: unknown; normalized: unknown; note?: string };
   result?: FlightPlanResult;
   ghlHandoff?: GhlHandoffResult;
 }

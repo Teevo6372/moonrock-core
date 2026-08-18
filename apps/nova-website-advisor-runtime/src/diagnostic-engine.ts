@@ -37,6 +37,7 @@ export interface DiagnosticInput {
   path: BusinessPath;
   businessName?: string;
   industry?: string;
+  businessChallenges?: string;
   monthlyLeads?: number;
   missedCallsPerMonth?: number;
   averageJobValueUsd?: number;
@@ -93,12 +94,7 @@ const ESCALATION_RISKS = new Set<RiskCategory>([
   "custom_api",
 ]);
 
-function addFinding(
-  findings: BottleneckFinding[],
-  id: BottleneckId,
-  score: number,
-  reason: string,
-): void {
+function addFinding(findings: BottleneckFinding[], id: BottleneckId, score: number, reason: string): void {
   findings.push({ id, score: Math.max(0, Math.min(100, score)), reason });
 }
 
@@ -110,117 +106,84 @@ function scoreFindings(input: DiagnosticInput): BottleneckFinding[] {
     addFinding(findings, "missed_calls", Math.min(100, 45 + missed * 4), `${missed} reported missed calls per month create a direct opportunity leak.`);
   }
 
-  if ((input.medianLeadResponseMinutes ?? 0) >= 10) {
-    const minutes = input.medianLeadResponseMinutes ?? 0;
-    addFinding(findings, "slow_lead_response", Math.min(100, 40 + Math.floor(minutes / 5)), `Median lead response is about ${minutes} minutes, indicating response friction.`);
+  if ((input.medianLeadResponseMinutes ?? 0) > 15) {
+    const response = input.medianLeadResponseMinutes ?? 0;
+    addFinding(findings, "slow_lead_response", Math.min(100, 40 + response / 2), `Median lead response is about ${response} minutes, leaving high-intent inquiries waiting.`);
   }
 
-  if (input.appointmentsNeedManualScheduling) {
-    addFinding(findings, "appointment_booking", 65, "Appointments require manual scheduling and create avoidable administrative work.");
+  if ((input.monthlyLeads ?? 0) > 0 && input.path === "startup") {
+    addFinding(findings, "lead_capture", 58, "The startup expects active lead flow and needs a consistent capture-and-response path from launch.");
   }
 
-  if (input.estimatesNeedManualFollowUp) {
-    addFinding(findings, "estimate_follow_up", 75, "Estimates or proposals rely on manual follow-up, creating inconsistent sales coverage.");
-  }
+  if (input.appointmentsNeedManualScheduling) addFinding(findings, "appointment_booking", 68, "Appointment scheduling still requires manual coordination.");
+  if (input.estimatesNeedManualFollowUp) addFinding(findings, "estimate_follow_up", 78, "Estimate or qualified-lead follow-up depends on manual memory and effort.");
 
-  if (input.repetitiveSupportLoad === "medium") {
-    addFinding(findings, "repetitive_support", 55, "A meaningful share of staff time is spent on repetitive customer questions.");
-  } else if (input.repetitiveSupportLoad === "high") {
-    addFinding(findings, "repetitive_support", 80, "A high share of staff time is spent on repetitive customer questions.");
-  }
+  if (input.repetitiveSupportLoad === "high") addFinding(findings, "repetitive_support", 78, "Repetitive customer questions consume substantial staff capacity.");
+  else if (input.repetitiveSupportLoad === "medium") addFinding(findings, "repetitive_support", 54, "Repetitive customer questions consume noticeable staff capacity.");
 
-  if (input.reviewRequestProcess === "none") {
-    addFinding(findings, "review_generation", 70, "There is no consistent review-request process after service completion.");
-  } else if (input.reviewRequestProcess === "manual") {
-    addFinding(findings, "review_generation", 50, "Review requests depend on manual staff action and may be inconsistent.");
-  }
+  if (input.reviewRequestProcess === "none") addFinding(findings, "review_generation", 66, "There is no consistent review-request process today.");
+  else if (input.reviewRequestProcess === "manual") addFinding(findings, "review_generation", 48, "Review requests depend on manual follow-through.");
 
-  if (input.dormantCustomerList) {
-    addFinding(findings, "reactivation", 60, "Existing customer or dormant lead data may support structured reactivation.");
-  }
+  if (input.dormantCustomerList) addFinding(findings, "reactivation", 72, "Past customers or dormant leads are available but not consistently re-engaged.");
+  if (input.founderHandlesMostAdmin) addFinding(findings, "founder_capacity", 82, "The founder expects to carry calls, scheduling, follow-up, and customer administration personally.");
+  if ((input.departmentsAffected ?? 0) >= 3) addFinding(findings, "multi_department", 76, "The reported bottlenecks span three or more business functions.");
 
-  if (input.path === "startup" && input.founderHandlesMostAdmin) {
-    addFinding(findings, "founder_capacity", 75, "The founder expects to carry most administrative work, creating an early scaling bottleneck.");
-  }
-
-  if ((input.departmentsAffected ?? 1) >= 3) {
-    addFinding(findings, "multi_department", 85, "Multiple departments or business functions require coordinated automation.");
+  const challenges = input.businessChallenges?.toLowerCase() ?? "";
+  if (challenges) {
+    if (/miss(ed|ing)? calls?|phone|voicemail|after.?hours/.test(challenges) && !findings.some((item) => item.id === "missed_calls")) addFinding(findings, "missed_calls", 62, "The owner described phone coverage or missed-call friction as a current concern.");
+    if (/follow.?up|quote|estimate|proposal|ghost|remember/.test(challenges) && !findings.some((item) => item.id === "estimate_follow_up")) addFinding(findings, "estimate_follow_up", 68, "The owner described inconsistent follow-up as a current operational concern.");
+    if (/slow|response|lead|inquir/.test(challenges) && !findings.some((item) => item.id === "slow_lead_response")) addFinding(findings, "slow_lead_response", 60, "The owner described lead-response friction that is worth validating during implementation.");
+    if (/schedule|booking|appointment/.test(challenges) && !findings.some((item) => item.id === "appointment_booking")) addFinding(findings, "appointment_booking", 58, "The owner described scheduling or booking friction as a current concern.");
+    if (/repetitive|same questions|customer questions|support/.test(challenges) && !findings.some((item) => item.id === "repetitive_support")) addFinding(findings, "repetitive_support", 58, "The owner described repetitive customer-service work that may be suitable for automation.");
+    if (/too much|overwhelm|wearing.*hats|no time|admin|busy/.test(challenges) && !findings.some((item) => item.id === "founder_capacity")) addFinding(findings, "founder_capacity", 64, "The owner described capacity pressure or repetitive administrative workload.");
   }
 
   return findings.sort((a, b) => b.score - a.score);
 }
 
-function chooseOffer(findings: readonly BottleneckFinding[]): AiEmployeeId {
-  const ids = new Set(findings.map((finding) => finding.id));
-
-  if (ids.has("multi_department")) return "ai_workforce";
-
-  const frontOfficeSignals = ["missed_calls", "slow_lead_response", "appointment_booking", "estimate_follow_up"].filter((id) => ids.has(id as BottleneckId));
-  if (frontOfficeSignals.length >= 2) return "front_office";
-
-  if (ids.has("missed_calls") || ids.has("appointment_booking")) return "receptionist";
-  if (ids.has("estimate_follow_up") || ids.has("reactivation")) return "sales_follow_up";
-  if (ids.has("slow_lead_response") || ids.has("lead_capture") || ids.has("lead_qualification")) return "lead_response";
-  if (ids.has("repetitive_support")) return "customer_care";
-  if (ids.has("review_generation") || ids.has("retention")) return "reputation_retention";
-
-  return "lead_response";
-}
-
 function estimateOpportunity(input: DiagnosticInput): OpportunityEstimate | undefined {
-  const missedCalls = input.missedCallsPerMonth;
-  const closeRatePercent = input.closeRatePercent;
-  const averageJobValueUsd = input.averageJobValueUsd;
-
-  if (missedCalls === undefined || closeRatePercent === undefined || averageJobValueUsd === undefined) {
-    return undefined;
-  }
-
-  const monthlyOpportunityUsd = Math.round(missedCalls * (closeRatePercent / 100) * averageJobValueUsd);
+  const missedCalls = input.missedCallsPerMonth ?? 0;
+  const averageJobValue = input.averageJobValueUsd ?? 0;
+  const closeRate = input.closeRatePercent ?? 0;
+  if (missedCalls <= 0 || averageJobValue <= 0 || closeRate <= 0) return undefined;
+  const monthlyOpportunityUsd = Math.round(missedCalls * averageJobValue * (closeRate / 100));
   return {
     monthlyOpportunityUsd,
-    basis: `${missedCalls} missed calls × ${closeRatePercent}% reported close rate × $${averageJobValueUsd} average job value`,
-    disclaimer: "Estimated opportunity based only on information provided by the visitor; Moonrock does not guarantee revenue or ROI.",
+    basis: `${missedCalls} missed calls × $${averageJobValue} average value × ${closeRate}% reported close rate`,
+    disclaimer: "Directional estimate based on information provided, not a revenue guarantee.",
   };
 }
 
+function chooseOffer(findings: BottleneckFinding[]): AiEmployeeId {
+  const ids = new Set(findings.map((finding) => finding.id));
+  if (ids.has("multi_department")) return "ai_workforce";
+  if (ids.has("missed_calls") || ids.has("appointment_booking")) return "front_desk_ai_employee";
+  if (ids.has("estimate_follow_up") || ids.has("slow_lead_response") || ids.has("reactivation")) return "growth_ai_employee";
+  if (ids.has("repetitive_support")) return "customer_success_ai_employee";
+  return "growth_ai_employee";
+}
+
 export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
-  const findings = scoreFindings(input);
-  const recommendedOfferId = chooseOffer(findings);
+  const bottlenecks = scoreFindings(input);
+  const recommendedOfferId = chooseOffer(bottlenecks);
+  const offer = AI_EMPLOYEE_CATALOG[recommendedOfferId];
   const escalationReasons: string[] = [];
   const risks = input.riskCategories ?? [];
-
-  if (risks.includes("illegal_or_abusive")) {
-    escalationReasons.push("REFUSE: requested use appears illegal, deceptive, abusive, or otherwise prohibited.");
-  }
-
-  for (const risk of risks) {
-    if (ESCALATION_RISKS.has(risk)) escalationReasons.push(`Human review required for risk category: ${risk}.`);
-  }
-
-  if ((input.requestedCustomIntegrations ?? 0) >= 2) {
-    escalationReasons.push("Human review required for multiple custom integrations.");
-  }
-
-  if ((input.expectedVoiceMinutesPerMonth ?? 0) > 2000) {
-    escalationReasons.push("Human review required for unusually high expected voice volume.");
-  }
-
-  const offer = AI_EMPLOYEE_CATALOG[recommendedOfferId];
-  const autonomousCloseAllowed = offer.autonomousSaleAllowed && escalationReasons.length === 0;
-  const primary = findings[0];
-  const opportunityEstimate = estimateOpportunity(input);
-  const recommendationReason = primary
-    ? `${offer.name} is the smallest approved Moonrock offer that addresses the strongest detected bottlenecks, led by ${primary.id.replaceAll("_", " ")}.`
-    : `${offer.name} is the default entry recommendation pending additional discovery.`;
-
+  for (const risk of risks) if (ESCALATION_RISKS.has(risk)) escalationReasons.push(`Risk category requires review: ${risk}`);
+  if ((input.requestedCustomIntegrations ?? 0) > 2) escalationReasons.push("More than two custom integrations require solution review.");
+  if ((input.expectedVoiceMinutesPerMonth ?? 0) > 5000) escalationReasons.push("High projected voice volume requires usage review.");
+  const autonomousCloseAllowed = escalationReasons.length === 0 && offer.autonomousCloseAllowed;
+  const top = bottlenecks.slice(0, 3).map((finding) => finding.id.replaceAll("_", " ")).join(", ");
+  const recommendationReason = top
+    ? `The strongest opportunities are ${top}. ${offer.name} is the best fit for that combination.`
+    : `${offer.name} provides a practical starting point while Moonrock gathers more operating data.`;
   return {
     path: input.path,
-    bottlenecks: findings,
+    bottlenecks,
     recommendedOfferId,
     recommendationReason,
     autonomousCloseAllowed,
     escalationReasons,
-    ...(opportunityEstimate ? { opportunityEstimate } : {}),
+    ...(estimateOpportunity(input) ? { opportunityEstimate: estimateOpportunity(input) } : {}),
   };
 }

@@ -16,154 +16,74 @@ export interface DiscoveryQuestion {
 }
 
 const sharedQuestions: DiscoveryQuestion[] = [
+  { id: "business-name", path: "shared", field: "businessName", prompt: "What should I call your business?", answerType: "text", required: false },
+  { id: "industry", path: "shared", field: "industry", prompt: "What kind of business are you building or operating?", answerType: "text", required: true },
   {
-    id: "business-name",
+    id: "business-challenges",
     path: "shared",
-    field: "businessName",
-    prompt: "What should I call your business?",
-    answerType: "text",
-    required: false,
-  },
-  {
-    id: "industry",
-    path: "shared",
-    field: "industry",
-    prompt: "What kind of business are you building or operating?",
+    field: "businessChallenges",
+    prompt: "What feels harder than it should right now?",
+    helpText: "Tell me in your own words—missed opportunities, repetitive work, slow follow-up, staffing pressure, launch uncertainty, or anything else that is getting in the way.",
     answerType: "text",
     required: true,
   },
   {
-    id: "monthly-leads",
-    path: "shared",
-    field: "monthlyLeads",
+    id: "monthly-leads", path: "shared", field: "monthlyLeads",
     prompt: "About how many new leads or customer inquiries do you receive in a typical month?",
-    helpText: "An estimate is fine.",
-    answerType: "number",
-    required: false,
+    helpText: "Answer naturally. A rough number, range, daily estimate, or 'I'm not sure' with context is fine.", answerType: "text", required: false,
+  },
+  { id: "manual-scheduling", path: "shared", field: "appointmentsNeedManualScheduling", prompt: "Does a person usually have to handle scheduling manually?", answerType: "boolean", required: true },
+  { id: "manual-estimate-followup", path: "shared", field: "estimatesNeedManualFollowUp", prompt: "Do estimates, proposals, or qualified leads depend on someone remembering to follow up?", answerType: "boolean", required: true },
+  { id: "support-load", path: "shared", field: "repetitiveSupportLoad", prompt: "How much staff time goes to repetitive customer questions?", answerType: "single_select", required: true, options: ["low", "medium", "high"] },
+  { id: "review-process", path: "shared", field: "reviewRequestProcess", prompt: "How are customer reviews requested today?", answerType: "single_select", required: true, options: ["none", "manual", "automated"] },
+  {
+    id: "custom-integrations", path: "shared", field: "requestedCustomIntegrations",
+    prompt: "How many systems or apps would this likely need to connect to?",
+    helpText: "You can name the systems or describe the setup if a number is not obvious.", answerType: "text", required: false,
   },
   {
-    id: "manual-scheduling",
-    path: "shared",
-    field: "appointmentsNeedManualScheduling",
-    prompt: "Does a person usually have to handle scheduling manually?",
-    answerType: "boolean",
-    required: true,
-  },
-  {
-    id: "manual-estimate-followup",
-    path: "shared",
-    field: "estimatesNeedManualFollowUp",
-    prompt: "Do estimates, proposals, or qualified leads depend on someone remembering to follow up?",
-    answerType: "boolean",
-    required: true,
-  },
-  {
-    id: "support-load",
-    path: "shared",
-    field: "repetitiveSupportLoad",
-    prompt: "How much staff time goes to repetitive customer questions?",
-    answerType: "single_select",
-    required: true,
-    options: ["low", "medium", "high"],
-  },
-  {
-    id: "review-process",
-    path: "shared",
-    field: "reviewRequestProcess",
-    prompt: "How are customer reviews requested today?",
-    answerType: "single_select",
-    required: true,
-    options: ["none", "manual", "automated"],
-  },
-  {
-    id: "custom-integrations",
-    path: "shared",
-    field: "requestedCustomIntegrations",
-    prompt: "How many custom systems or APIs would this likely need to connect to?",
-    answerType: "number",
-    required: false,
-  },
-  {
-    id: "voice-volume",
-    path: "shared",
-    field: "expectedVoiceMinutesPerMonth",
-    prompt: "If you expect AI phone handling, roughly how many call minutes per month would you expect?",
-    answerType: "number",
-    required: false,
+    id: "voice-volume", path: "shared", field: "expectedVoiceMinutesPerMonth",
+    prompt: "If AI helped with the phones, what kind of coverage would actually be useful?",
+    helpText: "Tell me the situation in plain English—after-hours, weekends, overflow, full-time coverage, or an estimate in minutes/hours if you have one.", answerType: "text", required: false,
   },
 ];
 
 const startupQuestions: DiscoveryQuestion[] = [
+  { id: "founder-admin", path: "startup", field: "founderHandlesMostAdmin", prompt: "At launch, will you personally be handling most calls, scheduling, follow-up, and customer administration?", answerType: "boolean", required: true },
   {
-    id: "founder-admin",
-    path: "startup",
-    field: "founderHandlesMostAdmin",
-    prompt: "At launch, will you personally be handling most calls, scheduling, follow-up, and customer administration?",
-    answerType: "boolean",
-    required: true,
-  },
-  {
-    id: "departments-startup",
-    path: "startup",
-    field: "departmentsAffected",
-    prompt: "How many business functions do you expect AI to help with at launch?",
-    helpText: "Examples: customer calls, sales, scheduling, support, follow-up, marketing.",
-    answerType: "number",
-    required: false,
+    id: "departments-startup", path: "startup", field: "departmentsAffected",
+    prompt: "How many parts of the business do you expect AI to help with at launch?",
+    helpText: "You can give me a number or just describe the work you expect help with.", answerType: "text", required: false,
   },
 ];
 
 const existingBusinessQuestions: DiscoveryQuestion[] = [
   {
-    id: "missed-calls",
-    path: "existing_business",
-    field: "missedCallsPerMonth",
-    prompt: "About how many customer calls do you think go unanswered or get a delayed response each month?",
-    answerType: "number",
-    required: false,
+    id: "missed-calls", path: "existing_business", field: "missedCallsPerMonth",
+    prompt: "About how many customer calls go unanswered or get a delayed response each month?",
+    helpText: "A rough estimate, weekly pattern, or description is fine.", answerType: "text", required: false,
   },
   {
-    id: "lead-response",
-    path: "existing_business",
-    field: "medianLeadResponseMinutes",
+    id: "lead-response", path: "existing_business", field: "medianLeadResponseMinutes",
     prompt: "How long does it usually take to respond to a new lead?",
-    helpText: "Answer in minutes. An estimate is fine.",
-    answerType: "number",
-    required: false,
+    helpText: "You can answer in minutes, hours, 'same day,' or describe what normally happens.", answerType: "text", required: false,
   },
   {
-    id: "average-job-value",
-    path: "existing_business",
-    field: "averageJobValueUsd",
-    prompt: "What is an average new job or sale worth?",
-    answerType: "number",
-    required: false,
+    id: "average-job-value", path: "existing_business", field: "averageJobValueUsd",
+    prompt: "What is an average new job or sale worth?", helpText: "A range or rough estimate is fine.", answerType: "text", required: false,
     askWhen: (answers) => (answers.missedCallsPerMonth ?? 0) > 0,
   },
   {
-    id: "close-rate",
-    path: "existing_business",
-    field: "closeRatePercent",
-    prompt: "Roughly what percentage of qualified opportunities become customers?",
-    answerType: "number",
-    required: false,
+    id: "close-rate", path: "existing_business", field: "closeRatePercent",
+    prompt: "Roughly what share of qualified opportunities become customers?",
+    helpText: "A percentage, 'one out of three,' or a rough description is fine.", answerType: "text", required: false,
     askWhen: (answers) => (answers.missedCallsPerMonth ?? 0) > 0,
   },
+  { id: "dormant-list", path: "existing_business", field: "dormantCustomerList", prompt: "Do you have old leads or past customers who are not being followed up with consistently?", answerType: "boolean", required: true },
   {
-    id: "dormant-list",
-    path: "existing_business",
-    field: "dormantCustomerList",
-    prompt: "Do you have old leads or past customers who are not being followed up with consistently?",
-    answerType: "boolean",
-    required: true,
-  },
-  {
-    id: "departments-existing",
-    path: "existing_business",
-    field: "departmentsAffected",
+    id: "departments-existing", path: "existing_business", field: "departmentsAffected",
     prompt: "How many parts of the business appear affected by the bottlenecks you've described?",
-    answerType: "number",
-    required: false,
+    helpText: "A number is fine, but you can also just tell me which parts feel connected.", answerType: "text", required: false,
   },
 ];
 
@@ -172,15 +92,10 @@ export function getDiscoveryQuestions(path: BusinessPath, answers: Partial<Diagn
     .filter((question) => !question.askWhen || question.askWhen(answers));
 }
 
-export function getNextDiscoveryQuestion(
-  path: BusinessPath,
-  answers: Partial<DiagnosticInput>,
-): DiscoveryQuestion | undefined {
+export function getNextDiscoveryQuestion(path: BusinessPath, answers: Partial<DiagnosticInput>): DiscoveryQuestion | undefined {
   return getDiscoveryQuestions(path, answers).find((question) => answers[question.field] === undefined);
 }
 
 export function discoveryIsComplete(path: BusinessPath, answers: Partial<DiagnosticInput>): boolean {
-  return getDiscoveryQuestions(path, answers)
-    .filter((question) => question.required)
-    .every((question) => answers[question.field] !== undefined);
+  return getDiscoveryQuestions(path, answers).filter((question) => question.required).every((question) => answers[question.field] !== undefined);
 }

@@ -3,14 +3,12 @@ import type { FlightPlan } from "./flight-plan.js";
 import { getDiscoveryQuestions } from "./discovery-graph.js";
 import { applyDiscoveryAnswer, createDiscoverySession, resumeDiscovery, type DiscoverySessionState } from "./discovery-session.js";
 import { mapDiscoveryToGhl, type GhlDiscoveryPayload } from "./ghl-discovery-mapping.js";
+import { normalizeDiscoveryAnswer } from "./conversation-normalizer.js";
 
 export interface NovaDiscoveryResponse {
   path: BusinessPath;
   completed: boolean;
-  progress: {
-    answered: number;
-    requiredRemaining: number;
-  };
+  progress: { answered: number; requiredRemaining: number };
   nextQuestion?: {
     id: string;
     field: keyof DiagnosticInput;
@@ -21,29 +19,16 @@ export interface NovaDiscoveryResponse {
     isFinalRequired: boolean;
     options?: readonly string[];
   };
-  result?: {
-    diagnostic: DiagnosticResult;
-    flightPlan: FlightPlan;
-    ghl: GhlDiscoveryPayload;
-  };
+  interpretation?: { field: keyof DiagnosticInput; raw: unknown; normalized: unknown; note?: string };
+  result?: { diagnostic: DiagnosticResult; flightPlan: FlightPlan; ghl: GhlDiscoveryPayload };
 }
 
 function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof resumeDiscovery>): NovaDiscoveryResponse {
   const answered = Object.keys(state.answers).filter((key) => key !== "path").length;
   const nextQuestion = progress.nextQuestion;
-  const requiredRemaining = state.completed
-    ? 0
-    : getDiscoveryQuestions(state.path, state.answers)
-      .filter((question) => question.required && state.answers[question.field] === undefined)
-      .length;
-  const response: NovaDiscoveryResponse = {
-    path: state.path,
-    completed: state.completed,
-    progress: {
-      answered,
-      requiredRemaining,
-    },
-  };
+  const requiredRemaining = state.completed ? 0 : getDiscoveryQuestions(state.path, state.answers)
+    .filter((question) => question.required && state.answers[question.field] === undefined).length;
+  const response: NovaDiscoveryResponse = { path: state.path, completed: state.completed, progress: { answered, requiredRemaining } };
 
   if (nextQuestion) {
     response.nextQuestion = {
@@ -62,14 +47,9 @@ function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof re
     response.result = {
       diagnostic: progress.diagnostic,
       flightPlan: progress.flightPlan,
-      ghl: mapDiscoveryToGhl(
-        state.answers as DiagnosticInput,
-        progress.diagnostic,
-        progress.flightPlan,
-      ),
+      ghl: mapDiscoveryToGhl(state.answers as DiagnosticInput, progress.diagnostic, progress.flightPlan),
     };
   }
-
   return response;
 }
 
@@ -84,6 +64,16 @@ export function submitNovaDiscoveryAnswer(
   field: keyof DiagnosticInput,
   value: unknown,
 ): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
-  const progress = applyDiscoveryAnswer(state, field, value);
-  return { state: progress.state, response: toResponse(progress.state, progress) };
+  const normalized = normalizeDiscoveryAnswer(field, value);
+  const progress = applyDiscoveryAnswer(state, field, normalized.value);
+  const response = toResponse(progress.state, progress);
+  if (normalized.interpreted) {
+    response.interpretation = {
+      field,
+      raw: value,
+      normalized: normalized.value,
+      ...(normalized.note ? { note: normalized.note } : {}),
+    };
+  }
+  return { state: progress.state, response };
 }
