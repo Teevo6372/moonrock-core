@@ -90,6 +90,7 @@ export interface DiscoveryResponse {
   nextQuestion?: DiscoveryQuestion;
   view: DiscoveryView;
   interpretation?: { field: string; raw: unknown; normalized: unknown; note?: string };
+  clarification?: { field: string; message: string; originalAnswer: unknown };
   progressiveFlightPlan: ProgressiveFlightPlan;
   result?: FlightPlanResult;
   ghlHandoff?: GhlHandoffResult;
