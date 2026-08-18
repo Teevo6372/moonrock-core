@@ -1,6 +1,7 @@
 import "./voice-chat-experience.css";
 
-type SpeechRecognitionResultEventLike = Event & { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> };
+type SpeechRecognitionResultLike = { isFinal: boolean; 0?: { transcript: string } };
+type SpeechRecognitionResultEventLike = Event & { results: ArrayLike<SpeechRecognitionResultLike | undefined> };
 type SpeechRecognitionErrorEventLike = Event & { error?: string };
 type SpeechRecognitionLike = {
   lang: string;
@@ -116,6 +117,7 @@ function startRecognition(input: HTMLInputElement, form: HTMLFormElement, button
     finalTranscript = "";
     for (let index = 0; index < event.results.length; index += 1) {
       const result = event.results[index];
+      if (!result) continue;
       const transcript = result[0]?.transcript ?? "";
       if (result.isFinal) finalTranscript += transcript;
       else interim += transcript;
