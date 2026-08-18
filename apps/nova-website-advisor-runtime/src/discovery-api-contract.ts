@@ -21,6 +21,7 @@ export interface NovaDiscoveryResponse {
     options?: readonly string[];
   };
   interpretation?: { field: keyof DiagnosticInput; raw: unknown; normalized: unknown; note?: string };
+  clarification?: { field: keyof DiagnosticInput; message: string; originalAnswer: unknown };
   progressiveFlightPlan: ProgressiveFlightPlan;
   result?: { diagnostic: DiagnosticResult; flightPlan: FlightPlan; ghl: GhlDiscoveryPayload };
 }
@@ -72,6 +73,18 @@ export function submitNovaDiscoveryAnswer(
   value: unknown,
 ): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
   const normalized = normalizeDiscoveryAnswer(field, value);
+
+  if (normalized.needsClarification) {
+    const progress = resumeDiscovery(state);
+    const response = toResponse(state, progress);
+    response.clarification = {
+      field,
+      message: normalized.clarification ?? "I want to make sure I understood that before I use it in your Flight Plan.",
+      originalAnswer: value,
+    };
+    return { state, response };
+  }
+
   const progress = applyDiscoveryAnswer(state, field, normalized.value);
   const response = toResponse(progress.state, progress);
   if (normalized.interpreted) {

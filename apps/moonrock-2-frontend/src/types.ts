@@ -77,6 +77,12 @@ export interface ProgressiveFlightPlan {
   nextFocus?: string;
 }
 
+export interface NovaConversationTurn {
+  answer: string;
+  mode: "grounded_fallback" | "generated";
+  suggestedPrompts?: string[];
+}
+
 export interface DiscoveryResponse {
   path: BusinessPath;
   completed: boolean;
@@ -84,6 +90,7 @@ export interface DiscoveryResponse {
   nextQuestion?: DiscoveryQuestion;
   view: DiscoveryView;
   interpretation?: { field: string; raw: unknown; normalized: unknown; note?: string };
+  clarification?: { field: string; message: string; originalAnswer: unknown };
   progressiveFlightPlan: ProgressiveFlightPlan;
   result?: FlightPlanResult;
   ghlHandoff?: GhlHandoffResult;

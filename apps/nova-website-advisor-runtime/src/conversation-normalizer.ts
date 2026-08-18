@@ -22,6 +22,8 @@ export interface NormalizedDiscoveryAnswer {
   value: unknown;
   interpreted: boolean;
   note?: string;
+  needsClarification?: boolean;
+  clarification?: string;
 }
 
 function firstNumber(text: string): number | undefined {
@@ -62,6 +64,26 @@ function booleanFromText(text: string): boolean | undefined {
   return undefined;
 }
 
+function countNamedAreas(text: string): number | undefined {
+  const areas = ["sales", "support", "customer service", "operations", "admin", "marketing", "phones", "phone", "scheduling", "billing", "service", "dispatch", "follow-up", "follow up"];
+  const matches = areas.filter((area) => text.toLowerCase().includes(area));
+  const unique = new Set(matches.map((item) => item === "phone" ? "phones" : item === "follow up" ? "follow-up" : item));
+  return unique.size > 0 ? unique.size : undefined;
+}
+
+function clarificationFor(field: keyof DiagnosticInput): string {
+  const prompts: Partial<Record<keyof DiagnosticInput, string>> = {
+    monthlyLeads: "No problem—give me a rough range instead. Are we talking a handful of inquiries a month, a few dozen, or hundreds?",
+    missedCallsPerMonth: "A rough pattern is enough. On a typical week, would you say you miss none, a couple, or quite a few calls?",
+    averageJobValueUsd: "An estimate is fine. What would you call a typical sale or job—hundreds, a few thousand, or more?",
+    closeRatePercent: "You don’t need an exact percentage. Out of ten qualified opportunities you talk to, about how many usually become customers?",
+    medianLeadResponseMinutes: "Think about a normal lead. Is the first real response usually within minutes, within an hour, later that day, or longer?",
+    departmentsAffected: "Just name the parts of the business that feel connected—sales, phones, scheduling, support, admin, operations, or whatever fits—and I’ll count the scope from there.",
+    requestedCustomIntegrations: "That’s okay. Which systems would need to exchange information—CRM, calendar, phones, website forms, billing, or something else?",
+  };
+  return prompts[field] ?? "I can work with an estimate—give me the closest practical description and I’ll keep the uncertainty in mind.";
+}
+
 export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unknown): NormalizedDiscoveryAnswer {
   if (typeof raw !== "string") return { value: raw, interpreted: false };
   const text = raw.trim();
@@ -69,7 +91,9 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
 
   if (BOOLEAN_FIELDS.has(field)) {
     const value = booleanFromText(text);
-    return value === undefined ? { value: raw, interpreted: false } : { value, interpreted: true, note: text };
+    return value === undefined
+      ? { value: raw, interpreted: false, needsClarification: true, clarification: "I want to make sure I understood that. Would you say that’s mostly yes, mostly no, or somewhere in between?" }
+      : { value, interpreted: true, note: text };
   }
 
   if (field === "repetitiveSupportLoad") {
@@ -80,7 +104,9 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
         : /low|little|not much|rare|hardly/i.test(text)
           ? "low"
           : undefined;
-    return value ? { value, interpreted: true, note: text } : { value: raw, interpreted: false };
+    return value
+      ? { value, interpreted: true, note: text }
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "Would you call that a small amount of repetitive support, a noticeable amount, or a pretty heavy load?" };
   }
 
   if (field === "reviewRequestProcess") {
@@ -91,12 +117,15 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
         : /none|don't ask|do not ask|no process|never/i.test(text)
           ? "none"
           : undefined;
-    return value ? { value, interpreted: true, note: text } : { value: raw, interpreted: false };
+    return value
+      ? { value, interpreted: true, note: text }
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "Got it. Is that review request happening automatically, manually when somebody remembers, or not consistently yet?" };
   }
 
   if (!NUMERIC_FIELDS.has(field)) return { value: raw, interpreted: false };
 
   let number = field === "closeRatePercent" ? fractionPercent(text) ?? firstNumber(text) : firstNumber(text);
+  if (number === undefined && field === "departmentsAffected") number = countNamedAreas(text);
   if (number === undefined) {
     const qualitative: Partial<Record<keyof DiagnosticInput, number>> = {
       requestedCustomIntegrations: /none|no other|nothing custom/i.test(text) ? 0 : undefined,
@@ -106,7 +135,15 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
     number = qualitative[field];
   }
 
-  if (number === undefined || !Number.isFinite(number)) return { value: 0, interpreted: true, note: text };
+  if (number === undefined || !Number.isFinite(number)) {
+    return {
+      value: raw,
+      interpreted: false,
+      note: text,
+      needsClarification: true,
+      clarification: clarificationFor(field),
+    };
+  }
   if (field === "expectedVoiceMinutesPerMonth") number = voiceToMinutes(text, number);
   if (field === "medianLeadResponseMinutes") number = timeToMinutes(text, number);
   if (field === "monthlyLeads" || field === "missedCallsPerMonth") number = cadenceToMonthly(text, number);
