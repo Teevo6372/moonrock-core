@@ -32,6 +32,7 @@ jobs:
         env:
           PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
           NOVA_ORIGIN: ${{ vars.NOVA_RAILWAY_ORIGIN }}
+          PUBLIC_ORIGIN: ${{ vars.MOONROCK_2_STAGING_ORIGIN }}
         run: |
           set -euo pipefail
           if [[ "${{ inputs.confirm_staging }}" != "DEPLOY-MOONROCK-2-STAGING" ]]; then
@@ -40,10 +41,13 @@ jobs:
           fi
           test -n "$PAGES_PROJECT"
           test -n "$NOVA_ORIGIN"
-          case "$NOVA_ORIGIN" in
-            https://*) ;;
-            *) echo "NOVA_RAILWAY_ORIGIN must be an https origin." >&2; exit 1 ;;
-          esac
+          test -n "$PUBLIC_ORIGIN"
+          for origin in "$NOVA_ORIGIN" "$PUBLIC_ORIGIN"; do
+            case "$origin" in
+              https://*) ;;
+              *) echo "Configured origins must use https." >&2; exit 1 ;;
+            esac
+          done
 
       - uses: actions/setup-node@v4
         with:
@@ -64,6 +68,30 @@ jobs:
           workingDirectory: apps/moonrock-2-frontend
           command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=staging
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Smoke test deployed frontend and Nova runtime
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+          FALLBACK_URL: ${{ steps.deploy.outputs.deployment-url }}
+          NOVA_ORIGIN: ${{ vars.NOVA_RAILWAY_ORIGIN }}
+          PUBLIC_ORIGIN: ${{ vars.MOONROCK_2_STAGING_ORIGIN }}
+        run: |
+          set -euo pipefail
+          FRONTEND_URL="${DEPLOYMENT_URL:-$FALLBACK_URL}"
+          test -n "$FRONTEND_URL"
+
+          frontend_body="$(curl --fail --silent --show-error --location --retry 4 --retry-delay 2 "$FRONTEND_URL/")"
+          printf '%s' "$frontend_body" | grep -q '<title>Moonrock 2.0</title>'
+
+          headers="$(mktemp)"
+          runtime_body="$(curl --fail --silent --show-error --retry 4 --retry-delay 2 \
+            -D "$headers" \
+            -H "Origin: $PUBLIC_ORIGIN" \
+            "$NOVA_ORIGIN/health/live")"
+          printf '%s' "$runtime_body" | grep -q '"status":"live"'
+          grep -i -q "^access-control-allow-origin: ${PUBLIC_ORIGIN}\r\{0,1\}$" "$headers"
+
+          echo "Smoke validation passed: frontend loaded and Railway accepted $PUBLIC_ORIGIN."
 
       - name: Report staging URL
         env:
