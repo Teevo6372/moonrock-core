@@ -84,6 +84,13 @@ function clarificationFor(field: keyof DiagnosticInput): string {
   return prompts[field] ?? "I can work with an estimate—give me the closest practical description and I’ll keep the uncertainty in mind.";
 }
 
+function qualitativeNumber(field: keyof DiagnosticInput, text: string): number | undefined {
+  if (field === "requestedCustomIntegrations" && /none|no other|nothing custom/i.test(text)) return 0;
+  if (field === "departmentsAffected" && /one|single|just one/i.test(text)) return 1;
+  if (field === "expectedVoiceMinutesPerMonth" && /not sure|unknown|no idea/i.test(text)) return 0;
+  return undefined;
+}
+
 export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unknown): NormalizedDiscoveryAnswer {
   if (typeof raw !== "string") return { value: raw, interpreted: false };
   const text = raw.trim();
@@ -126,14 +133,7 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
 
   let number = field === "closeRatePercent" ? fractionPercent(text) ?? firstNumber(text) : firstNumber(text);
   if (number === undefined && field === "departmentsAffected") number = countNamedAreas(text);
-  if (number === undefined) {
-    const qualitative: Partial<Record<keyof DiagnosticInput, number>> = {
-      requestedCustomIntegrations: /none|no other|nothing custom/i.test(text) ? 0 : undefined,
-      departmentsAffected: /one|single|just one/i.test(text) ? 1 : undefined,
-      expectedVoiceMinutesPerMonth: /not sure|unknown|no idea/i.test(text) ? 0 : undefined,
-    };
-    number = qualitative[field];
-  }
+  if (number === undefined) number = qualitativeNumber(field, text);
 
   if (number === undefined || !Number.isFinite(number)) {
     return {
