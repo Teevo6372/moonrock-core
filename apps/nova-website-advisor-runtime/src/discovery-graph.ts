@@ -75,12 +75,12 @@ const sharedQuestions: DiscoveryQuestion[] = [
 ];
 
 const startupQuestions: DiscoveryQuestion[] = [
-  { id: "founder-admin", path: "startup", field: "founderHandlesMostAdmin", prompt: "At launch, will you personally be handling most calls, scheduling, follow-up, and customer administration?", answerType: "boolean", required: true },
   {
     id: "departments-startup", path: "startup", field: "departmentsAffected",
     prompt: "How many parts of the business do you expect AI to help with at launch?",
     helpText: "You can give me a number or just describe the work you expect help with.", answerType: "text", required: false,
   },
+  { id: "founder-admin", path: "startup", field: "founderHandlesMostAdmin", prompt: "At launch, will you personally be handling most calls, scheduling, follow-up, and customer administration?", answerType: "boolean", required: true },
 ];
 
 const existingBusinessQuestions: DiscoveryQuestion[] = [
