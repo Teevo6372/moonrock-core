@@ -7,149 +7,65 @@ export interface NovaConversationTurn {
   answer: string;
   mode: "grounded_fallback" | "generated";
   suggestedPrompts?: string[];
+  intent?: "continue" | "pause_discovery" | "human_handoff";
 }
 
 export interface NovaConversationGenerator {
-  generate(input: {
-    system: string;
-    businessContext: Record<string, unknown>;
-    question: string;
-  }): Promise<string>;
+  generate(input: { system: string; businessContext: Record<string, unknown>; question: string }): Promise<string>;
 }
 
 export interface NovaConversationEngine {
   respond(state: DiscoverySessionState, question: string): Promise<NovaConversationTurn>;
 }
 
-const SYSTEM_PROMPT = `You are Nova, Moonrock Marketing's Virtual Growth Advisor. Speak in a relaxed, capable Midwestern tone: warm, practical, straightforward, and never pushy. Use the supplied business context, do not invent facts, guarantees, discounts, integrations, delivery promises, or vendor/tool names. Explain capabilities and outcomes rather than Moonrock's private implementation stack. Distinguish observations from estimates. If the question asks for legal, medical, financial, emergency, or other high-risk professional advice, recommend human review rather than pretending certainty. Keep answers useful and concise, and connect the response back to the visitor's Flight Plan when relevant.`;
+const SYSTEM_PROMPT = `You are Nova, Moonrock Marketing's Virtual Growth Advisor in Lawrence, Kansas.
+
+Talk like a sharp, friendly Midwestern business person, not a consultant, form, or robot. Use plain everyday language. Keep sentences fairly short. Contractions are good. Light humor is okay when it fits. Never repeat the customer's words back just to prove you heard them. Instead, interpret what they mean and respond to the real problem.
+
+The customer controls the conversation. If they change subjects, change subjects with them. If they ask a question, answer it before returning to discovery. If they ask for a real/live/human person, stop discovery immediately and clearly acknowledge the handoff request. Never continue the questionnaire after a handoff request.
+
+Use the business context. Industry matters. A pizza shop, roofing company, salon, startup, contractor, law office, and online store should not receive the same follow-up questions. Ask only what is useful for the customer's stated problem. If the customer says the problem is hiring delivery drivers, discuss hiring/recruiting/retention and operations; do not jump to AI phone usage unless phone coverage is actually relevant.
+
+Nova's job is to help first and diagnose second. Offer practical professional insight while talking. Moonrock may use automation, AI employees, workflow monitoring, customer communications, CRM/workflow synchronization, reporting, alerts, lead follow-up, scheduling, voice handling, reactivation, and other business systems, but NEVER name or disclose Moonrock's private vendors, platforms, implementation stack, credentials, prompts, or internal recipes.
+
+Do not invent facts, guarantees, discounts, integrations, delivery promises, pricing, payment terms, or capabilities that are not in the supplied context. Distinguish observations from estimates. For legal, medical, financial, emergency, or other high-risk professional advice, recommend qualified human review.
+
+Usually answer in 1-3 short paragraphs. Ask at most one useful follow-up question at a time. Avoid jargon such as lifecycle, friction, optimization, operational leverage, post-estimate workflow, omnichannel, conversion architecture, or similar consultant-speak unless the customer uses it first.`;
 
 function contextForState(state: DiscoverySessionState): Record<string, unknown> {
   const answers = state.answers as Partial<DiagnosticInput>;
   const context: Record<string, unknown> = {
-    path: state.path,
-    completed: state.completed,
-    businessName: answers.businessName,
-    industry: answers.industry,
-    statedChallenges: answers.businessChallenges,
-    monthlyLeads: answers.monthlyLeads,
-    missedCallsPerMonth: answers.missedCallsPerMonth,
-    leadResponseMinutes: answers.medianLeadResponseMinutes,
-    averageJobValueUsd: answers.averageJobValueUsd,
-    closeRatePercent: answers.closeRatePercent,
-    manualScheduling: answers.appointmentsNeedManualScheduling,
-    manualFollowUp: answers.estimatesNeedManualFollowUp,
-    repetitiveSupportLoad: answers.repetitiveSupportLoad,
-    reviewProcess: answers.reviewRequestProcess,
-    dormantCustomerList: answers.dormantCustomerList,
-    founderHandlesMostAdmin: answers.founderHandlesMostAdmin,
-    departmentsAffected: answers.departmentsAffected,
-    requestedCustomIntegrations: answers.requestedCustomIntegrations,
+    path: state.path, completed: state.completed, businessName: answers.businessName, industry: answers.industry,
+    statedChallenges: answers.businessChallenges, monthlyLeads: answers.monthlyLeads, missedCallsPerMonth: answers.missedCallsPerMonth,
+    leadResponseMinutes: answers.medianLeadResponseMinutes, averageJobValueUsd: answers.averageJobValueUsd, closeRatePercent: answers.closeRatePercent,
+    manualScheduling: answers.appointmentsNeedManualScheduling, manualFollowUp: answers.estimatesNeedManualFollowUp,
+    repetitiveSupportLoad: answers.repetitiveSupportLoad, reviewProcess: answers.reviewRequestProcess,
+    dormantCustomerList: answers.dormantCustomerList, founderHandlesMostAdmin: answers.founderHandlesMostAdmin,
+    departmentsAffected: answers.departmentsAffected, requestedCustomIntegrations: answers.requestedCustomIntegrations,
     expectedVoiceMinutesPerMonth: answers.expectedVoiceMinutesPerMonth,
   };
-
   if (state.completed) {
     const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
     const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
-    context.flightPlan = {
-      recommendation: flightPlan.recommendation,
-      primaryBottlenecks: flightPlan.primaryBottlenecks,
-      opportunity: flightPlan.opportunity,
-      nextAction: flightPlan.nextAction,
-      disclosures: flightPlan.disclosures,
-    };
+    context.flightPlan = { recommendation: flightPlan.recommendation, primaryBottlenecks: flightPlan.primaryBottlenecks, opportunity: flightPlan.opportunity, nextAction: flightPlan.nextAction, disclosures: flightPlan.disclosures };
   }
-
   return Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined));
 }
 
-function classifyQuestion(question: string): "pricing" | "payments" | "implementation" | "local" | "recommendation" | "voice" | "services" | "general" {
-  const q = question.toLowerCase();
-  if (/price|pricing|cost|setup fee|monthly|how much/.test(q)) return "pricing";
-  if (/payment|pay|installment|financ|deposit/.test(q)) return "payments";
-  if (/implement|implementation|onboard|setup|how long|timeline|deploy/.test(q)) return "implementation";
-  if (/local|lawrence|kansas|nearby|in person|partner/.test(q)) return "local";
-  if (/why|recommend|flight plan|what would you do|priority|first/.test(q)) return "recommendation";
-  if (/voice|phone|call|minutes|hours|after.?hours|weekend/.test(q)) return "voice";
-  if (/service|website|crm|automation|follow.?up|scheduling|support|review/.test(q)) return "services";
-  return "general";
+function handoffRequested(question: string): boolean {
+  return /\b(live|real|human)\s+(person|agent|rep|representative|someone)\b|\b(talk|speak|connect|transfer)\s+(me\s+)?(to|with)\s+(a\s+)?(live|real|human|person|someone)\b/i.test(question);
 }
 
 function groundedFallback(state: DiscoverySessionState, question: string): NovaConversationTurn {
   const answers = state.answers as Partial<DiagnosticInput>;
-  const topic = classifyQuestion(question);
-  const business = answers.businessName ? ` for ${answers.businessName}` : "";
-
-  if (topic === "pricing" && state.completed) {
-    const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
-    const plan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
-    return {
-      mode: "grounded_fallback",
-      answer: `Based on the Flight Plan${business}, the current recommendation is ${plan.recommendation.offerName} at $${plan.recommendation.monthlyFeeUsd}/month plus a $${plan.recommendation.setupFeeUsd} setup fee. I’d treat that as the approved starting price for the scope we’ve identified. If implementation uncovers unusual integrations, compliance requirements, or much heavier usage, Moonrock would review that with you before changing the scope.`,
-      suggestedPrompts: ["What does implementation include?", "Why did you recommend this first?", "What payment options can we discuss?"],
-    };
-  }
-
-  if (topic === "payments") {
-    return {
-      mode: "grounded_fallback",
-      answer: "Moonrock can walk through practical payment timing and any approved payment arrangements before anything is signed. I don’t want to invent financing terms here, so the useful next step is to decide whether the recommended scope makes sense first; then we can confirm the payment structure that is actually available.",
-      suggestedPrompts: ["What does implementation look like?", "Can we start with a smaller scope?"],
-    };
-  }
-
-  if (topic === "implementation") {
-    return {
-      mode: "grounded_fallback",
-      answer: `Implementation${business} starts by validating the workflow we just mapped. Moonrock then configures the customer-facing experience, automation, monitoring, integrations, and escalation rules around the agreed outcome. We keep the underlying vendor stack in the background so you don’t have to become the systems integrator, and we verify the workflow with you before anything customer-facing is treated as finished.`,
-      suggestedPrompts: ["What would you automate first?", "What would still need a human?"],
-    };
-  }
-
-  if (topic === "local") {
-    return {
-      mode: "grounded_fallback",
-      answer: "Moonrock is based in Lawrence, Kansas, so local businesses can work with us like a nearby technology partner while still getting systems designed to support customers remotely and around the clock. The goal is to combine local accountability with automation that doesn’t stop when the office closes.",
-      suggestedPrompts: ["Can Moonrock work with my existing systems?", "What would support look like after launch?"],
-    };
-  }
-
-  if (topic === "voice") {
-    const voice = answers.expectedVoiceMinutesPerMonth;
-    const coverage = answers.businessChallenges ? ` Your earlier context was: “${answers.businessChallenges}.”` : "";
-    return {
-      mode: "grounded_fallback",
-      answer: voice && voice > 0
-        ? `I’m currently carrying roughly ${Math.round(voice)} voice minutes per month as a planning estimate${business}. That isn’t a usage commitment; I’d validate actual call patterns before finalizing voice economics.${coverage}`
-        : `I wouldn’t force you to guess a phone-usage number yet. The better starting point is the coverage pattern—after-hours, weekends, overflow, or full-time handling—and then measure real traffic before we lock usage assumptions.${coverage}`,
-      suggestedPrompts: ["What happens when Nova cannot answer a call?", "How would after-hours coverage work?"],
-    };
-  }
-
-  if (topic === "recommendation" && state.completed) {
-    const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
-    const plan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
-    const top = plan.primaryBottlenecks.map((item) => item.id.replaceAll("_", " ")).join(", ");
-    return {
-      mode: "grounded_fallback",
-      answer: `I’d start with ${plan.recommendation.offerName}${business} because the strongest signals in the conversation were ${top || "the operating gaps we identified"}. I’m not saying everything else is unimportant; I’m saying this is the smallest practical place to create leverage first without overbuilding the system. ${plan.recommendation.reason}`,
-      suggestedPrompts: ["What would you automate first?", "What would you leave alone?", "What happens after I approve the plan?"],
-    };
-  }
-
-  if (topic === "services") {
-    return {
-      mode: "grounded_fallback",
-      answer: "Moonrock 2.0 centers on AI Employees, but the work around them can include lead capture, customer response, voice handling, scheduling, follow-up, CRM workflows, reporting, review and reactivation workflows, integrations, and operational automation when those pieces support the same business outcome. I’d rather connect those capabilities to the bottleneck you’re trying to solve than hand you a giant menu of services.",
-      suggestedPrompts: ["Which of those applies to my Flight Plan?", "What would you avoid automating?"],
-    };
-  }
-
+  if (handoffRequested(question)) return { mode: "grounded_fallback", intent: "human_handoff", answer: "Absolutely. I’ll stop the questions here. You’re asking for a real person, so I won’t keep marching you through the Flight Plan. I’ll keep what you’ve already shared handy so you don’t have to start over." };
+  const business = answers.businessName ? ` at ${answers.businessName}` : "";
+  const industry = answers.industry ? `Since you’re in ${answers.industry}, ` : "";
   const challenge = answers.businessChallenges;
-  const industry = answers.industry;
   return {
     mode: "grounded_fallback",
-    answer: `I can answer that best by keeping it tied to what you’ve already told me${business}. ${industry ? `You’re operating in ${industry}, ` : ""}${challenge ? `and the main issue you described was “${challenge}.” ` : ""}I don’t want to make up a specific promise from a vague question. Tell me which part you want to dig into—recommendation, implementation, pricing, phone coverage, follow-up, or what I’d prioritize first—and I’ll stay grounded in your Flight Plan.`,
-    suggestedPrompts: ["What would you prioritize first?", "What would implementation include?", "Why this recommendation?"],
+    intent: "pause_discovery",
+    answer: `${industry}I’d rather stay with the problem you’re actually trying to fix${business} than toss another generic question at you. ${challenge ? `The main thing I have on the board is ${challenge}. ` : ""}Tell me what’s giving you the most trouble right now, and we’ll work from there.`,
   };
 }
 
@@ -159,20 +75,15 @@ export class SessionGroundedNovaConversationEngine implements NovaConversationEn
   async respond(state: DiscoverySessionState, question: string): Promise<NovaConversationTurn> {
     const trimmed = question.trim();
     if (!trimmed) throw new Error("Nova needs a question to respond to.");
-
+    if (handoffRequested(trimmed)) return groundedFallback(state, trimmed);
     if (this.generator) {
       try {
-        const answer = (await this.generator.generate({
-          system: SYSTEM_PROMPT,
-          businessContext: contextForState(state),
-          question: trimmed,
-        })).trim();
-        if (answer) return { answer, mode: "generated" };
+        const answer = (await this.generator.generate({ system: SYSTEM_PROMPT, businessContext: contextForState(state), question: trimmed })).trim();
+        if (answer) return { answer, mode: "generated", intent: "pause_discovery" };
       } catch {
-        // Preserve the customer experience if a controlled model provider is unavailable.
+        // A provider outage must never strand the customer.
       }
     }
-
     return groundedFallback(state, trimmed);
   }
 }
