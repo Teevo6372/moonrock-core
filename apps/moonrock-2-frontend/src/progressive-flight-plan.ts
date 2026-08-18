@@ -4,9 +4,11 @@ import type { DiscoveryResponse, ProgressiveFlightPlan } from "./types.js";
 let container: HTMLElement | undefined;
 
 export function publishProgressiveFlightPlanResponse(response: DiscoveryResponse): void {
+  const model = response.progressiveFlightPlan;
+  if (!model) return;
   const target = ensureContainer();
   if (!target) return;
-  renderModel(target, response.progressiveFlightPlan, response.completed);
+  renderModel(target, model, response.completed);
 }
 
 function ensureContainer(): HTMLElement | undefined {
@@ -28,8 +30,9 @@ function ensureContainer(): HTMLElement | undefined {
 }
 
 function renderModel(target: HTMLElement, model: ProgressiveFlightPlan, completed: boolean): void {
-  const signals = model.signals.length
-    ? `<div class="progressive-signals">${model.signals.map((signal) => `
+  const signals = Array.isArray(model.signals) ? model.signals : [];
+  const signalMarkup = signals.length
+    ? `<div class="progressive-signals">${signals.map((signal) => `
         <article class="progressive-signal" data-status="${escapeHtml(signal.status)}">
           <div class="progressive-signal-head">
             <strong>${escapeHtml(signal.label)}</strong>
@@ -47,8 +50,8 @@ function renderModel(target: HTMLElement, model: ProgressiveFlightPlan, complete
       </div>
       <span class="progressive-live">${completed ? "READY" : "LIVE"}</span>
     </div>
-    <p class="progressive-summary">${escapeHtml(model.summary)}</p>
-    ${signals}
+    <p class="progressive-summary">${escapeHtml(model.summary ?? "Nova is still gathering enough context to build a useful working plan.")}</p>
+    ${signalMarkup}
     ${model.nextFocus ? `<div class="progressive-focus"><span>Nova is checking next</span><strong>${escapeHtml(model.nextFocus)}</strong></div>` : ""}
   `;
 }
