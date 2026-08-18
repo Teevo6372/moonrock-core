@@ -26,6 +26,14 @@ let lastNovaSignature = "";
 let activeRecognition: SpeechRecognitionLike | undefined;
 let observed = false;
 
+function dockAvatar(): void {
+  const panel = document.querySelector<HTMLElement>("#nova-panel");
+  const stage = document.querySelector<HTMLElement>(".nova-visual-stage");
+  if (!panel || panel.hidden || !stage || stage.classList.contains("conversation-docked")) return;
+  stage.classList.add("conversation-docked");
+  panel.prepend(stage);
+}
+
 function chatThread(): HTMLDivElement | null {
   let thread = document.querySelector<HTMLDivElement>("#nova-live-chat");
   const panel = document.querySelector<HTMLElement>("#nova-panel");
@@ -198,6 +206,7 @@ function syncRuntimeAnswer(): void {
 
 function scheduleSync(): void {
   window.setTimeout(() => {
+    dockAvatar();
     chatThread();
     enhanceForms();
     syncNovaMessage();
