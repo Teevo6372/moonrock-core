@@ -17,6 +17,12 @@ describe("toImmersiveNovaView", () => {
       path: "startup",
       completed: false,
       progress: { answered: 0, requiredRemaining: 0 },
+      progressiveFlightPlan: {
+        phase: "listening",
+        summary: "Still listening.",
+        signals: [],
+        nextFocus: "Understanding the business",
+      },
     };
 
     expect(toImmersiveNovaView(response).visualState).toBe("idle");

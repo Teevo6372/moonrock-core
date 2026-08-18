@@ -157,10 +157,12 @@ function estimateOpportunity(input: DiagnosticInput): OpportunityEstimate | unde
 function chooseOffer(findings: BottleneckFinding[]): AiEmployeeId {
   const ids = new Set(findings.map((finding) => finding.id));
   if (ids.has("multi_department")) return "ai_workforce";
-  if (ids.has("missed_calls") || ids.has("appointment_booking")) return "front_desk_ai_employee";
-  if (ids.has("estimate_follow_up") || ids.has("slow_lead_response") || ids.has("reactivation")) return "growth_ai_employee";
-  if (ids.has("repetitive_support")) return "customer_success_ai_employee";
-  return "growth_ai_employee";
+  if (ids.has("missed_calls") || ids.has("appointment_booking")) return "receptionist";
+  if (ids.has("estimate_follow_up") || ids.has("reactivation")) return "sales_follow_up";
+  if (ids.has("slow_lead_response") || ids.has("lead_capture") || ids.has("lead_qualification")) return "lead_response";
+  if (ids.has("repetitive_support")) return "customer_care";
+  if (ids.has("review_generation") || ids.has("retention")) return "reputation_retention";
+  return "front_office";
 }
 
 export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
@@ -172,11 +174,12 @@ export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
   for (const risk of risks) if (ESCALATION_RISKS.has(risk)) escalationReasons.push(`Risk category requires review: ${risk}`);
   if ((input.requestedCustomIntegrations ?? 0) > 2) escalationReasons.push("More than two custom integrations require solution review.");
   if ((input.expectedVoiceMinutesPerMonth ?? 0) > 5000) escalationReasons.push("High projected voice volume requires usage review.");
-  const autonomousCloseAllowed = escalationReasons.length === 0 && offer.autonomousCloseAllowed;
+  const autonomousCloseAllowed = escalationReasons.length === 0 && offer.autonomousSaleAllowed;
   const top = bottlenecks.slice(0, 3).map((finding) => finding.id.replaceAll("_", " ")).join(", ");
   const recommendationReason = top
     ? `The strongest opportunities are ${top}. ${offer.name} is the best fit for that combination.`
     : `${offer.name} provides a practical starting point while Moonrock gathers more operating data.`;
+  const opportunityEstimate = estimateOpportunity(input);
   return {
     path: input.path,
     bottlenecks,
@@ -184,6 +187,6 @@ export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
     recommendationReason,
     autonomousCloseAllowed,
     escalationReasons,
-    ...(estimateOpportunity(input) ? { opportunityEstimate: estimateOpportunity(input) } : {}),
+    ...(opportunityEstimate ? { opportunityEstimate } : {}),
   };
 }
