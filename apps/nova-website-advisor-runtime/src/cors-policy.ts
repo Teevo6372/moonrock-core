@@ -5,6 +5,11 @@ export const NOVA_LOCAL_ORIGINS = [
   "http://127.0.0.1:8787",
 ] as const;
 
+export const MOONROCK_PAGES_ORIGINS = [
+  "https://moonrock-2.pages.dev",
+  "https://staging.moonrock-2.pages.dev",
+] as const;
+
 export function parseAllowedOrigins(raw: string | undefined): string[] {
   const configured = (raw ?? "").split(",").map((origin) => origin.trim()).filter(Boolean);
   for (const origin of configured) {
@@ -12,7 +17,7 @@ export function parseAllowedOrigins(raw: string | undefined): string[] {
     try { parsed = new URL(origin); } catch { throw new Error(`NOVA_ALLOWED_ORIGINS contains an invalid origin: ${origin}`); }
     if (parsed.origin !== origin || !["http:", "https:"].includes(parsed.protocol)) throw new Error(`NOVA_ALLOWED_ORIGINS contains an invalid origin: ${origin}`);
   }
-  return [...new Set([...NOVA_LOCAL_ORIGINS, ...configured])];
+  return [...new Set([...NOVA_LOCAL_ORIGINS, ...MOONROCK_PAGES_ORIGINS, ...configured])];
 }
 
 export function isOriginAllowed(origin: string | null, allowedOrigins: readonly string[]): origin is string {
