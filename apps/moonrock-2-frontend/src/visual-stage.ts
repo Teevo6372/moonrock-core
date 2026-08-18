@@ -1,9 +1,10 @@
 import "./visual-stage.css";
-import { mediaForState, type NovaVisualState } from "./visual-media.js";
+import { mediaForBehavior, mediaForState, type NovaPersonalityBehavior, type NovaVisualState, type NovaMediaManifestEntry } from "./visual-media.js";
 
 export interface NovaVisualStage {
   setState: (state: NovaVisualState) => void;
   setBusy: (busy: boolean) => void;
+  playBehavior: (behavior: NovaPersonalityBehavior) => void;
 }
 
 export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
@@ -18,7 +19,7 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
         <span class="nova-core"></span>
         <span class="nova-aura"></span>
       </div>
-      <video id="nova-state-video" class="nova-state-media" muted playsinline loop preload="metadata" hidden></video>
+      <video id="nova-state-video" class="nova-state-media" muted playsinline preload="metadata" hidden></video>
       <img id="nova-state-poster" class="nova-state-media" alt="" hidden>
     </div>
     <div class="nova-state-chip"><span class="nova-live-dot"></span><span id="nova-state-label">NOVA ONLINE</span></div>
@@ -29,6 +30,9 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
   const poster = stage.querySelector<HTMLImageElement>("#nova-state-poster")!;
   const label = stage.querySelector<HTMLSpanElement>("#nova-state-label")!;
   let currentState: NovaVisualState = "idle";
+  let isBusy = false;
+  let activeBehavior: NovaPersonalityBehavior | undefined;
+  let behaviorTimer: number | undefined;
 
   const showFallback = (): void => {
     video.hidden = true;
@@ -36,11 +40,55 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
     stage.classList.remove("has-media");
   };
 
+  const clearBehaviorTimer = (): void => {
+    if (behaviorTimer !== undefined) window.clearTimeout(behaviorTimer);
+    behaviorTimer = undefined;
+  };
+
+  const loadMedia = (media: NovaMediaManifestEntry, loop: boolean): void => {
+    video.pause();
+    video.hidden = true;
+    poster.hidden = true;
+    stage.classList.remove("has-media");
+    video.loop = loop;
+    if (media.video) {
+      video.src = media.video;
+      video.load();
+    } else {
+      video.removeAttribute("src");
+    }
+    poster.src = media.poster;
+    poster.alt = media.alt;
+  };
+
+  const renderOperationalState = (state: NovaVisualState): void => {
+    stage.dataset.state = state;
+    delete stage.dataset.behavior;
+    label.textContent = state === "idle" ? "NOVA ONLINE" : `NOVA · ${state.replaceAll("_", " ").toUpperCase()}`;
+    loadMedia(mediaForState(state), true);
+  };
+
+  const restoreOperationalState = (): void => {
+    clearBehaviorTimer();
+    activeBehavior = undefined;
+    if (isBusy) {
+      stage.dataset.state = "thinking";
+      delete stage.dataset.behavior;
+      label.textContent = "NOVA · THINKING";
+      loadMedia(mediaForState("thinking"), true);
+      return;
+    }
+    renderOperationalState(currentState);
+  };
+
   video.addEventListener("canplay", () => {
     video.hidden = false;
     poster.hidden = true;
     stage.classList.add("has-media");
     void video.play().catch(() => undefined);
+  });
+  video.addEventListener("ended", () => {
+    if (activeBehavior) restoreOperationalState();
   });
   video.addEventListener("error", showFallback);
   poster.addEventListener("load", () => {
@@ -52,33 +100,37 @@ export function createNovaVisualStage(host: HTMLElement): NovaVisualStage {
 
   const setState = (state: NovaVisualState): void => {
     currentState = state;
-    stage.dataset.state = state;
-    label.textContent = state === "idle" ? "NOVA ONLINE" : `NOVA · ${state.replaceAll("_", " ").toUpperCase()}`;
-    const media = mediaForState(state);
-    video.pause();
-    video.hidden = true;
-    poster.hidden = true;
-    stage.classList.remove("has-media");
-    if (media.video) {
-      video.src = media.video;
-      video.load();
-    } else {
-      video.removeAttribute("src");
-    }
-    poster.src = media.poster;
-    poster.alt = media.alt;
+    if (activeBehavior || isBusy) return;
+    renderOperationalState(state);
   };
 
   const setBusy = (busy: boolean): void => {
+    isBusy = busy;
     stage.classList.toggle("is-busy", busy);
     if (busy) {
+      clearBehaviorTimer();
+      activeBehavior = undefined;
       stage.dataset.state = "thinking";
+      delete stage.dataset.behavior;
       label.textContent = "NOVA · THINKING";
+      loadMedia(mediaForState("thinking"), true);
     } else {
-      setState(currentState);
+      renderOperationalState(currentState);
     }
   };
 
+  const playBehavior = (behavior: NovaPersonalityBehavior): void => {
+    if (isBusy) return;
+    clearBehaviorTimer();
+    activeBehavior = behavior;
+    stage.dataset.behavior = behavior;
+    label.textContent = `NOVA · ${behavior.toUpperCase()}`;
+    loadMedia(mediaForBehavior(behavior), false);
+    // The approved clips are five seconds. This fallback restores state if a
+    // browser never emits `ended` because of media/network behavior.
+    behaviorTimer = window.setTimeout(restoreOperationalState, 6500);
+  };
+
   setState("idle");
-  return { setState, setBusy };
+  return { setState, setBusy, playBehavior };
 }
