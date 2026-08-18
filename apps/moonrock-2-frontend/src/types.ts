@@ -63,6 +63,20 @@ export interface FlightPlanResult {
   };
 }
 
+export interface ProgressiveFlightPlanSignal {
+  id: string;
+  label: string;
+  status: "watching" | "emerging" | "confirmed" | "healthy";
+  insight: string;
+}
+
+export interface ProgressiveFlightPlan {
+  phase: "listening" | "mapping" | "prioritizing" | "ready";
+  summary: string;
+  signals: ProgressiveFlightPlanSignal[];
+  nextFocus?: string;
+}
+
 export interface DiscoveryResponse {
   path: BusinessPath;
   completed: boolean;
@@ -70,6 +84,7 @@ export interface DiscoveryResponse {
   nextQuestion?: DiscoveryQuestion;
   view: DiscoveryView;
   interpretation?: { field: string; raw: unknown; normalized: unknown; note?: string };
+  progressiveFlightPlan: ProgressiveFlightPlan;
   result?: FlightPlanResult;
   ghlHandoff?: GhlHandoffResult;
 }

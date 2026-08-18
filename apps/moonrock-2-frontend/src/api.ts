@@ -1,4 +1,5 @@
 import { assertFrontendConfig, config } from "./config.js";
+import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
 import type { BusinessPath, ContactIdentity, DiscoveryResponse } from "./types.js";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -19,8 +20,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return payload as T;
 }
 
+function publish(response: DiscoveryResponse): DiscoveryResponse {
+  publishProgressiveFlightPlanResponse(response);
+  return response;
+}
+
 export function startDiscovery(sessionId: string, path: BusinessPath): Promise<DiscoveryResponse> {
-  return post(`/v1/discovery/${encodeURIComponent(sessionId)}/start`, { path });
+  return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/start`, { path }).then(publish);
 }
 
 export function answerDiscovery(
@@ -29,9 +35,9 @@ export function answerDiscovery(
   value: string | number | boolean,
   identity?: ContactIdentity,
 ): Promise<DiscoveryResponse> {
-  return post(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, {
+  return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, {
     field,
     value,
     ...(identity ? { identity } : {}),
-  });
+  }).then(publish);
 }
