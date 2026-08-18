@@ -1,3 +1,4 @@
+import "./progressive-flight-plan.css";
 import type { DiscoveryResponse, ProgressiveFlightPlan } from "./types.js";
 
 let container: HTMLElement | undefined;
