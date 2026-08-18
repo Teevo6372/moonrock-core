@@ -1,0 +1,59 @@
+.nova-live-chat {
+  display: grid;
+  gap: 12px;
+  max-height: 420px;
+  margin-top: 18px;
+  padding: 18px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(7,7,18,.78), rgba(14,11,29,.72));
+  box-shadow: inset 0 0 50px rgba(141,92,255,.035);
+}
+
+.nova-chat-message {
+  width: min(88%, 760px);
+  padding: 13px 16px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+}
+
+.nova-chat-message p { margin: 6px 0 0; line-height: 1.55; white-space: pre-line; }
+.nova-chat-nova { justify-self: start; border-top-left-radius: 7px; background: linear-gradient(135deg, rgba(255,79,216,.09), rgba(141,92,255,.06)); color: #f4e7ff; }
+.nova-chat-visitor { justify-self: end; border-top-right-radius: 7px; background: linear-gradient(135deg, rgba(70,200,255,.10), rgba(70,200,255,.045)); color: #e8f9ff; }
+.nova-chat-system { justify-self: center; width: auto; max-width: 92%; padding: 9px 13px; border-style: dashed; color: #a9a4b9; background: rgba(255,255,255,.025); font-size: .86rem; }
+.nova-chat-meta { display: flex; align-items: center; gap: 9px; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: #928da2; }
+.nova-chat-meta strong { color: #d9d5e6; }
+.nova-chat-meta span { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.055); }
+
+.nova-mic-button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(70,200,255,.34) !important;
+  background: rgba(70,200,255,.08) !important;
+  color: #bdefff !important;
+}
+.nova-mic-button:hover, .nova-mic-button:focus-visible { box-shadow: 0 0 28px rgba(70,200,255,.18) !important; }
+.nova-mic-button.is-listening {
+  border-color: rgba(255,79,216,.65) !important;
+  color: #ffd8f6 !important;
+  background: rgba(255,79,216,.12) !important;
+  animation: nova-mic-pulse 1.15s ease-in-out infinite;
+}
+.nova-mic-button:disabled { cursor: not-allowed; opacity: .45; }
+
+@keyframes nova-mic-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,79,216,.15); }
+  50% { box-shadow: 0 0 0 8px rgba(255,79,216,0); }
+}
+
+@media (max-width: 640px) {
+  .nova-live-chat { max-height: 360px; padding: 13px; border-radius: 19px; }
+  .nova-chat-message { width: 94%; }
+  .nova-mic-button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nova-mic-button.is-listening { animation: none; }
+}
