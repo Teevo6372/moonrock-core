@@ -74,6 +74,19 @@ function renderResponse(response: DiscoveryResponse): void {
   if (response.nextQuestion) renderQuestion(response.nextQuestion);
 }
 
+function playDiscoveryBehavior(response: DiscoveryResponse): void {
+  if (response.completed) {
+    visualStage.playBehavior("excited");
+    return;
+  }
+  const progressPercent = response.view.progressPercent;
+  if (progressPercent >= 70) {
+    visualStage.playBehavior("energetic");
+  } else if (progressPercent >= 35) {
+    visualStage.playBehavior("playful");
+  }
+}
+
 function renderQuestion(question: DiscoveryQuestion): void {
   const help = question.helpText ? `<p class="help">${escapeHtml(question.helpText)}</p>` : "";
   const identity = question.isFinalRequired ? identityFieldsHtml() : "";
@@ -153,11 +166,13 @@ async function submit(question: DiscoveryQuestion, value: string | number | bool
     setBusy(false);
     renderResponse(response);
     if (response.completed) {
+      playDiscoveryBehavior(response);
       status.textContent = response.ghlHandoff?.status === "confirmed"
         ? "Your Moonrock Flight Plan is ready and saved."
         : "Your Moonrock Flight Plan is ready.";
     } else {
       visualStage.playTransientState("speaking");
+      window.setTimeout(() => playDiscoveryBehavior(response), 1350);
       status.textContent = "Connected to Nova.";
     }
   } catch (error) {
@@ -197,6 +212,7 @@ async function begin(path: BusinessPath): Promise<void> {
     setBusy(false);
     renderResponse(response);
     visualStage.playTransientState("speaking");
+    window.setTimeout(() => visualStage.playBehavior(path === "startup" ? "excited" : "energetic"), 1350);
     panel.scrollIntoView({ behavior: "smooth", block: "center" });
     status.textContent = "Connected to Nova.";
   } catch (error) {
