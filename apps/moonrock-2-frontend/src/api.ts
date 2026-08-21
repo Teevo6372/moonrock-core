@@ -19,19 +19,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return payload as T;
 }
 
-function surfaceClarification(response: DiscoveryResponse): void {
-  if (!response.clarification) return;
-  window.setTimeout(() => {
-    const reaction = document.querySelector<HTMLParagraphElement>("#nova-reaction");
-    const status = document.querySelector<HTMLParagraphElement>("#status");
-    if (reaction) { reaction.hidden = false; reaction.textContent = response.clarification!.message; }
-    if (status) status.textContent = "Nova wants to make sure she understood that correctly.";
-  }, 0);
-}
-
 function publish(response: DiscoveryResponse): DiscoveryResponse {
   publishProgressiveFlightPlanResponse(response);
-  surfaceClarification(response);
   if (response.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: response.humanHandoff }));
   return response;
 }
