@@ -15,9 +15,12 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
 
   router.post("/:sessionId/start", async (context) => {
     const sessionId = context.req.param("sessionId");
-    const body = await context.req.json() as { path?: unknown };
+    const body = await context.req.json() as { path?: unknown; visitorId?: unknown; conversationId?: unknown; previousConversationSummary?: unknown };
     if (body.path !== "startup" && body.path !== "existing_business") return context.json({ code: "INVALID_DISCOVERY_PATH" }, 400);
-    const result = startNovaDiscovery(body.path);
+    const visitorId = typeof body.visitorId === "string" && body.visitorId.trim() ? body.visitorId.trim() : `anonymous-${sessionId}`;
+    const conversationId = typeof body.conversationId === "string" && body.conversationId.trim() ? body.conversationId.trim() : sessionId;
+    const previousConversationSummary = typeof body.previousConversationSummary === "string" && body.previousConversationSummary.trim() ? body.previousConversationSummary.trim() : undefined;
+    const result = startNovaDiscovery(body.path, { visitorId, conversationId, ...(previousConversationSummary ? { previousConversationSummary } : {}) });
     try { await repository.create(sessionId, result.state); } catch { return context.json({ code: "DISCOVERY_ALREADY_EXISTS" }, 409); }
     const openingText = body.path === "startup" ? "I'm starting something." : "My business needs to grow.";
     const conversationTurn = await conversationEngine.respond(result.state, openingText, { opening: true, progressPercent: 0 });
