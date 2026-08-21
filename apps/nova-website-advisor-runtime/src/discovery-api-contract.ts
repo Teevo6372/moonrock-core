@@ -31,6 +31,11 @@ export function startNovaDiscovery(path: BusinessPath, continuity?: DiscoveryCon
   const state = createDiscoverySession(path, continuity); const progress = resumeDiscovery(state); return { state, response: toResponse(state, progress) };
 }
 
+export function restoreNovaDiscovery(state: DiscoverySessionState): NovaDiscoveryResponse {
+  const progress = resumeDiscovery(state);
+  return toResponse(progress.state, progress);
+}
+
 export function requestPreliminaryFlightPlan(state: DiscoverySessionState): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
   const progress = forcePreliminaryFlightPlan(state);
   return { state: progress.state, response: toResponse(progress.state, progress) };
