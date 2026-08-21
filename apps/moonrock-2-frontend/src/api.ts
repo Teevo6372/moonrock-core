@@ -1,17 +1,13 @@
 import "./voice-chat-experience.js";
 import { assertFrontendConfig, config } from "./config.js";
 import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
-import type { BusinessPath, ContactIdentity, DiscoveryResponse, NovaConversationTurn } from "./types.js";
+import type { BusinessPath, ContactIdentity, DiscoveryResponse, HumanHandoffResponse, NovaConversationTurn } from "./types.js";
 
 let activeDiscoverySessionId = "";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   assertFrontendConfig();
-  const response = await fetch(`${config.novaApiBaseUrl}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const response = await fetch(`${config.novaApiBaseUrl}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const text = await response.text();
   let payload: Record<string, unknown> = {};
   try { payload = text ? JSON.parse(text) as Record<string, unknown> : {}; } catch { payload = {}; }
@@ -28,10 +24,7 @@ function surfaceClarification(response: DiscoveryResponse): void {
   window.setTimeout(() => {
     const reaction = document.querySelector<HTMLParagraphElement>("#nova-reaction");
     const status = document.querySelector<HTMLParagraphElement>("#status");
-    if (reaction) {
-      reaction.hidden = false;
-      reaction.textContent = response.clarification!.message;
-    }
+    if (reaction) { reaction.hidden = false; reaction.textContent = response.clarification!.message; }
     if (status) status.textContent = "Nova wants to make sure she understood that correctly.";
   }, 0);
 }
@@ -39,6 +32,7 @@ function surfaceClarification(response: DiscoveryResponse): void {
 function publish(response: DiscoveryResponse): DiscoveryResponse {
   publishProgressiveFlightPlanResponse(response);
   surfaceClarification(response);
+  if (response.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: response.humanHandoff }));
   return response;
 }
 
@@ -47,23 +41,22 @@ export function startDiscovery(sessionId: string, path: BusinessPath): Promise<D
   return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/start`, { path }).then(publish);
 }
 
-export function answerDiscovery(
-  sessionId: string,
-  field: string,
-  value: string | number | boolean,
-  identity?: ContactIdentity,
-): Promise<DiscoveryResponse> {
+export function answerDiscovery(sessionId: string, field: string, value: string | number | boolean, identity?: ContactIdentity): Promise<DiscoveryResponse> {
   activeDiscoverySessionId = sessionId;
-  return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, {
-    field,
-    value,
-    ...(identity ? { identity } : {}),
-  }).then(publish);
+  return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, { field, value, ...(identity ? { identity } : {}) }).then(publish);
 }
 
 export function askNova(question: string): Promise<NovaConversationTurn> {
   if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
-  return post<NovaConversationTurn>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question });
+  return post<NovaConversationTurn>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question }).then((turn) => {
+    if (turn.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: turn.humanHandoff }));
+    return turn;
+  });
+}
+
+export function completeHumanHandoff(identity: ContactIdentity, requestText: string): Promise<HumanHandoffResponse> {
+  if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
+  return post<HumanHandoffResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/handoff`, { identity, requestText });
 }
 
 const resourceQuestions: Record<string, string> = {
@@ -74,9 +67,7 @@ const resourceQuestions: Record<string, string> = {
   services: "What other Moonrock capabilities are relevant to the problems in my Flight Plan?",
 };
 
-function conversationAnswerTarget(): HTMLDivElement | null {
-  return document.querySelector<HTMLDivElement>("#resource-answer");
-}
+function conversationAnswerTarget(): HTMLDivElement | null { return document.querySelector<HTMLDivElement>("#resource-answer"); }
 
 async function renderRuntimeConversation(question: string): Promise<void> {
   const target = conversationAnswerTarget();
@@ -86,7 +77,7 @@ async function renderRuntimeConversation(question: string): Promise<void> {
   try {
     const turn = await askNova(question);
     target.textContent = turn.answer;
-    window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "speaking", durationMs: 1800 } }));
+    window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: turn.intent === "human_handoff" ? "handoff" : "speaking", durationMs: 1800 } }));
   } catch (error) {
     target.textContent = error instanceof Error ? error.message : "Nova could not answer that question right now.";
     window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "idle" } }));
@@ -96,12 +87,9 @@ async function renderRuntimeConversation(question: string): Promise<void> {
 document.addEventListener("click", (event) => {
   const element = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-resource]") : null;
   if (!element) return;
-  const resource = element.dataset.resource ?? "";
-  const question = resourceQuestions[resource];
+  const question = resourceQuestions[element.dataset.resource ?? ""];
   if (!question) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  void renderRuntimeConversation(question);
+  event.preventDefault(); event.stopImmediatePropagation(); void renderRuntimeConversation(question);
 }, true);
 
 document.addEventListener("submit", (event) => {
@@ -110,8 +98,5 @@ document.addEventListener("submit", (event) => {
   const input = form.querySelector<HTMLInputElement>("#post-plan-input");
   const question = input?.value.trim() ?? "";
   if (!question) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  input!.value = "";
-  void renderRuntimeConversation(question);
+  event.preventDefault(); event.stopImmediatePropagation(); input!.value = ""; void renderRuntimeConversation(question);
 }, true);
