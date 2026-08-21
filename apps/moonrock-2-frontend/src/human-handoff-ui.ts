@@ -5,6 +5,7 @@ import type { ContactIdentity, HumanHandoffPrompt, HumanHandoffResponse } from "
 let requestText = "";
 let retentionAttempted = false;
 let latestHandoffDetail: HumanHandoffPrompt | undefined;
+let preservedDiscoveryControls: Node[] = [];
 
 function controls(): HTMLElement | null { return document.querySelector<HTMLElement>("#nova-controls"); }
 function voiceSupported(): boolean { return "SpeechRecognition" in window || "webkitSpeechRecognition" in window; }
@@ -86,6 +87,17 @@ function wireChatForm(target: HTMLElement): void {
   target.querySelector<HTMLFormElement>("#handoff-chat-form")?.addEventListener("submit", continueWithNova);
 }
 
+function restoreDiscoveryControls(): void {
+  const target = controls();
+  document.body.classList.remove("nova-human-handoff-active");
+  window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "idle" } }));
+  if (!target) return;
+  target.replaceChildren(...preservedDiscoveryControls);
+  preservedDiscoveryControls = [];
+  const input = target.querySelector<HTMLInputElement>("input[name=answer], input[type=text]");
+  input?.focus();
+}
+
 function renderRetention(detail: HumanHandoffPrompt): void {
   requestText = detail.requestText;
   latestHandoffDetail = detail;
@@ -96,9 +108,8 @@ function renderRetention(detail: HumanHandoffPrompt): void {
   if (!target) return;
   target.innerHTML = retentionMarkup();
   target.querySelector<HTMLButtonElement>("#keep-nova")?.addEventListener("click", () => {
-    const card = target.querySelector<HTMLElement>(".nova-retention-card");
-    if (card) card.innerHTML = `<p class="handoff-kicker">STAYING WITH NOVA</p><h3>Good deal. I’m here.</h3><p>Tell me what you need, ask me something directly, or use the mic if it’s available. We’ll keep it simple.</p>`;
-    target.querySelector<HTMLInputElement>("#handoff-chat-input")?.focus();
+    appendNova("Good deal. I’m here—let’s keep going.");
+    restoreDiscoveryControls();
   });
   target.querySelector<HTMLButtonElement>("#confirm-human")?.addEventListener("click", () => renderConfirmedHandoff(detail));
   wireChatForm(target);
@@ -120,6 +131,10 @@ function renderConfirmedHandoff(detail: HumanHandoffPrompt): void {
 
 function handleHandoffRequest(detail: HumanHandoffPrompt): void {
   latestHandoffDetail = detail;
+  const target = controls();
+  if (!retentionAttempted && target && preservedDiscoveryControls.length === 0) {
+    preservedDiscoveryControls = Array.from(target.childNodes);
+  }
   window.setTimeout(() => {
     if (retentionAttempted) renderConfirmedHandoff(detail);
     else renderRetention(detail);
@@ -187,6 +202,6 @@ window.addEventListener("nova:human-handoff-error", (event) => {
 });
 
 function escapeHtml(value: string): string {
-  const replacements: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" };
-  return value.replace(/[&<>'"]/g, (character) => replacements[character] ?? character);
+  const replacements: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '\"': "&quot;" };
+  return value.replace(/[&<>'\"]/g, (character) => replacements[character] ?? character);
 }
