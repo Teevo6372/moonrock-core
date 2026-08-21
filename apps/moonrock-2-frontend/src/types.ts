@@ -81,6 +81,7 @@ export interface NovaConversationTurn {
   answer: string;
   mode: "grounded_fallback" | "generated";
   suggestedPrompts?: string[];
+  intent?: "continue" | "pause_discovery" | "human_handoff";
 }
 
 export interface DiscoveryResponse {
@@ -92,6 +93,7 @@ export interface DiscoveryResponse {
   interpretation?: { field: string; raw: unknown; normalized: unknown; note?: string };
   clarification?: { field: string; message: string; originalAnswer: unknown };
   progressiveFlightPlan: ProgressiveFlightPlan;
+  conversationTurn?: NovaConversationTurn;
   result?: FlightPlanResult;
   ghlHandoff?: GhlHandoffResult;
 }

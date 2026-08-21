@@ -24,7 +24,9 @@ export function createDiscoveryRouter(
     if (body.path !== "startup" && body.path !== "existing_business") return context.json({ code: "INVALID_DISCOVERY_PATH" }, 400);
     const result = startNovaDiscovery(body.path);
     try { await repository.create(sessionId, result.state); } catch { return context.json({ code: "DISCOVERY_ALREADY_EXISTS" }, 409); }
-    return context.json({ ...result.response, view: toImmersiveNovaView(result.response) }, 201);
+    const openingText = body.path === "startup" ? "I'm starting something." : "My business needs to grow.";
+    const conversationTurn = await conversationEngine.respond(result.state, openingText, { opening: true });
+    return context.json({ ...result.response, conversationTurn, view: toImmersiveNovaView(result.response) }, 201);
   });
 
   router.post("/:sessionId/answers", async (context) => {
@@ -50,8 +52,16 @@ export function createDiscoveryRouter(
       });
     }
 
+    const rawCustomerText = typeof body.value === "string" ? body.value : String(body.value);
+    const conversationTurn = result.response.completed
+      ? undefined
+      : await conversationEngine.respond(result.state, rawCustomerText, result.response.nextQuestion ? {
+          nextNeed: { field: String(result.response.nextQuestion.field), prompt: result.response.nextQuestion.prompt },
+        } : undefined);
+
     return context.json({
       ...result.response,
+      ...(conversationTurn ? { conversationTurn } : {}),
       ...(ghlHandoff ? { ghlHandoff } : {}),
       view: toImmersiveNovaView(result.response),
     });

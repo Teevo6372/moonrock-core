@@ -89,6 +89,14 @@ function renderResponse(response: DiscoveryResponse, isOpening = false): void {
 
 function renderConversation(question: DiscoveryQuestion, response: DiscoveryResponse, isOpening: boolean): void {
   eyebrow.textContent = response.view.progressPercent >= 70 ? "NOVA · CONNECTING THE DOTS" : "NOVA · DISCOVERY";
+  const generated = response.conversationTurn?.answer?.trim();
+  if (generated) {
+    reaction.hidden = true;
+    reaction.textContent = "";
+    headline.textContent = "";
+    body.textContent = generated;
+    return;
+  }
   if (isOpening) {
     reaction.hidden = false;
     reaction.textContent = currentPath === "startup"
@@ -288,7 +296,7 @@ async function submit(question: DiscoveryQuestion, value: string | number | bool
   reaction.hidden = false;
   reaction.textContent = question.isFinalRequired
     ? "Give me a second. I’m turning what we covered into something practical instead of just dumping your answers back at you."
-    : "Hang on a second—I’m fitting that into the bigger picture…";
+    : "Give me a second…";
   status.textContent = question.isFinalRequired ? "Nova is building your Flight Plan…" : "Nova is thinking…";
   try {
     const response = await answerDiscovery(sessionId, question.field, value, identity);
