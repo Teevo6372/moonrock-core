@@ -1,0 +1,16 @@
+.identity-card { position: relative; }
+.save-card-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: -6px -6px 2px 0; }
+.save-card-icon { width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; color: #f8f7ff; background: rgba(255,255,255,.06); cursor: pointer; font-size: 1.35rem; line-height: 1; }
+.save-card-icon:hover, .save-card-icon:focus-visible { border-color: #ff4fd8; box-shadow: 0 0 22px rgba(255,79,216,.18); outline: none; }
+.save-card-actions { display: grid; gap: 10px; margin-top: 4px; }
+.save-card-submit, .save-card-reopen { border: 1px solid rgba(70,200,255,.38); border-radius: 999px; padding: 14px 18px; color: #e9fbff; background: rgba(70,200,255,.09); cursor: pointer; font-weight: 700; }
+.save-card-submit:hover, .save-card-submit:focus-visible, .save-card-reopen:hover, .save-card-reopen:focus-visible { border-color: #46c8ff; box-shadow: 0 0 28px rgba(70,200,255,.2); outline: none; }
+.save-card-reopen { width: 100%; margin-bottom: 14px; }
+.save-card-note, .save-card-confirmation { margin: 0 !important; font-size: .82rem !important; line-height: 1.45 !important; }
+.save-card-note { color: #817b90 !important; }
+.save-card-confirmation { color: #9be7ff !important; }
+.identity-card[hidden], .save-card-reopen[hidden] { display: none !important; }
+@media (max-width: 640px) {
+  .save-card-toolbar { margin-top: -2px; }
+  .save-card-submit, .save-card-reopen { width: 100%; }
+}
