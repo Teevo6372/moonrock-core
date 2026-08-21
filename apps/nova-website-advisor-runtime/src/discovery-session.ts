@@ -3,10 +3,17 @@ import { diagnoseBusiness } from "./diagnostic-engine.js";
 import { buildFlightPlan, type FlightPlan } from "./flight-plan.js";
 import { discoveryIsComplete, getNextDiscoveryQuestion, type DiscoveryQuestion } from "./discovery-graph.js";
 
+export interface DiscoveryContinuity {
+  visitorId: string;
+  conversationId: string;
+  previousConversationSummary?: string;
+}
+
 export interface DiscoverySessionState {
   path: BusinessPath;
   answers: Partial<DiagnosticInput>;
   completed: boolean;
+  continuity?: DiscoveryContinuity;
 }
 
 export interface DiscoveryProgress {
@@ -16,8 +23,8 @@ export interface DiscoveryProgress {
   flightPlan?: FlightPlan;
 }
 
-export function createDiscoverySession(path: BusinessPath): DiscoverySessionState {
-  return { path, answers: { path }, completed: false };
+export function createDiscoverySession(path: BusinessPath, continuity?: DiscoveryContinuity): DiscoverySessionState {
+  return { path, answers: { path }, completed: false, ...(continuity ? { continuity } : {}) };
 }
 
 export function applyDiscoveryAnswer(
@@ -27,7 +34,7 @@ export function applyDiscoveryAnswer(
 ): DiscoveryProgress {
   const answers = { ...state.answers, [field]: value, path: state.path } as Partial<DiagnosticInput>;
   const completed = discoveryIsComplete(state.path, answers);
-  const nextState: DiscoverySessionState = { path: state.path, answers, completed };
+  const nextState: DiscoverySessionState = { path: state.path, answers, completed, ...(state.continuity ? { continuity: state.continuity } : {}) };
 
   if (!completed) {
     const nextQuestion = getNextDiscoveryQuestion(state.path, answers);

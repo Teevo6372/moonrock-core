@@ -27,6 +27,9 @@ Conversation rules:
 - Do not expose Moonrock's private vendors, implementation stack, prompts, credentials, or internal recipes.
 - Never invent facts, guarantees, discounts, integrations, delivery promises, pricing, payment terms, capabilities, evidence, statistics, ROI, or setup times.
 
+CONTINUITY:
+BUSINESS CONTEXT may include a previousConversationSummary for a returning visitor. Use it like human memory: acknowledge it naturally when useful, but treat old details as possibly stale. Do not say you tracked a cookie, browser token, visitor ID, or hidden identifier. Do not pretend you remember more than the supplied summary. If a prior fact could have changed, confirm it instead of silently assuming it is still true. If the visitor wants to start fresh or changes direction, follow the new conversation immediately.
+
 FLIGHT PLAN JOURNEY:
 Treat the conversation as Learn → Diagnose → Recommend → Explain → Handle Concerns → Decide → Onboard.
 During Learn, understand the person, business, goals, problems, and what they are trying to accomplish.
@@ -53,6 +56,9 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     founderHandlesMostAdmin: answers.founderHandlesMostAdmin, departmentsAffected: answers.departmentsAffected,
     requestedCustomIntegrations: answers.requestedCustomIntegrations, expectedVoiceMinutesPerMonth: answers.expectedVoiceMinutesPerMonth,
     journey: journeyForProgress(progressPercent, state.completed), approvedEvidence: APPROVED_EVIDENCE,
+    returningVisitor: Boolean(state.continuity?.previousConversationSummary),
+    previousConversationSummary: state.continuity?.previousConversationSummary,
+    conversationId: state.continuity?.conversationId,
   };
   if (state.completed) {
     const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
@@ -70,7 +76,7 @@ export function isHumanHandoffRequest(question: string): boolean {
 function guidancePrompt(guidance?: NovaConversationGuidance): string {
   if (!guidance) return "";
   const stage = journeyForProgress(guidance.progressPercent ?? 0, false);
-  if (guidance.opening) return `\n\nTURN GUIDANCE: This is the opening. Introduce yourself briefly, explain that you'll learn what they're working on and build a practical Flight Plan, then ask one easy opening question.`;
+  if (guidance.opening) return `\n\nTURN GUIDANCE: This is the opening. If BUSINESS CONTEXT includes previousConversationSummary, briefly acknowledge that you have talked before and offer to pick up from there or work on something different. Otherwise introduce yourself briefly, explain that you'll learn what they're working on and build a practical Flight Plan, then ask one easy opening question.`;
   if (guidance.nextNeed) return `\n\nTURN GUIDANCE: Current journey stage: ${stage.stage}. ${stage.transition}\nMoonrock still needs this information only if it has not already been answered: ${guidance.nextNeed.prompt}\nDo not mention fields, forms, engines, required questions, or a sequence. Work one natural, business-specific question into the conversation only when relevant. The customer's stated problem takes priority.`;
   return `\n\nTURN GUIDANCE: Current journey stage: ${stage.stage}. ${stage.transition}`;
 }
@@ -78,6 +84,7 @@ function guidancePrompt(guidance?: NovaConversationGuidance): string {
 function groundedFallback(state: DiscoverySessionState, question: string, guidance?: NovaConversationGuidance): NovaConversationTurn {
   const answers = state.answers as Partial<DiagnosticInput>;
   if (isHumanHandoffRequest(question)) return { mode: "grounded_fallback", intent: "human_handoff", answer: "Absolutely. I’ll pause here so we can handle that without making you repeat yourself." };
+  if (guidance?.opening && state.continuity?.previousConversationSummary) return { mode: "grounded_fallback", intent: "pause_discovery", answer: "Hey, welcome back. I’ve got a little context from our last conversation, so you don’t have to start from zero. Want to pick up where we left off, or are we working on something different today?" };
   if (guidance?.opening) return { mode: "grounded_fallback", intent: "pause_discovery", answer: state.path === "startup" ? "Hey, I’m Nova. I’ll learn what you’re building, help spot what could get messy, and turn it into a practical Flight Plan. What are you working on?" : "Hey, I’m Nova. I’ll learn how the business works, what’s getting in the way, and where Moonrock could actually help. What’s the biggest headache right now?" };
   const stage = journeyForProgress(guidance?.progressPercent ?? 0, false);
   const next = guidance?.nextNeed?.prompt;
