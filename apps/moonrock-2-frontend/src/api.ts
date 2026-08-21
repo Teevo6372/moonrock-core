@@ -1,23 +1,33 @@
 import "./voice-chat-experience.js";
 import { assertFrontendConfig, config } from "./config.js";
 import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
+import { archiveActiveConversation, consumeResume, getOrCreateVisitorId, initializeVisitorContinuity, previousConversationSummary, saveConversation } from "./visitor-continuity.js";
 import type { BusinessPath, ContactIdentity, DiscoveryResponse, HumanHandoffResponse, NovaConversationTurn } from "./types.js";
 
 let activeDiscoverySessionId = "";
+let activeDiscoveryPath: BusinessPath | undefined;
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   assertFrontendConfig();
-  const response = await fetch(`${config.novaApiBaseUrl}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const response = await fetch(`${config.novaApiBaseUrl}${path}`, init);
   const text = await response.text();
   let payload: Record<string, unknown> = {};
   try { payload = text ? JSON.parse(text) as Record<string, unknown> : {}; } catch { payload = {}; }
   if (!response.ok) {
     const detail = typeof payload.detail === "string" ? payload.detail : undefined;
     const title = typeof payload.title === "string" ? payload.title : undefined;
-    throw new Error(detail ?? title ?? `Nova request failed (${response.status})`);
+    const error = new Error(detail ?? title ?? `Nova request failed (${response.status})`);
+    Object.assign(error, { status: response.status });
+    throw error;
   }
   return payload as T;
 }
+
+function post<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+
+function get<T>(path: string): Promise<T> { return request<T>(path); }
 
 function publish(response: DiscoveryResponse): DiscoveryResponse {
   publishProgressiveFlightPlanResponse(response);
@@ -25,19 +35,67 @@ function publish(response: DiscoveryResponse): DiscoveryResponse {
   return response;
 }
 
-export function startDiscovery(sessionId: string, path: BusinessPath): Promise<DiscoveryResponse> {
-  activeDiscoverySessionId = sessionId;
-  return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/start`, { path }).then(publish);
+async function createServerConversation(sessionId: string, path: BusinessPath): Promise<DiscoveryResponse> {
+  const visitorId = getOrCreateVisitorId();
+  return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/start`, {
+    path,
+    visitorId,
+    conversationId: sessionId,
+    previousConversationSummary: previousConversationSummary(),
+  });
 }
 
-export function answerDiscovery(sessionId: string, field: string, value: string | number | boolean, identity?: ContactIdentity): Promise<DiscoveryResponse> {
+async function rehydrateConversation(sessionId: string, path: BusinessPath, answers: Record<string, string | number | boolean>): Promise<DiscoveryResponse> {
+  let response = await createServerConversation(sessionId, path);
+  for (const [field, value] of Object.entries(answers)) {
+    response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, { field, value, visitorId: getOrCreateVisitorId() });
+    if (response.clarification) break;
+  }
+  return response;
+}
+
+export async function startDiscovery(sessionId: string, path: BusinessPath): Promise<DiscoveryResponse> {
+  const resumable = consumeResume(path);
+  if (resumable) {
+    activeDiscoverySessionId = resumable.sessionId;
+    activeDiscoveryPath = resumable.path;
+    try {
+      await get(`/v1/discovery/${encodeURIComponent(resumable.sessionId)}`);
+      return publish(resumable.lastResponse);
+    } catch (error) {
+      const statusCode = typeof error === "object" && error !== null && "status" in error ? Number((error as { status?: unknown }).status) : 0;
+      if (statusCode !== 404) throw error;
+      activeDiscoverySessionId = sessionId;
+      activeDiscoveryPath = path;
+      const rebuilt = await rehydrateConversation(sessionId, path, resumable.answers);
+      saveConversation(sessionId, path, rebuilt);
+      return publish(rebuilt);
+    }
+  }
+
+  archiveActiveConversation();
   activeDiscoverySessionId = sessionId;
-  return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, { field, value, ...(identity ? { identity } : {}) }).then(publish);
+  activeDiscoveryPath = path;
+  const response = await createServerConversation(sessionId, path);
+  saveConversation(sessionId, path, response);
+  return publish(response);
+}
+
+export async function answerDiscovery(sessionId: string, field: string, value: string | number | boolean, identity?: ContactIdentity): Promise<DiscoveryResponse> {
+  const effectiveSessionId = activeDiscoverySessionId || sessionId;
+  const response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(effectiveSessionId)}/answers`, {
+    field,
+    value,
+    visitorId: getOrCreateVisitorId(),
+    ...(identity ? { identity } : {}),
+  });
+  if (activeDiscoveryPath) saveConversation(effectiveSessionId, activeDiscoveryPath, response, { field, value });
+  return publish(response);
 }
 
 export function askNova(question: string): Promise<NovaConversationTurn> {
   if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
-  return post<NovaConversationTurn>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question }).then((turn) => {
+  return post<NovaConversationTurn>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question, visitorId: getOrCreateVisitorId() }).then((turn) => {
     if (turn.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: turn.humanHandoff }));
     return turn;
   });
@@ -45,7 +103,7 @@ export function askNova(question: string): Promise<NovaConversationTurn> {
 
 export function completeHumanHandoff(identity: ContactIdentity, requestText: string): Promise<HumanHandoffResponse> {
   if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
-  return post<HumanHandoffResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/handoff`, { identity, requestText });
+  return post<HumanHandoffResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/handoff`, { identity, requestText, visitorId: getOrCreateVisitorId() });
 }
 
 document.addEventListener("nova:complete-human-handoff", (event) => {
@@ -97,3 +155,5 @@ document.addEventListener("submit", (event) => {
   if (!question) return;
   event.preventDefault(); event.stopImmediatePropagation(); input!.value = ""; void renderRuntimeConversation(question);
 }, true);
+
+initializeVisitorContinuity();
