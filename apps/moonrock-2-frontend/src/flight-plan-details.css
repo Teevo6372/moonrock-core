@@ -1,0 +1,4 @@
+.flight-plan-scope-details{margin:18px 0;padding:16px;border:1px solid rgba(255,255,255,.09);border-radius:18px;background:rgba(255,255,255,.025)}
+.flight-plan-status-badge{display:inline-flex;margin-bottom:12px;padding:6px 9px;border:1px solid rgba(70,200,255,.28);border-radius:999px;color:#bdefff;font-size:.7rem;font-weight:700;letter-spacing:.08em}
+.flight-plan-detail-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.flight-plan-detail-grid h4{margin:0 0 8px}.flight-plan-detail-grid ul{margin:0;padding-left:18px}.flight-plan-detail-grid li{margin:6px 0;line-height:1.45}.flight-plan-detail-grid p{margin:0 0 8px;line-height:1.5}.flight-plan-detail-grid small{display:block;color:#aaa5b8;line-height:1.45}
+@media(max-width:700px){.flight-plan-detail-grid{grid-template-columns:1fr}.flight-plan-scope-details{padding:14px}}
