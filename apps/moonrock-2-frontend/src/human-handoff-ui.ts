@@ -105,7 +105,10 @@ function submitHandoff(event: SubmitEvent): void {
   document.dispatchEvent(new CustomEvent("nova:complete-human-handoff", { detail: { identity, requestText } }));
 }
 
-window.addEventListener("nova:human-handoff", (event) => renderHandoff((event as CustomEvent<HumanHandoffPrompt>).detail));
+window.addEventListener("nova:human-handoff", (event) => {
+  const detail = (event as CustomEvent<HumanHandoffPrompt>).detail;
+  window.setTimeout(() => renderHandoff(detail), 0);
+});
 window.addEventListener("nova:human-handoff-complete", (event) => {
   const response = (event as CustomEvent<HumanHandoffResponse>).detail;
   const card = document.querySelector<HTMLElement>(".human-handoff-card");
