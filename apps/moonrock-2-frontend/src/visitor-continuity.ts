@@ -83,7 +83,11 @@ export function saveConversation(
   const previous = loadActiveConversation();
   const sameSession = previous?.sessionId === sessionId;
   const answers = sameSession ? { ...previous.answers } : {};
-  if (answer) answers[answer.field] = answer.value;
+  if (answer) {
+    const normalized = response.interpretation?.field === answer.field ? response.interpretation.normalized : undefined;
+    const persistedValue = typeof normalized === "string" || typeof normalized === "number" || typeof normalized === "boolean" ? normalized : answer.value;
+    answers[answer.field] = persistedValue;
+  }
   const businessName = answer?.field === "businessName" && typeof answer.value === "string"
     ? answer.value.trim()
     : sameSession ? previous?.businessName : undefined;
