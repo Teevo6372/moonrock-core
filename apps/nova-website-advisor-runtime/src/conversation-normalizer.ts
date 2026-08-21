@@ -73,6 +73,10 @@ function countNamedAreas(text: string): number | undefined {
 
 function clarificationFor(field: keyof DiagnosticInput): string {
   const prompts: Partial<Record<keyof DiagnosticInput, string>> = {
+    appointmentsNeedManualScheduling: "On the scheduling piece specifically: does a person usually have to step in to finish the booking, or is that mostly handled without someone touching it?",
+    estimatesNeedManualFollowUp: "For quotes and qualified leads specifically: does somebody usually have to remember the follow-up, or is that already handled consistently without manual effort?",
+    dormantCustomerList: "On old leads and past customers specifically: do you have a list you could realistically follow up with, or not really?",
+    founderHandlesMostAdmin: "At launch specifically: will most calls, scheduling, follow-up, and customer admin land on you, or will someone else already own a good share of that?",
     monthlyLeads: "No problem—give me a rough range instead. Are we talking a handful of inquiries a month, a few dozen, or hundreds?",
     missedCallsPerMonth: "A rough pattern is enough. On a typical week, would you say you miss none, a couple, or quite a few calls?",
     averageJobValueUsd: "An estimate is fine. What would you call a typical sale or job—hundreds, a few thousand, or more?",
@@ -80,8 +84,9 @@ function clarificationFor(field: keyof DiagnosticInput): string {
     medianLeadResponseMinutes: "Think about a normal lead. Is the first real response usually within minutes, within an hour, later that day, or longer?",
     departmentsAffected: "Just name the parts of the business that feel connected—sales, phones, scheduling, support, admin, operations, or whatever fits—and I’ll count the scope from there.",
     requestedCustomIntegrations: "That’s okay. Which systems would need to exchange information—CRM, calendar, phones, website forms, billing, or something else?",
+    expectedVoiceMinutesPerMonth: "You don’t need a minutes estimate yet. Tell me the coverage you want—after-hours, weekends, overflow, or full-time—and I’ll keep the exact usage as something to confirm later.",
   };
-  return prompts[field] ?? "I can work with an estimate—give me the closest practical description and I’ll keep the uncertainty in mind.";
+  return prompts[field] ?? "I want to tie that back to the question I just asked. Give me the closest practical answer and I’ll keep any uncertainty in the Flight Plan.";
 }
 
 function qualitativeNumber(field: keyof DiagnosticInput, text: string): number | undefined {
@@ -99,7 +104,7 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
   if (BOOLEAN_FIELDS.has(field)) {
     const value = booleanFromText(text);
     return value === undefined
-      ? { value: raw, interpreted: false, needsClarification: true, clarification: "I want to make sure I understood that. Would you say that’s mostly yes, mostly no, or somewhere in between?" }
+      ? { value: raw, interpreted: false, needsClarification: true, clarification: clarificationFor(field) }
       : { value, interpreted: true, note: text };
   }
 
@@ -113,7 +118,7 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
           : undefined;
     return value
       ? { value, interpreted: true, note: text }
-      : { value: raw, interpreted: false, needsClarification: true, clarification: "Would you call that a small amount of repetitive support, a noticeable amount, or a pretty heavy load?" };
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "On the repetitive-question piece specifically, would you call it a small amount, a noticeable amount, or a pretty heavy load?" };
   }
 
   if (field === "reviewRequestProcess") {
@@ -126,7 +131,7 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
           : undefined;
     return value
       ? { value, interpreted: true, note: text }
-      : { value: raw, interpreted: false, needsClarification: true, clarification: "Got it. Is that review request happening automatically, manually when somebody remembers, or not consistently yet?" };
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "On review requests specifically, is that happening automatically, manually when somebody remembers, or not consistently yet?" };
   }
 
   if (!NUMERIC_FIELDS.has(field)) return { value: raw, interpreted: false };

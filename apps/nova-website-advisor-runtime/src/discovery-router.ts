@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
-import { requestPreliminaryFlightPlan, startNovaDiscovery, submitNovaDiscoveryAnswer } from "./discovery-api-contract.js";
+import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery, submitNovaDiscoveryAnswer } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
 import { isFlightPlanRequest } from "./discovery-session.js";
 import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type NovaConversationEngine } from "./dynamic-conversation-engine.js";
@@ -40,7 +40,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
 
   router.post("/:sessionId/handoff", async (context) => {
     const sessionId = context.req.param("sessionId"); const current = await repository.load(sessionId); if (!current) return context.json({ code: "DISCOVERY_NOT_FOUND" }, 404); const body = await context.req.json() as { identity?: ProductionGhlContactIdentity; requestText?: unknown };
-    if (!body.identity?.email?.trim()) return context.json({ code: "HANDOFF_CONTACT_REQUIRED", detail: "An email is required so a Moonrock person can follow up without making you start over." }, 400); if (typeof body.requestText !== "string" || !body.requestText.trim()) return context.json({ code: "HANDOFF_REQUEST_REQUIRED" }, 400); if (!options.productionGhl) return context.json({ code: "HANDOFF_UNAVAILABLE", detail: "Moonrock's handoff connection is not configured right now." }, 503);
+    if (!body.identity?.email?.trim()) return context.json({ code: "HANDOFF_CONTACT_REQUIRED", detail: "An email is required so a Moonrock person can follow up without making you start over." }, 400); if (typeof body.requestText !== "string" || !body.requestText.trim()) return context.json({ code: "HANDOFF_REQUEST_REQUIRED", detail: "Tell Nova what you want the Moonrock person to pick up from here." }, 400); if (!options.productionGhl) return context.json({ code: "HANDOFF_UNAVAILABLE", detail: "Moonrock's handoff connection is not configured right now." }, 503);
     try { const result = await handoffHumanRequestToGhl({ sessionId, identity: body.identity, state: current.state, requestText: body.requestText }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled }); return context.json({ humanHandoff: result, answer: result.status === "confirmed" ? "You're set. I saved what we covered and flagged this for a Moonrock person. You won't need to start over." : "I've got your handoff request ready, but Moonrock's live CRM writes are currently disabled." }); } catch (error) { return context.json({ code: "HANDOFF_FAILED", detail: error instanceof Error ? error.message : "Moonrock could not complete the handoff right now." }, 503); }
   });
 
@@ -53,5 +53,13 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     try { const turn = await conversationEngine.respond(current.state, body.question, { progressPercent: current.state.completed ? 100 : 0 }); return context.json({ ...turn, ...(turn.intent === "human_handoff" ? { humanHandoff: { status: "contact_required", requestText: body.question, message: "Nova paused discovery. Add your contact details and Moonrock can continue from what you've already shared." } } : {}) }); } catch (error) { return context.json({ code: "NOVA_CONVERSATION_UNAVAILABLE", detail: error instanceof Error ? error.message : "Nova could not answer that question right now." }, 503); }
   });
 
-  router.get("/:sessionId", async (context) => { const current = await repository.load(context.req.param("sessionId")); if (!current) return context.json({ code: "DISCOVERY_NOT_FOUND" }, 404); return context.json({ state: current.state, version: current.version }); }); return router;
+  router.get("/:sessionId", async (context) => {
+    const current = await repository.load(context.req.param("sessionId"));
+    if (!current) return context.json({ code: "DISCOVERY_NOT_FOUND" }, 404);
+    const response = restoreNovaDiscovery(current.state);
+    const view = toImmersiveNovaView(response);
+    const journey = response.completed && response.result ? completedJourney(response.result.flightPlan) : journeyForProgress(view.progressPercent, false);
+    return context.json({ state: current.state, version: current.version, response: { ...response, journey, view } });
+  });
+  return router;
 }

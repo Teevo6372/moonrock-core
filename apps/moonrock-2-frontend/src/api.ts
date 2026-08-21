@@ -1,11 +1,17 @@
 import "./voice-chat-experience.js";
 import { assertFrontendConfig, config } from "./config.js";
 import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
-import { archiveActiveConversation, consumeResume, getOrCreateVisitorId, initializeVisitorContinuity, previousConversationSummary, saveConversation } from "./visitor-continuity.js";
+import { appendConversationTurn, archiveActiveConversation, consumeResume, getOrCreateVisitorId, initializeVisitorContinuity, previousConversationSummary, saveConversation } from "./visitor-continuity.js";
 import type { BusinessPath, ContactIdentity, DiscoveryResponse, HumanHandoffResponse, NovaConversationTurn } from "./types.js";
 
 let activeDiscoverySessionId = "";
 let activeDiscoveryPath: BusinessPath | undefined;
+
+interface DiscoveryResumeEnvelope {
+  state: { path: BusinessPath; answers: Record<string, unknown>; completed: boolean; meaningfulTurns?: number };
+  version: number;
+  response: DiscoveryResponse;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   assertFrontendConfig();
@@ -48,8 +54,9 @@ async function createServerConversation(sessionId: string, path: BusinessPath): 
 async function rehydrateConversation(sessionId: string, path: BusinessPath, answers: Record<string, string | number | boolean>): Promise<DiscoveryResponse> {
   let response = await createServerConversation(sessionId, path);
   for (const [field, value] of Object.entries(answers)) {
-    response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, { field, value, visitorId: getOrCreateVisitorId() });
-    if (response.clarification) break;
+    if (response.completed) break;
+    const candidate = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/answers`, { field, value, visitorId: getOrCreateVisitorId() });
+    if (!candidate.clarification) response = candidate;
   }
   return response;
 }
@@ -60,8 +67,9 @@ export async function startDiscovery(sessionId: string, path: BusinessPath): Pro
     activeDiscoverySessionId = resumable.sessionId;
     activeDiscoveryPath = resumable.path;
     try {
-      await get(`/v1/discovery/${encodeURIComponent(resumable.sessionId)}`);
-      return publish(resumable.lastResponse);
+      const restored = await get<DiscoveryResumeEnvelope>(`/v1/discovery/${encodeURIComponent(resumable.sessionId)}`);
+      saveConversation(resumable.sessionId, resumable.path, restored.response);
+      return publish(restored.response);
     } catch (error) {
       const statusCode = typeof error === "object" && error !== null && "status" in error ? Number((error as { status?: unknown }).status) : 0;
       if (statusCode !== 404) throw error;
@@ -96,6 +104,7 @@ export async function answerDiscovery(sessionId: string, field: string, value: s
 export function askNova(question: string): Promise<NovaConversationTurn> {
   if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
   return post<NovaConversationTurn>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question, visitorId: getOrCreateVisitorId() }).then((turn) => {
+    appendConversationTurn(question, turn.answer);
     if (turn.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: turn.humanHandoff }));
     return turn;
   });
