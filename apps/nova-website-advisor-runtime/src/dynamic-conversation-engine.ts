@@ -98,67 +98,38 @@ function contextForState(state: DiscoverySessionState): Record<string, unknown> 
   return Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined));
 }
 
-function handoffRequested(question: string): boolean {
+export function isHumanHandoffRequest(question: string): boolean {
   return /\b(live|real|human)\s+(person|agent|rep|representative|someone)\b|\b(talk|speak|connect|transfer)\s+(me\s+)?(to|with)\s+(a\s+)?(live|real|human|person|someone)\b/i.test(question);
 }
 
 function guidancePrompt(guidance?: NovaConversationGuidance): string {
   if (!guidance) return "";
-  if (guidance.opening) {
-    return `\n\nDISCOVERY TURN GUIDANCE:\nThis is the opening turn after the visitor selected this business path. Introduce yourself briefly, explain in plain language that you'll learn what they're working on and quietly build a useful Flight Plan, then ask ONE easy opening question. Keep it relaxed and short.`;
-  }
-  if (guidance.nextNeed) {
-    return `\n\nDISCOVERY TURN GUIDANCE:\nMoonrock's deterministic discovery engine still needs the following information if it has not already been answered in the customer's latest message or BUSINESS CONTEXT:\nField: ${guidance.nextNeed.field}\nUnderlying need: ${guidance.nextNeed.prompt}\nDo not mention the field name, form, engine, sequence, or that this is required. If the customer's latest message already answers it, do not ask it again. Otherwise, work ONE natural question about that need into your response. The customer's stated problem always takes priority over blindly following this guidance.`;
-  }
+  if (guidance.opening) return `\n\nDISCOVERY TURN GUIDANCE:\nThis is the opening turn after the visitor selected this business path. Introduce yourself briefly, explain in plain language that you'll learn what they're working on and quietly build a useful Flight Plan, then ask ONE easy opening question. Keep it relaxed and short.`;
+  if (guidance.nextNeed) return `\n\nDISCOVERY TURN GUIDANCE:\nMoonrock's deterministic discovery engine still needs the following information if it has not already been answered in the customer's latest message or BUSINESS CONTEXT:\nField: ${guidance.nextNeed.field}\nUnderlying need: ${guidance.nextNeed.prompt}\nDo not mention the field name, form, engine, sequence, or that this is required. If the customer's latest message already answers it, do not ask it again. Otherwise, work ONE natural question about that need into your response. The customer's stated problem always takes priority over blindly following this guidance.`;
   return "";
 }
 
 function groundedFallback(state: DiscoverySessionState, question: string, guidance?: NovaConversationGuidance): NovaConversationTurn {
   const answers = state.answers as Partial<DiagnosticInput>;
-  if (handoffRequested(question)) {
-    return {
-      mode: "grounded_fallback",
-      intent: "human_handoff",
-      answer: "Absolutely. I'll stop here and get you to a real person. I'll keep what you've already shared so you don't have to start over.",
-    };
-  }
-  if (guidance?.opening) {
-    return {
-      mode: "grounded_fallback",
-      intent: "pause_discovery",
-      answer: state.path === "startup"
-        ? "Hey, I'm Nova. I'll help you think through what you're building, spot the stuff that could get messy, and turn it into a practical Flight Plan. What are you working on?"
-        : "Hey, I'm Nova. I'll get a feel for what's working, what's getting in the way, and where Moonrock could actually help. What's the biggest headache in the business right now?",
-    };
-  }
+  if (isHumanHandoffRequest(question)) return { mode: "grounded_fallback", intent: "human_handoff", answer: "Absolutely. I'll stop here and get you to a real person. I'll keep what you've already shared so you don't have to start over." };
+  if (guidance?.opening) return { mode: "grounded_fallback", intent: "pause_discovery", answer: state.path === "startup" ? "Hey, I'm Nova. I'll help you think through what you're building, spot the stuff that could get messy, and turn it into a practical Flight Plan. What are you working on?" : "Hey, I'm Nova. I'll get a feel for what's working, what's getting in the way, and where Moonrock could actually help. What's the biggest headache in the business right now?" };
   const business = answers.businessName ? ` at ${answers.businessName}` : "";
   const challenge = answers.businessChallenges;
   const next = guidance?.nextNeed?.prompt;
-  return {
-    mode: "grounded_fallback",
-    intent: "pause_discovery",
-    answer: `${challenge ? `I've got ${challenge} as the main issue${business}. ` : ""}${next ?? "What's the part of this that's causing you the biggest headache?"}`.trim(),
-  };
+  return { mode: "grounded_fallback", intent: "pause_discovery", answer: `${challenge ? `I've got ${challenge} as the main issue${business}. ` : ""}${next ?? "What's the part of this that's causing you the biggest headache?"}`.trim() };
 }
 
 export class SessionGroundedNovaConversationEngine implements NovaConversationEngine {
   constructor(private readonly generator?: NovaConversationGenerator) {}
-
   async respond(state: DiscoverySessionState, question: string, guidance?: NovaConversationGuidance): Promise<NovaConversationTurn> {
     const trimmed = question.trim();
     if (!trimmed) throw new Error("Nova needs a question to respond to.");
-    if (handoffRequested(trimmed)) return groundedFallback(state, trimmed, guidance);
+    if (isHumanHandoffRequest(trimmed)) return groundedFallback(state, trimmed, guidance);
     if (this.generator) {
       try {
-        const answer = (await this.generator.generate({
-          system: `${SYSTEM_PROMPT}${guidancePrompt(guidance)}`,
-          businessContext: contextForState(state),
-          question: trimmed,
-        })).trim();
+        const answer = (await this.generator.generate({ system: `${SYSTEM_PROMPT}${guidancePrompt(guidance)}`, businessContext: contextForState(state), question: trimmed })).trim();
         if (answer) return { answer, mode: "generated", intent: "pause_discovery" };
-      } catch {
-        // A provider outage must never strand the customer.
-      }
+      } catch { /* provider outage falls back safely */ }
     }
     return groundedFallback(state, trimmed, guidance);
   }
