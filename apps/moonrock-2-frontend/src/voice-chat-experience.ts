@@ -24,7 +24,9 @@ function dockAvatar(): void {
   stage.classList.add("conversation-docked"); root.prepend(stage);
 }
 function enterFocusMode(): void {
-  const root = panel(); if (!root || root.classList.contains("nova-focus-mode")) return;
+  const root = panel(); if (!root) return;
+  document.body.classList.add("nova-conversation-focused");
+  if (root.classList.contains("nova-focus-mode")) return;
   root.classList.add("nova-focus-mode");
   const header = document.createElement("header"); header.className = "nova-focus-header";
   header.innerHTML = `<div><strong>Nova</strong><span>Moonrock Virtual Growth Advisor</span></div><button type="button" class="nova-history-toggle" aria-expanded="false">Conversation</button>`;
