@@ -4,6 +4,12 @@ import type { DiscoveryResponse, ProgressiveFlightPlan } from "./types.js";
 let container: HTMLElement | undefined;
 
 export function publishProgressiveFlightPlanResponse(response: DiscoveryResponse): void {
+  if (!response.completed) {
+    const existing = document.querySelector<HTMLElement>("#progressive-flight-plan");
+    existing?.remove();
+    container = undefined;
+    return;
+  }
   const model = response.progressiveFlightPlan;
   if (!model) return;
   const target = ensureContainer();
