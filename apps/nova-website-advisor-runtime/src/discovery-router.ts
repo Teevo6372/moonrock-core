@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { startNovaDiscovery, submitNovaDiscoveryAnswer } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
-import { SessionGroundedNovaConversationEngine, type NovaConversationEngine } from "./dynamic-conversation-engine.js";
-import { handoffFlightPlanToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig } from "./ghl-production-handoff.js";
+import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type NovaConversationEngine } from "./dynamic-conversation-engine.js";
+import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 
 export interface DiscoveryRouterOptions {
@@ -11,10 +11,7 @@ export interface DiscoveryRouterOptions {
   conversationEngine?: NovaConversationEngine;
 }
 
-export function createDiscoveryRouter(
-  repository: DiscoveryStateRepository = new InMemoryDiscoveryStateRepository(),
-  options: DiscoveryRouterOptions = {},
-): Hono {
+export function createDiscoveryRouter(repository: DiscoveryStateRepository = new InMemoryDiscoveryStateRepository(), options: DiscoveryRouterOptions = {}): Hono {
   const router = new Hono();
   const conversationEngine = options.conversationEngine ?? new SessionGroundedNovaConversationEngine();
 
@@ -36,35 +33,47 @@ export function createDiscoveryRouter(
     if (current.state.completed) return context.json({ code: "DISCOVERY_COMPLETE" }, 409);
     const body = await context.req.json() as { field?: unknown; value?: unknown; identity?: ProductionGhlContactIdentity };
     if (typeof body.field !== "string" || !("value" in body)) return context.json({ code: "INVALID_DISCOVERY_ANSWER" }, 400);
+    const rawCustomerText = typeof body.value === "string" ? body.value : String(body.value);
+
+    if (isHumanHandoffRequest(rawCustomerText)) {
+      const conversationTurn = await conversationEngine.respond(current.state, rawCustomerText);
+      return context.json({
+        path: current.state.path,
+        completed: current.state.completed,
+        progress: { answered: Object.keys(current.state.answers).filter((key) => key !== "path").length, requiredRemaining: 0 },
+        progressiveFlightPlan: { phase: "listening", summary: "Discovery paused for a human handoff.", signals: [] },
+        conversationTurn,
+        humanHandoff: { status: "contact_required", requestText: rawCustomerText, message: "Nova paused discovery. Add your contact details and Moonrock can continue from what you've already shared." },
+        view: { ...toImmersiveNovaView({ path: current.state.path, completed: false, progress: { answered: 0, requiredRemaining: 0 }, progressiveFlightPlan: { phase: "listening", summary: "Discovery paused for a human handoff.", signals: [] } }), visualState: "handoff" },
+      });
+    }
+
     const result = submitNovaDiscoveryAnswer(current.state, body.field as keyof DiagnosticInput, body.value);
     try { await repository.save(sessionId, result.state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
 
     let ghlHandoff: Awaited<ReturnType<typeof handoffFlightPlanToGhl>> | undefined;
     if (result.response.completed && result.response.result && options.productionGhl && body.identity?.email) {
-      ghlHandoff = await handoffFlightPlanToGhl({
-        sessionId,
-        identity: body.identity,
-        diagnosticInput: result.state.answers as DiagnosticInput,
-        diagnostic: result.response.result.diagnostic,
-        flightPlan: result.response.result.flightPlan,
-      }, options.productionGhl, {
-        apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled,
-      });
+      ghlHandoff = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: result.state.answers as DiagnosticInput, diagnostic: result.response.result.diagnostic, flightPlan: result.response.result.flightPlan }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
     }
 
-    const rawCustomerText = typeof body.value === "string" ? body.value : String(body.value);
-    const conversationTurn = result.response.completed
-      ? undefined
-      : await conversationEngine.respond(result.state, rawCustomerText, result.response.nextQuestion ? {
-          nextNeed: { field: String(result.response.nextQuestion.field), prompt: result.response.nextQuestion.prompt },
-        } : undefined);
+    const conversationTurn = result.response.completed ? undefined : await conversationEngine.respond(result.state, rawCustomerText, result.response.nextQuestion ? { nextNeed: { field: String(result.response.nextQuestion.field), prompt: result.response.nextQuestion.prompt } } : undefined);
+    return context.json({ ...result.response, ...(conversationTurn ? { conversationTurn } : {}), ...(ghlHandoff ? { ghlHandoff } : {}), view: toImmersiveNovaView(result.response) });
+  });
 
-    return context.json({
-      ...result.response,
-      ...(conversationTurn ? { conversationTurn } : {}),
-      ...(ghlHandoff ? { ghlHandoff } : {}),
-      view: toImmersiveNovaView(result.response),
-    });
+  router.post("/:sessionId/handoff", async (context) => {
+    const sessionId = context.req.param("sessionId");
+    const current = await repository.load(sessionId);
+    if (!current) return context.json({ code: "DISCOVERY_NOT_FOUND" }, 404);
+    const body = await context.req.json() as { identity?: ProductionGhlContactIdentity; requestText?: unknown };
+    if (!body.identity?.email?.trim()) return context.json({ code: "HANDOFF_CONTACT_REQUIRED", detail: "An email is required so a Moonrock person can follow up without making you start over." }, 400);
+    if (typeof body.requestText !== "string" || !body.requestText.trim()) return context.json({ code: "HANDOFF_REQUEST_REQUIRED" }, 400);
+    if (!options.productionGhl) return context.json({ code: "HANDOFF_UNAVAILABLE", detail: "Moonrock's handoff connection is not configured right now." }, 503);
+    try {
+      const result = await handoffHumanRequestToGhl({ sessionId, identity: body.identity, state: current.state, requestText: body.requestText }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
+      return context.json({ humanHandoff: result, answer: result.status === "confirmed" ? "You're set. I saved what we covered and flagged this for a Moonrock person. You won't need to start over." : "I've got your handoff request ready, but Moonrock's live CRM writes are currently disabled." });
+    } catch (error) {
+      return context.json({ code: "HANDOFF_FAILED", detail: error instanceof Error ? error.message : "Moonrock could not complete the handoff right now." }, 503);
+    }
   });
 
   router.post("/:sessionId/conversation", async (context) => {
@@ -74,12 +83,9 @@ export function createDiscoveryRouter(
     if (typeof body.question !== "string" || !body.question.trim()) return context.json({ code: "INVALID_NOVA_QUESTION" }, 400);
     try {
       const turn = await conversationEngine.respond(current.state, body.question);
-      return context.json(turn);
+      return context.json({ ...turn, ...(turn.intent === "human_handoff" ? { humanHandoff: { status: "contact_required", requestText: body.question, message: "Nova paused discovery. Add your contact details and Moonrock can continue from what you've already shared." } } : {}) });
     } catch (error) {
-      return context.json({
-        code: "NOVA_CONVERSATION_UNAVAILABLE",
-        detail: error instanceof Error ? error.message : "Nova could not answer that question right now.",
-      }, 503);
+      return context.json({ code: "NOVA_CONVERSATION_UNAVAILABLE", detail: error instanceof Error ? error.message : "Nova could not answer that question right now." }, 503);
     }
   });
 
