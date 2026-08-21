@@ -24,7 +24,25 @@ export interface HumanHandoffResponse { humanHandoff: HumanHandoffResult; answer
 
 export interface FlightPlanResult {
   diagnostic: { recommendationReason: string; opportunityEstimate?: { monthlyOpportunityUsd: number; basis: string; disclaimer: string }; };
-  flightPlan: { headline: string; primaryBottlenecks: Array<{ id: string; score: number; explanation: string }>; recommendation: { offerName: string; setupFeeUsd: number; monthlyFeeUsd: number; reason: string }; opportunity?: { monthlyOpportunityUsd: number; basis: string; disclaimer: string }; nextAction: string; disclosures: string[]; };
+  flightPlan: {
+    status: "preliminary" | "confirmed";
+    headline: string;
+    primaryBottlenecks: Array<{ id: string; score: number; explanation: string }>;
+    recommendation: {
+      offerName: string;
+      setupFeeUsd: number;
+      monthlyFeeUsd: number;
+      reason: string;
+      includedFeatures: string[];
+      estimatedDelivery: string;
+      includedVoiceMinutes?: number;
+      overageVoiceRateUsd?: number;
+    };
+    opportunity?: { monthlyOpportunityUsd: number; basis: string; disclaimer: string };
+    nextAction: string;
+    assumptionsToConfirm: string[];
+    disclosures: string[];
+  };
 }
 export interface ProgressiveFlightPlanSignal { id: string; label: string; status: "watching" | "emerging" | "confirmed" | "healthy"; insight: string; }
 export interface ProgressiveFlightPlan { phase: "listening" | "mapping" | "prioritizing" | "ready"; summary: string; signals: ProgressiveFlightPlanSignal[]; nextFocus?: string; }

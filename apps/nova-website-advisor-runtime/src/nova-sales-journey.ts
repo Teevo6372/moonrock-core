@@ -6,7 +6,7 @@ export const APPROVED_EVIDENCE: readonly ApprovedEvidenceClaim[] = [
   { id: "nist-ai-rmf-trustworthiness", source: "NIST AI Risk Management Framework 1.0", sourceUrl: "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10", claim: "Trustworthy AI should be managed for characteristics including validity and reliability, safety, security and resilience, accountability and transparency, explainability and interpretability, privacy, and fairness.", allowedUse: "Use when a customer raises reliability, safety, privacy, transparency, or human-oversight concerns.", prohibitedUse: "Do not claim NIST certifies, endorses, audits, or guarantees Moonrock or any Moonrock AI Employee." },
   { id: "nist-gai-profile", source: "NIST AI RMF Generative AI Profile (NIST AI 600-1)", sourceUrl: "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence", claim: "Generative AI introduces risks that should be identified, measured, monitored, and managed throughout deployment and use.", allowedUse: "Use to explain why Moonrock keeps human escalation, monitoring, testing, and boundaries around AI-enabled work.", prohibitedUse: "Do not imply that following NIST guidance eliminates AI errors or guarantees a particular business result." },
 ];
-export interface SalesJourneySummary { stage: NovaJourneyStage; transition: string; recommendationReview?: { confidence: "preliminary" | "confirmed"; offerName: string; setupFeeUsd: number; monthlyFeeUsd: number; setupExpectation: string; whatHappensNext: string[]; }; choices?: string[]; }
+export interface SalesJourneySummary { stage: NovaJourneyStage; transition: string; recommendationReview?: { confidence: "preliminary" | "confirmed"; offerName: string; setupFeeUsd: number; monthlyFeeUsd: number; includedFeatures: string[]; setupExpectation: string; whatHappensNext: string[]; }; choices?: string[]; }
 
 export function journeyForProgress(progressPercent: number, completed: boolean): SalesJourneySummary {
   if (completed) return { stage: "recommend", transition: "I’ve got enough for a solid starting recommendation. I’ll show you the preliminary Flight Plan now, and we can tighten anything that matters before onboarding." };
@@ -19,12 +19,13 @@ export function completedJourney(flightPlan: FlightPlan): SalesJourneySummary {
     stage: "recommend",
     transition: "Here’s the preliminary Flight Plan I’d start with based on what you told me. We can build from here instead of making you answer everything up front.",
     recommendationReview: {
-      confidence: "preliminary",
+      confidence: flightPlan.status,
       offerName: flightPlan.recommendation.offerName,
       setupFeeUsd: flightPlan.recommendation.setupFeeUsd,
       monthlyFeeUsd: flightPlan.recommendation.monthlyFeeUsd,
-      setupExpectation: "Setup timing depends on the confirmed scope and integrations. Nova must not invent a delivery date; confirm the implementation window during onboarding or human review.",
-      whatHappensNext: ["Review the preliminary recommendation and approved pricing", "Choose to build it now or fine-tune the plan", "Confirm only the remaining details needed for configuration/risk review", "Confirm contact details, consent, approved terms and payment", "Collect onboarding requirements and begin Moonrock implementation"],
+      includedFeatures: flightPlan.recommendation.includedFeatures,
+      setupExpectation: `${flightPlan.recommendation.estimatedDelivery}. This is an estimate until final scope, integrations, access, and onboarding details are confirmed.`,
+      whatHappensNext: ["Review the preliminary recommendation, included features, approved pricing, and delivery estimate", "Choose to build it now or fine-tune the plan", "Confirm only the remaining details needed for configuration/risk review", "Confirm contact details, consent, approved terms and payment", "Collect onboarding requirements and begin Moonrock implementation"],
     },
     choices: flightPlan.nextAction === "purchase" ? ["Build This Plan", "Fine-Tune It", "Ask Nova", "Talk to a Person", "Not Right Now"] : ["Review With Moonrock", "Fine-Tune It", "Ask Nova", "Talk to a Person", "Not Right Now"],
   };

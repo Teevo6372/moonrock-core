@@ -17,6 +17,8 @@ export interface AiEmployeeOffer {
   autonomousSaleAllowed: boolean;
   foundingCustomerSetupFeeUsd?: number;
   solves: readonly string[];
+  includedFeatures: readonly string[];
+  estimatedDelivery: string;
 }
 
 export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>> = {
@@ -28,6 +30,13 @@ export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>
     autonomousSaleAllowed: true,
     foundingCustomerSetupFeeUsd: 100,
     solves: ["review_generation", "retention", "reactivation"],
+    includedFeatures: [
+      "Automated review-request follow-up",
+      "Past-customer and dormant-lead re-engagement",
+      "Routine customer follow-up workflows",
+      "Monitoring and escalation when a human should step in",
+    ],
+    estimatedDelivery: "About 3–5 business days after onboarding details are confirmed",
   },
   lead_response: {
     id: "lead_response",
@@ -37,6 +46,13 @@ export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>
     autonomousSaleAllowed: true,
     foundingCustomerSetupFeeUsd: 150,
     solves: ["slow_lead_response", "lead_capture", "lead_qualification"],
+    includedFeatures: [
+      "Immediate lead acknowledgement and capture",
+      "Basic lead qualification and routing",
+      "Automated follow-up for unanswered opportunities",
+      "Human escalation for exceptions and sales-ready conversations",
+    ],
+    estimatedDelivery: "About 3–5 business days after onboarding details are confirmed",
   },
   customer_care: {
     id: "customer_care",
@@ -46,6 +62,13 @@ export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>
     autonomousSaleAllowed: true,
     foundingCustomerSetupFeeUsd: 150,
     solves: ["repetitive_support", "service_intake", "customer_questions"],
+    includedFeatures: [
+      "Routine customer-question handling",
+      "Customer and service-request intake",
+      "Consistent responses based on approved business information",
+      "Human escalation when judgment or special handling is needed",
+    ],
+    estimatedDelivery: "About 3–5 business days after onboarding details are confirmed",
   },
   receptionist: {
     id: "receptionist",
@@ -57,6 +80,14 @@ export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>
     autonomousSaleAllowed: true,
     foundingCustomerSetupFeeUsd: 200,
     solves: ["missed_calls", "call_qualification", "appointment_booking"],
+    includedFeatures: [
+      "AI phone answering and routine caller assistance",
+      "Call and customer-intent capture",
+      "Basic qualification and appointment-routing support",
+      "300 included voice minutes per month",
+      "Human escalation for calls that need a person",
+    ],
+    estimatedDelivery: "About 4–7 business days after onboarding details are confirmed",
   },
   sales_follow_up: {
     id: "sales_follow_up",
@@ -66,6 +97,13 @@ export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>
     autonomousSaleAllowed: true,
     foundingCustomerSetupFeeUsd: 250,
     solves: ["estimate_follow_up", "lead_nurture", "reactivation"],
+    includedFeatures: [
+      "Lead and estimate follow-up workflows",
+      "Lead nurture and re-engagement",
+      "Monitoring for stalled opportunities",
+      "Sales-ready escalation to a human",
+    ],
+    estimatedDelivery: "About 4–7 business days after onboarding details are confirmed",
   },
   front_office: {
     id: "front_office",
@@ -84,6 +122,15 @@ export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>
       "appointment_booking",
       "estimate_follow_up",
     ],
+    includedFeatures: [
+      "AI phone and digital lead response",
+      "Lead capture, qualification, and routing",
+      "Appointment and follow-up workflow support",
+      "Monitoring for missed or stalled opportunities",
+      "500 included voice minutes per month",
+      "Human escalation and exception handling",
+    ],
+    estimatedDelivery: "About 5–10 business days after onboarding details are confirmed",
   },
   ai_workforce: {
     id: "ai_workforce",
@@ -92,6 +139,14 @@ export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>
     monthlyFeeUsd: 749,
     autonomousSaleAllowed: false,
     solves: ["multi_department", "complex_operations", "custom_workflows"],
+    includedFeatures: [
+      "Coordinated AI support across multiple business functions",
+      "Custom workflow automation and monitoring",
+      "Cross-functional lead/customer routing",
+      "Human escalation and exception handling",
+      "Implementation planning for approved integrations and operating rules",
+    ],
+    estimatedDelivery: "About 7–14 business days after scope and onboarding details are confirmed",
   },
 };
 
