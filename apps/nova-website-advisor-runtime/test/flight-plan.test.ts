@@ -1,38 +1,43 @@
 import { describe, expect, it } from "vitest";
 
+import { AI_EMPLOYEE_CATALOG } from "../src/ai-employee-catalog.js";
 import { diagnoseBusiness } from "../src/diagnostic-engine.js";
 import { buildFlightPlan } from "../src/flight-plan.js";
 
 describe("Nova Flight Plan", () => {
-  it("builds a purchase-ready existing-business plan using approved founding pricing", () => {
-    const input = {
-      path: "existing_business" as const,
-      businessName: "ABC Plumbing",
-      missedCallsPerMonth: 10,
-      medianLeadResponseMinutes: 20,
-      averageJobValueUsd: 800,
-      closeRatePercent: 25,
-    };
+  it("builds a purchase-ready existing-business plan using canonical founding pricing", () => {
+    const input = { path: "existing_business" as const, businessName: "ABC Plumbing", missedCallsPerMonth: 10, medianLeadResponseMinutes: 20, averageJobValueUsd: 800, closeRatePercent: 25 };
     const diagnosis = diagnoseBusiness(input);
     const plan = buildFlightPlan(input, diagnosis, { foundingCustomer: true });
-
-    expect(plan.headline).toBe("Your Moonrock Growth Flight Plan");
+    expect(plan.headline).toBe("Your Preliminary Moonrock Growth Flight Plan");
     expect(plan.recommendation.offerId).toBe("front_office");
-    expect(plan.recommendation.setupFeeUsd).toBe(399);
-    expect(plan.recommendation.monthlyFeeUsd).toBe(499);
+    expect(plan.recommendation.setupFeeUsd).toBe(AI_EMPLOYEE_CATALOG.front_office.foundingCustomerSetupFeeUsd);
+    expect(plan.recommendation.monthlyFeeUsd).toBe(AI_EMPLOYEE_CATALOG.front_office.monthlyFeeUsd);
+    expect(plan.recommendation.includedFeatures).toEqual([...AI_EMPLOYEE_CATALOG.front_office.includedFeatures]);
+    expect(plan.recommendation.estimatedDelivery).toBe(AI_EMPLOYEE_CATALOG.front_office.estimatedDelivery);
     expect(plan.nextAction).toBe("purchase");
     expect(plan.opportunity?.monthlyOpportunityUsd).toBe(2000);
   });
 
-  it("routes regulated work to human review", () => {
-    const input = {
-      path: "existing_business" as const,
-      missedCallsPerMonth: 5,
-      riskCategories: ["legal_advice"] as const,
-    };
+  it("only recommends documented secondary offers supported by discovery evidence", () => {
+    const input = { path: "existing_business" as const, businessChallenges: "We miss calls and estimates do not get followed up", missedCallsPerMonth: 8, estimatesNeedManualFollowUp: true };
     const diagnosis = diagnoseBusiness(input);
     const plan = buildFlightPlan(input, diagnosis);
+    for (const addOn of plan.recommendedAddOns) {
+      const catalog = AI_EMPLOYEE_CATALOG[addOn.offerId];
+      expect(addOn.offerName).toBe(catalog.name);
+      expect(addOn.setupFeeUsd).toBe(catalog.setupFeeUsd);
+      expect(addOn.monthlyFeeUsd).toBe(catalog.monthlyFeeUsd);
+      expect(addOn.includedFeatures).toEqual([...catalog.includedFeatures]);
+      expect(addOn.estimatedDelivery).toBe(catalog.estimatedDelivery);
+    }
+    expect(plan.recommendedAddOns.length).toBeLessThanOrEqual(2);
+  });
 
+  it("routes regulated work to human review", () => {
+    const input = { path: "existing_business" as const, missedCallsPerMonth: 5, riskCategories: ["legal_advice"] as const };
+    const diagnosis = diagnoseBusiness(input);
+    const plan = buildFlightPlan(input, diagnosis);
     expect(plan.nextAction).toBe("human_review");
     expect(plan.recommendation.autonomousCloseAllowed).toBe(false);
   });
@@ -41,7 +46,7 @@ describe("Nova Flight Plan", () => {
     const input = { path: "startup" as const };
     const diagnosis = diagnoseBusiness(input);
     const plan = buildFlightPlan(input, diagnosis);
-
     expect(plan.nextAction).toBe("continue_discovery");
+    expect(plan.recommendedAddOns).toEqual([]);
   });
 });
