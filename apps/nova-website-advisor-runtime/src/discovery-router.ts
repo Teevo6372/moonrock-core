@@ -45,7 +45,11 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     let ghlHandoff: Awaited<ReturnType<typeof handoffFlightPlanToGhl>> | undefined;
     if (result.response.completed && result.response.result && options.productionGhl && body.identity?.email) ghlHandoff = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: result.state.answers as DiagnosticInput, diagnostic: result.response.result.diagnostic, flightPlan: result.response.result.flightPlan }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
 
-    const conversationTurn = result.response.completed ? await conversationEngine.respond(result.state, rawCustomerText, { progressPercent: 100 }) : await conversationEngine.respond(result.state, rawCustomerText, { progressPercent: view.progressPercent, ...(result.response.nextQuestion ? { nextNeed: { field: String(result.response.nextQuestion.field), prompt: result.response.nextQuestion.prompt } } : {}) });
+    const conversationTurn = result.response.clarification
+      ? { answer: result.response.clarification.message, mode: "grounded_fallback" as const, intent: "pause_discovery" as const }
+      : result.response.completed
+        ? await conversationEngine.respond(result.state, rawCustomerText, { progressPercent: 100 })
+        : await conversationEngine.respond(result.state, rawCustomerText, { progressPercent: view.progressPercent, ...(result.response.nextQuestion ? { nextNeed: { field: String(result.response.nextQuestion.field), prompt: result.response.nextQuestion.prompt } } : {}) });
     return context.json({ ...result.response, conversationTurn, journey, ...(ghlHandoff ? { ghlHandoff } : {}), view });
   });
 
