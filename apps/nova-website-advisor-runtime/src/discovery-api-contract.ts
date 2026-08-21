@@ -1,7 +1,7 @@
 import type { BusinessPath, DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
 import type { FlightPlan } from "./flight-plan.js";
 import { getDiscoveryQuestions } from "./discovery-graph.js";
-import { applyDiscoveryAnswer, createDiscoverySession, resumeDiscovery, type DiscoverySessionState } from "./discovery-session.js";
+import { applyDiscoveryAnswer, createDiscoverySession, resumeDiscovery, type DiscoveryContinuity, type DiscoverySessionState } from "./discovery-session.js";
 import { mapDiscoveryToGhl, type GhlDiscoveryPayload } from "./ghl-discovery-mapping.js";
 import { normalizeDiscoveryAnswer } from "./conversation-normalizer.js";
 import { buildProgressiveFlightPlan, type ProgressiveFlightPlan } from "./progressive-flight-plan.js";
@@ -61,8 +61,8 @@ function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof re
   return response;
 }
 
-export function startNovaDiscovery(path: BusinessPath): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
-  const state = createDiscoverySession(path);
+export function startNovaDiscovery(path: BusinessPath, continuity?: DiscoveryContinuity): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
+  const state = createDiscoverySession(path, continuity);
   const progress = resumeDiscovery(state);
   return { state, response: toResponse(state, progress) };
 }
