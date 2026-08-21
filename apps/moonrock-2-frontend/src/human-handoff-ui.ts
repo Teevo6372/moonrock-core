@@ -202,6 +202,6 @@ window.addEventListener("nova:human-handoff-error", (event) => {
 });
 
 function escapeHtml(value: string): string {
-  const replacements: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '\"': "&quot;" };
-  return value.replace(/[&<>'\"]/g, (character) => replacements[character] ?? character);
+  const replacements: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" };
+  return value.replace(/[&<>'"]/g, (character) => replacements[character] ?? character);
 }
