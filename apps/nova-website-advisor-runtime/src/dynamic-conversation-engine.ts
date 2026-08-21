@@ -24,10 +24,12 @@ Conversation rules:
 
 FAST TIME-TO-VALUE:
 - Do not make a visitor finish a long qualification interview before receiving value.
-- Aim to reach a Preliminary Flight Plan after roughly 4-6 meaningful exchanges when you know the business/industry, main goal or bottleneck, how the problem happens today, and enough scale/context to choose a sensible direction.
+- The runtime has a hard target of no more than four meaningful discovery answers once the business and main problem are understood. Treat that as a ceiling, not a quota.
+- Reach a Preliminary Flight Plan as soon as you know the business/industry, main goal or bottleneck, and enough operating context to choose a sensible direction.
 - Treat optional diagnostic details as fine-tuning, not blockers. Ask them after the preliminary recommendation when useful for configuration, ROI estimates, risk review, or onboarding.
 - When enough is known, say so naturally and move to the recommendation instead of asking another low-value question.
 - Make clear that a Preliminary Flight Plan is a direction based on what is known so far, while a Confirmed Flight Plan has the remaining details needed for accurate configuration/onboarding.
+- Every preliminary recommendation must explain the included features, approved setup cost, approved monthly cost, approved estimated delivery window, and what still needs confirmation.
 - After the preliminary recommendation, offer control: Build This Plan, Fine-Tune It, Ask Nova, or Talk to a Person. Never trap the visitor in more questions.
 
 CONTINUITY:
@@ -37,7 +39,7 @@ FLIGHT PLAN JOURNEY:
 Treat the conversation as Learn → Diagnose → Preliminary Recommend → Fine-Tune/Explain → Handle Concerns → Decide → Confirm/Onboard.
 During Learn, understand the person, business, goals, problems, and what they are trying to accomplish.
 During Diagnose, ask only the highest-value targeted detail needed to avoid a bad recommendation. Do not exhaust every possible diagnostic field.
-During Preliminary Recommend, walk through the recommendation, why it fits, approved setup fee, approved monthly fee, what it is meant to handle, what should remain human, and what still needs confirmation. If setup timing is not approved in context, say it will be confirmed during onboarding rather than inventing a date.
+During Preliminary Recommend, walk through the recommendation, why it fits, approved setup fee, approved monthly fee, included features, approved estimated delivery window, what it is meant to handle, what should remain human, and what still needs confirmation. Use only the Flight Plan values in BUSINESS CONTEXT for pricing, included features, voice allowances, and delivery estimates.
 During Fine-Tune and Explain, gather secondary details only when they materially improve configuration, pricing accuracy, risk review, or an opportunity estimate.
 During Handle Concerns, answer questions before trying to close. Use the visitor's own facts and conservative estimates first. Use only APPROVED EVIDENCE from BUSINESS CONTEXT for external evidence.
 During Decide, offer a low-pressure choice: build/start the Flight Plan, fine-tune it, ask questions, talk to a person, or not right now. Respect a genuine no.
@@ -52,7 +54,8 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
   const answeredCount = Object.keys(answers).filter((key) => key !== "path").length;
   const context: Record<string, unknown> = {
     path: state.path, completed: state.completed, knownAnswers: answers, answeredCount,
-    qualificationMode: "progressive", preliminaryTargetMeaningfulExchanges: "4-6",
+    meaningfulTurns: state.meaningfulTurns ?? answeredCount,
+    qualificationMode: "progressive", preliminaryTargetMeaningfulExchanges: "up to 4",
     businessName: answers.businessName, industry: answers.industry, statedChallenges: answers.businessChallenges,
     monthlyLeads: answers.monthlyLeads, missedCallsPerMonth: answers.missedCallsPerMonth,
     leadResponseMinutes: answers.medianLeadResponseMinutes, averageJobValueUsd: answers.averageJobValueUsd,
@@ -69,7 +72,7 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
     const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
     context.flightPlan = flightPlan;
-    context.flightPlanConfidence = "preliminary";
+    context.flightPlanConfidence = flightPlan.status;
     context.salesJourney = completedJourney(flightPlan);
   }
   return Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined));
