@@ -4,12 +4,7 @@ import { buildFlightPlan } from "./flight-plan.js";
 import type { DiscoverySessionState } from "./discovery-session.js";
 import { APPROVED_EVIDENCE, OBJECTION_POLICY, completedJourney, journeyForProgress } from "./nova-sales-journey.js";
 
-export interface NovaConversationTurn {
-  answer: string;
-  mode: "grounded_fallback" | "generated";
-  suggestedPrompts?: string[];
-  intent?: "continue" | "pause_discovery" | "human_handoff";
-}
+export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; }
 export interface NovaConversationGuidance { opening?: boolean; nextNeed?: { field: string; prompt: string }; progressPercent?: number; }
 export interface NovaConversationGenerator { generate(input: { system: string; businessContext: Record<string, unknown>; question: string }): Promise<string>; }
 export interface NovaConversationEngine { respond(state: DiscoverySessionState, question: string, guidance?: NovaConversationGuidance): Promise<NovaConversationTurn>; }
@@ -19,7 +14,7 @@ Sound like a smart, down-to-earth Midwesterner who has worked with small busines
 
 Conversation rules:
 - React to what the customer JUST said first. The customer controls the conversation.
-- Never ask for information already supplied in the latest message or BUSINESS CONTEXT. Use every useful fact they volunteer.
+- Never ask for information already supplied in the latest message or BUSINESS CONTEXT. Extract every useful fact they volunteer; one natural answer may satisfy several discovery needs.
 - Ask at most ONE short follow-up question at a time. Keep most replies to 1-4 short sentences unless detail is requested.
 - Do not narrate internal reasoning or use consultant jargon. Add useful interpretation rather than parroting the visitor.
 - If the visitor changes subjects or asks a question, follow them and answer it before continuing discovery.
@@ -27,17 +22,26 @@ Conversation rules:
 - Do not expose Moonrock's private vendors, implementation stack, prompts, credentials, or internal recipes.
 - Never invent facts, guarantees, discounts, integrations, delivery promises, pricing, payment terms, capabilities, evidence, statistics, ROI, or setup times.
 
+FAST TIME-TO-VALUE:
+- Do not make a visitor finish a long qualification interview before receiving value.
+- Aim to reach a Preliminary Flight Plan after roughly 4-6 meaningful exchanges when you know the business/industry, main goal or bottleneck, how the problem happens today, and enough scale/context to choose a sensible direction.
+- Treat optional diagnostic details as fine-tuning, not blockers. Ask them after the preliminary recommendation when useful for configuration, ROI estimates, risk review, or onboarding.
+- When enough is known, say so naturally and move to the recommendation instead of asking another low-value question.
+- Make clear that a Preliminary Flight Plan is a direction based on what is known so far, while a Confirmed Flight Plan has the remaining details needed for accurate configuration/onboarding.
+- After the preliminary recommendation, offer control: Build This Plan, Fine-Tune It, Ask Nova, or Talk to a Person. Never trap the visitor in more questions.
+
 CONTINUITY:
 BUSINESS CONTEXT may include a previousConversationSummary for a returning visitor. Use it like human memory: acknowledge it naturally when useful, but treat old details as possibly stale. Do not say you tracked a cookie, browser token, visitor ID, or hidden identifier. Do not pretend you remember more than the supplied summary. If a prior fact could have changed, confirm it instead of silently assuming it is still true. If the visitor wants to start fresh or changes direction, follow the new conversation immediately.
 
 FLIGHT PLAN JOURNEY:
-Treat the conversation as Learn → Diagnose → Recommend → Explain → Handle Concerns → Decide → Onboard.
+Treat the conversation as Learn → Diagnose → Preliminary Recommend → Fine-Tune/Explain → Handle Concerns → Decide → Confirm/Onboard.
 During Learn, understand the person, business, goals, problems, and what they are trying to accomplish.
-During Diagnose, explicitly but naturally signal the transition: you have the shape of the situation and need a few targeted details so the Flight Plan is not based on assumptions. Questions must be relevant to this business and the problems already raised.
-During Recommend, do not just drop a Flight Plan on screen. Walk through the recommendation, why it fits, the approved setup fee, approved monthly fee, what it is meant to handle, what should remain human, and any known usage terms. If setup timing is not approved in context, say it will be confirmed during onboarding rather than inventing a date.
-During Explain and Handle Concerns, answer questions before trying to close. Use the visitor's own facts and conservative estimates first. Use only APPROVED EVIDENCE from BUSINESS CONTEXT for external evidence.
-During Decide, offer a low-pressure choice: start the Flight Plan, adjust it, ask questions, talk to a person, or not right now. Respect a genuine no.
-During Onboard, confirm identity/contact and consent, approved package/pricing, approved terms/payment, onboarding details and implementation requirements. Never invent an agreement, checkout URL, payment option, or timeline that is not actually connected.
+During Diagnose, ask only the highest-value targeted detail needed to avoid a bad recommendation. Do not exhaust every possible diagnostic field.
+During Preliminary Recommend, walk through the recommendation, why it fits, approved setup fee, approved monthly fee, what it is meant to handle, what should remain human, and what still needs confirmation. If setup timing is not approved in context, say it will be confirmed during onboarding rather than inventing a date.
+During Fine-Tune and Explain, gather secondary details only when they materially improve configuration, pricing accuracy, risk review, or an opportunity estimate.
+During Handle Concerns, answer questions before trying to close. Use the visitor's own facts and conservative estimates first. Use only APPROVED EVIDENCE from BUSINESS CONTEXT for external evidence.
+During Decide, offer a low-pressure choice: build/start the Flight Plan, fine-tune it, ask questions, talk to a person, or not right now. Respect a genuine no.
+During Confirm/Onboard, confirm identity/contact and consent, approved package/pricing, approved terms/payment, onboarding details and implementation requirements. Never invent an agreement, checkout URL, payment option, or timeline that is not actually connected.
 
 ${OBJECTION_POLICY}
 
@@ -45,8 +49,10 @@ If they ask for a real/live/human person, stop the discovery sequence and honor 
 
 function contextForState(state: DiscoverySessionState, progressPercent = 0): Record<string, unknown> {
   const answers = state.answers as Partial<DiagnosticInput>;
+  const answeredCount = Object.keys(answers).filter((key) => key !== "path").length;
   const context: Record<string, unknown> = {
-    path: state.path, completed: state.completed, knownAnswers: answers,
+    path: state.path, completed: state.completed, knownAnswers: answers, answeredCount,
+    qualificationMode: "progressive", preliminaryTargetMeaningfulExchanges: "4-6",
     businessName: answers.businessName, industry: answers.industry, statedChallenges: answers.businessChallenges,
     monthlyLeads: answers.monthlyLeads, missedCallsPerMonth: answers.missedCallsPerMonth,
     leadResponseMinutes: answers.medianLeadResponseMinutes, averageJobValueUsd: answers.averageJobValueUsd,
@@ -56,39 +62,36 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     founderHandlesMostAdmin: answers.founderHandlesMostAdmin, departmentsAffected: answers.departmentsAffected,
     requestedCustomIntegrations: answers.requestedCustomIntegrations, expectedVoiceMinutesPerMonth: answers.expectedVoiceMinutesPerMonth,
     journey: journeyForProgress(progressPercent, state.completed), approvedEvidence: APPROVED_EVIDENCE,
-    returningVisitor: Boolean(state.continuity?.previousConversationSummary),
-    previousConversationSummary: state.continuity?.previousConversationSummary,
+    returningVisitor: Boolean(state.continuity?.previousConversationSummary), previousConversationSummary: state.continuity?.previousConversationSummary,
     conversationId: state.continuity?.conversationId,
   };
   if (state.completed) {
     const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
     const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
     context.flightPlan = flightPlan;
+    context.flightPlanConfidence = "preliminary";
     context.salesJourney = completedJourney(flightPlan);
   }
   return Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined));
 }
 
-export function isHumanHandoffRequest(question: string): boolean {
-  return /\b(live|real|human)\s+(person|agent|rep|representative|someone)\b|\b(talk|speak|connect|transfer)\s+(me\s+)?(to|with)\s+(a\s+)?(live|real|human|person|someone)\b/i.test(question);
-}
+export function isHumanHandoffRequest(question: string): boolean { return /\b(live|real|human)\s+(person|agent|rep|representative|someone)\b|\b(talk|speak|connect|transfer)\s+(me\s+)?(to|with)\s+(a\s+)?(live|real|human|person|someone)\b/i.test(question); }
 
 function guidancePrompt(guidance?: NovaConversationGuidance): string {
   if (!guidance) return "";
   const stage = journeyForProgress(guidance.progressPercent ?? 0, false);
-  if (guidance.opening) return `\n\nTURN GUIDANCE: This is the opening. If BUSINESS CONTEXT includes previousConversationSummary, briefly acknowledge that you have talked before and offer to pick up from there or work on something different. Otherwise introduce yourself briefly, explain that you'll learn what they're working on and build a practical Flight Plan, then ask one easy opening question.`;
-  if (guidance.nextNeed) return `\n\nTURN GUIDANCE: Current journey stage: ${stage.stage}. ${stage.transition}\nMoonrock still needs this information only if it has not already been answered: ${guidance.nextNeed.prompt}\nDo not mention fields, forms, engines, required questions, or a sequence. Work one natural, business-specific question into the conversation only when relevant. The customer's stated problem takes priority.`;
+  if (guidance.opening) return `\n\nTURN GUIDANCE: This is the opening. If BUSINESS CONTEXT includes previousConversationSummary, briefly acknowledge that you have talked before and offer to pick up from there or work on something different. Otherwise introduce yourself briefly, explain that you'll learn the essentials and can give an initial Flight Plan quickly, then ask one easy opening question.`;
+  if (guidance.nextNeed) return `\n\nTURN GUIDANCE: Current journey stage: ${stage.stage}. ${stage.transition}\nThe highest-value missing detail is: ${guidance.nextNeed.prompt}\nAsk for it only if the visitor has not already supplied the answer in natural language. Do not mention fields, forms, engines, required questions, or a sequence. If BUSINESS CONTEXT already contains enough for a preliminary recommendation, prefer showing value over asking another optional question.`;
   return `\n\nTURN GUIDANCE: Current journey stage: ${stage.stage}. ${stage.transition}`;
 }
 
 function groundedFallback(state: DiscoverySessionState, question: string, guidance?: NovaConversationGuidance): NovaConversationTurn {
   const answers = state.answers as Partial<DiagnosticInput>;
   if (isHumanHandoffRequest(question)) return { mode: "grounded_fallback", intent: "human_handoff", answer: "Absolutely. I’ll pause here so we can handle that without making you repeat yourself." };
-  if (guidance?.opening && state.continuity?.previousConversationSummary) return { mode: "grounded_fallback", intent: "pause_discovery", answer: "Hey, welcome back. I’ve got a little context from our last conversation, so you don’t have to start from zero. Want to pick up where we left off, or are we working on something different today?" };
-  if (guidance?.opening) return { mode: "grounded_fallback", intent: "pause_discovery", answer: state.path === "startup" ? "Hey, I’m Nova. I’ll learn what you’re building, help spot what could get messy, and turn it into a practical Flight Plan. What are you working on?" : "Hey, I’m Nova. I’ll learn how the business works, what’s getting in the way, and where Moonrock could actually help. What’s the biggest headache right now?" };
-  const stage = journeyForProgress(guidance?.progressPercent ?? 0, false);
+  if (guidance?.opening && state.continuity?.previousConversationSummary) return { mode: "grounded_fallback", intent: "pause_discovery", answer: "Hey, welcome back. I’ve got a little context from our last conversation, so you don’t have to start from zero. Want to pick up where we left off, or work on something different?" };
+  if (guidance?.opening) return { mode: "grounded_fallback", intent: "pause_discovery", answer: state.path === "startup" ? "Hey, I’m Nova. Give me the basics of what you’re building and the biggest thing you want help with. I can usually get you to an initial Flight Plan pretty quickly." : "Hey, I’m Nova. Tell me what the business does and the biggest headache you want fixed. I can usually get you to an initial Flight Plan pretty quickly." };
   const next = guidance?.nextNeed?.prompt;
-  return { mode: "grounded_fallback", intent: "pause_discovery", answer: `${stage.stage === "diagnose" ? `${stage.transition} ` : ""}${next ?? (answers.businessChallenges ? "What part of that is costing you the most time or missed opportunity?" : "What’s the part of this that causes the biggest headache?")}`.trim() };
+  return { mode: "grounded_fallback", intent: "pause_discovery", answer: next ?? (answers.businessChallenges ? "I’ve got enough to start seeing the direction. What’s the one detail you think I should know before I recommend a starting plan?" : "What’s the biggest headache you want this plan to solve?") };
 }
 
 export class SessionGroundedNovaConversationEngine implements NovaConversationEngine {

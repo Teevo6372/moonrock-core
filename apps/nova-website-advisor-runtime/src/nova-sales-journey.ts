@@ -1,75 +1,32 @@
 import type { FlightPlan } from "./flight-plan.js";
 
 export type NovaJourneyStage = "learn" | "diagnose" | "recommend" | "explain" | "concerns" | "decide" | "onboard";
-
-export interface ApprovedEvidenceClaim {
-  id: string;
-  source: string;
-  sourceUrl: string;
-  claim: string;
-  allowedUse: string;
-  prohibitedUse: string;
-}
-
+export interface ApprovedEvidenceClaim { id: string; source: string; sourceUrl: string; claim: string; allowedUse: string; prohibitedUse: string; }
 export const APPROVED_EVIDENCE: readonly ApprovedEvidenceClaim[] = [
-  {
-    id: "nist-ai-rmf-trustworthiness",
-    source: "NIST AI Risk Management Framework 1.0",
-    sourceUrl: "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10",
-    claim: "Trustworthy AI should be managed for characteristics including validity and reliability, safety, security and resilience, accountability and transparency, explainability and interpretability, privacy, and fairness.",
-    allowedUse: "Use when a customer raises reliability, safety, privacy, transparency, or human-oversight concerns.",
-    prohibitedUse: "Do not claim NIST certifies, endorses, audits, or guarantees Moonrock or any Moonrock AI Employee.",
-  },
-  {
-    id: "nist-gai-profile",
-    source: "NIST AI RMF Generative AI Profile (NIST AI 600-1)",
-    sourceUrl: "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence",
-    claim: "Generative AI introduces risks that should be identified, measured, monitored, and managed throughout deployment and use.",
-    allowedUse: "Use to explain why Moonrock keeps human escalation, monitoring, testing, and boundaries around AI-enabled work.",
-    prohibitedUse: "Do not imply that following NIST guidance eliminates AI errors or guarantees a particular business result.",
-  },
+  { id: "nist-ai-rmf-trustworthiness", source: "NIST AI Risk Management Framework 1.0", sourceUrl: "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10", claim: "Trustworthy AI should be managed for characteristics including validity and reliability, safety, security and resilience, accountability and transparency, explainability and interpretability, privacy, and fairness.", allowedUse: "Use when a customer raises reliability, safety, privacy, transparency, or human-oversight concerns.", prohibitedUse: "Do not claim NIST certifies, endorses, audits, or guarantees Moonrock or any Moonrock AI Employee." },
+  { id: "nist-gai-profile", source: "NIST AI RMF Generative AI Profile (NIST AI 600-1)", sourceUrl: "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence", claim: "Generative AI introduces risks that should be identified, measured, monitored, and managed throughout deployment and use.", allowedUse: "Use to explain why Moonrock keeps human escalation, monitoring, testing, and boundaries around AI-enabled work.", prohibitedUse: "Do not imply that following NIST guidance eliminates AI errors or guarantees a particular business result." },
 ];
-
-export interface SalesJourneySummary {
-  stage: NovaJourneyStage;
-  transition: string;
-  recommendationReview?: {
-    offerName: string;
-    setupFeeUsd: number;
-    monthlyFeeUsd: number;
-    setupExpectation: string;
-    whatHappensNext: string[];
-  };
-  choices?: string[];
-}
+export interface SalesJourneySummary { stage: NovaJourneyStage; transition: string; recommendationReview?: { confidence: "preliminary" | "confirmed"; offerName: string; setupFeeUsd: number; monthlyFeeUsd: number; setupExpectation: string; whatHappensNext: string[]; }; choices?: string[]; }
 
 export function journeyForProgress(progressPercent: number, completed: boolean): SalesJourneySummary {
-  if (completed) return { stage: "recommend", transition: "I’ve got enough to make a recommendation. Let me walk you through what I’d do, why, what it costs, and what happens next." };
-  if (progressPercent >= 55) return { stage: "diagnose", transition: "I’ve got the shape of it now. I want to tighten up a few details so I don’t build your Flight Plan around assumptions." };
-  return { stage: "learn", transition: "I’m getting a feel for the business first so the recommendation fits what you actually need." };
+  if (completed) return { stage: "recommend", transition: "I’ve got enough for a solid starting recommendation. I’ll show you the preliminary Flight Plan now, and we can tighten anything that matters before onboarding." };
+  if (progressPercent >= 45) return { stage: "diagnose", transition: "I’ve got the basic picture. I only need the detail that could actually change what I recommend." };
+  return { stage: "learn", transition: "I’m getting the essentials first so I can give you something useful without dragging you through a long questionnaire." };
 }
 
 export function completedJourney(flightPlan: FlightPlan): SalesJourneySummary {
   return {
     stage: "recommend",
-    transition: "Here’s the Flight Plan I’d recommend based on what you told me. I’ll show you why it fits before I ask you to decide anything.",
+    transition: "Here’s the preliminary Flight Plan I’d start with based on what you told me. We can build from here instead of making you answer everything up front.",
     recommendationReview: {
+      confidence: "preliminary",
       offerName: flightPlan.recommendation.offerName,
       setupFeeUsd: flightPlan.recommendation.setupFeeUsd,
       monthlyFeeUsd: flightPlan.recommendation.monthlyFeeUsd,
-      setupExpectation: "Setup timing depends on the approved scope and integrations. Nova must not invent a delivery date; confirm the implementation window during onboarding or human review.",
-      whatHappensNext: [
-        "Review the recommendation and pricing",
-        "Answer questions or adjust the plan",
-        "Confirm contact details and consent",
-        "Confirm approved terms and payment",
-        "Collect onboarding details and implementation requirements",
-        "Begin Moonrock implementation and keep Nova available for questions",
-      ],
+      setupExpectation: "Setup timing depends on the confirmed scope and integrations. Nova must not invent a delivery date; confirm the implementation window during onboarding or human review.",
+      whatHappensNext: ["Review the preliminary recommendation and approved pricing", "Choose to build it now or fine-tune the plan", "Confirm only the remaining details needed for configuration/risk review", "Confirm contact details, consent, approved terms and payment", "Collect onboarding requirements and begin Moonrock implementation"],
     },
-    choices: flightPlan.nextAction === "purchase"
-      ? ["Start My Flight Plan", "Adjust My Plan", "Ask Nova a Question", "Talk to a Person", "Not Right Now"]
-      : ["Review With Moonrock", "Adjust My Plan", "Ask Nova a Question", "Talk to a Person", "Not Right Now"],
+    choices: flightPlan.nextAction === "purchase" ? ["Build This Plan", "Fine-Tune It", "Ask Nova", "Talk to a Person", "Not Right Now"] : ["Review With Moonrock", "Fine-Tune It", "Ask Nova", "Talk to a Person", "Not Right Now"],
   };
 }
 
