@@ -42,7 +42,7 @@ function chatThread(): HTMLDivElement | null {
   return thread;
 }
 function updateProgress(): void {
-  let progress = document.querySelector<HTMLElement>("#nova-quiet-progress"); const thread = chatThread(); if (!thread) return;
+  let progress = document.querySelector<HTMLButtonElement>("#nova-quiet-progress"); const thread = chatThread(); if (!thread) return;
   if (!progress) { progress = document.createElement("button"); progress.id = "nova-quiet-progress"; progress.className = "nova-quiet-progress"; progress.type = "button"; progress.title = "Show conversation history"; progress.addEventListener("click", () => document.querySelector<HTMLButtonElement>(".nova-history-toggle")?.click()); thread.insertAdjacentElement("afterend", progress); }
   progress.textContent = `Building your Flight Plan · ${learnedCount} ${learnedCount === 1 ? "thing" : "things"} learned`;
 }
