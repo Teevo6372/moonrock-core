@@ -44,6 +44,17 @@ function chatMarkup(message: string): string {
     </section>`;
 }
 
+function compactChatMarkup(): string {
+  return `
+    <section class="handoff-continue-card handoff-continue-compact" aria-label="Continue chatting with Nova">
+      <form id="handoff-chat-form" class="answer-form" data-conversation-form>
+        <input id="handoff-chat-input" name="answer" type="text" autocomplete="off" placeholder="Type a message…">
+        <button type="submit">Send</button>
+      </form>
+      <p id="handoff-chat-status" class="handoff-status" aria-live="polite"></p>
+    </section>`;
+}
+
 function retentionMarkup(): string {
   const voiceLine = voiceSupported()
     ? "If typing is the problem, we can switch the mic on and just talk instead."
@@ -87,15 +98,31 @@ function wireChatForm(target: HTMLElement): void {
   target.querySelector<HTMLFormElement>("#handoff-chat-form")?.addEventListener("submit", continueWithNova);
 }
 
-function restoreDiscoveryControls(): void {
+function restoreDiscoveryControls(): boolean {
   const target = controls();
   document.body.classList.remove("nova-human-handoff-active");
   window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "idle" } }));
-  if (!target) return;
+  if (!target) return false;
+  const restorable = preservedDiscoveryControls.some((node) => node instanceof Element && Boolean(node.matches("form, input, button, section") || node.querySelector("form, input, button")));
+  if (!restorable) {
+    preservedDiscoveryControls = [];
+    return false;
+  }
   target.replaceChildren(...preservedDiscoveryControls);
   preservedDiscoveryControls = [];
   const input = target.querySelector<HTMLInputElement>("input[name=answer], input[type=text]");
   input?.focus();
+  return Boolean(input || target.querySelector("button"));
+}
+
+function showCompactContinuation(): void {
+  const target = controls();
+  if (!target) return;
+  document.body.classList.remove("nova-human-handoff-active");
+  target.innerHTML = compactChatMarkup();
+  wireChatForm(target);
+  window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "idle" } }));
+  window.setTimeout(() => target.querySelector<HTMLInputElement>("#handoff-chat-input")?.focus(), 0);
 }
 
 function renderRetention(detail: HumanHandoffPrompt): void {
@@ -109,7 +136,7 @@ function renderRetention(detail: HumanHandoffPrompt): void {
   target.innerHTML = retentionMarkup();
   target.querySelector<HTMLButtonElement>("#keep-nova")?.addEventListener("click", () => {
     appendNova("Good deal. I’m here—let’s keep going.");
-    restoreDiscoveryControls();
+    if (!restoreDiscoveryControls()) showCompactContinuation();
   });
   target.querySelector<HTMLButtonElement>("#confirm-human")?.addEventListener("click", () => renderConfirmedHandoff(detail));
   wireChatForm(target);
