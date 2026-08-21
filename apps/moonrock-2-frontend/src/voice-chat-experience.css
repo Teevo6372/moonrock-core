@@ -13,10 +13,12 @@
 .nova-history-toggle { padding:8px 12px; }
 .nova-quiet-progress { margin:10px 0 2px; padding:7px 11px; font-size:.76rem; }
 
-.nova-focus-mode .nova-dialogue { margin-top:8px; }
-.nova-focus-mode .nova-dialogue > :not(form):not([data-conversation-form]) { opacity:.28; max-height:64px; overflow:hidden; transition:opacity .2s ease; }
-.nova-focus-mode .nova-dialogue > :not(form):not([data-conversation-form]):hover { opacity:.65; }
+/* The live chat is the one authoritative conversation surface. The legacy dialogue remains in the DOM as a source for the chat synchronizer, but is never shown once focus mode begins. */
+.nova-focus-mode .nova-dialogue { display:none !important; }
 .nova-focus-mode .resource-panel { display:none !important; }
+/* Old deterministic choice buttons can drift away from the LLM's actual question. Free-form text/voice is the default; only purpose-built handoff/decision controls should render separately. */
+.nova-focus-mode .nova-controls .choice-grid,
+.nova-focus-mode .nova-controls .or-divider { display:none !important; }
 body.nova-conversation-focused #progressive-flight-plan,
 body.nova-conversation-focused .progressive-flight-plan,
 body.nova-conversation-focused [class*="flight-plan"]:not(.nova-quiet-progress) { display:none !important; }
@@ -36,6 +38,13 @@ body.nova-conversation-focused [class*="flight-plan"]:not(.nova-quiet-progress) 
 .nova-mic-button:hover,.nova-mic-button:focus-visible { box-shadow:0 0 28px rgba(70,200,255,.18)!important; }.nova-mic-button.is-listening { border-color:rgba(255,79,216,.65)!important; color:#ffd8f6!important; background:rgba(255,79,216,.12)!important; animation:nova-mic-pulse 1.15s ease-in-out infinite; }.nova-mic-button:disabled { cursor:not-allowed; opacity:.45; }
 @keyframes nova-mic-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,79,216,.15)}50%{box-shadow:0 0 0 8px rgba(255,79,216,0)} }
 
+.nova-continuity-prompt { display:grid; gap:10px; margin:0 0 16px; padding:14px 16px; border:1px solid rgba(70,200,255,.2); border-radius:18px; background:linear-gradient(135deg,rgba(70,200,255,.07),rgba(141,92,255,.055)); color:#dcd8e8; }
+.nova-continuity-prompt strong { color:#fff; }
+.nova-continuity-prompt span { color:#aaa5b8; font-size:.9rem; }
+.nova-continuity-prompt > div { display:flex; flex-wrap:wrap; gap:8px; }
+.nova-continuity-prompt button { border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:9px 12px; background:rgba(255,255,255,.045); color:#f4f1fb; cursor:pointer; }
+.nova-continuity-prompt [data-resume-nova] { border-color:rgba(70,200,255,.38); }
+
 @media(max-width:900px){.nova-panel:has(.nova-visual-stage.conversation-docked){display:block}.nova-focus-header{margin-bottom:8px}.nova-panel .nova-visual-stage.conversation-docked{position:relative;top:auto;min-height:300px;margin-bottom:10px}.nova-panel .nova-visual-stage.conversation-docked .nova-media-shell{width:min(70vw,330px)}.nova-focus-mode .nova-visual-stage.conversation-docked{max-height:34vh;overflow:hidden}.nova-live-chat{max-height:44vh}}
-@media(max-width:640px){.nova-focus-header span{display:none}.nova-panel .nova-visual-stage.conversation-docked{min-height:220px}.nova-panel .nova-visual-stage.conversation-docked .nova-media-shell{width:min(62vw,270px)}.nova-live-chat{max-height:42vh;padding:12px;border-radius:18px}.nova-chat-message{width:95%;padding:12px 14px}.nova-mic-button{width:auto}.nova-quiet-progress{font-size:.7rem}}
+@media(max-width:640px){.nova-focus-header span{display:none}.nova-panel .nova-visual-stage.conversation-docked{min-height:220px}.nova-panel .nova-visual-stage.conversation-docked .nova-media-shell{width:min(62vw,270px)}.nova-live-chat{max-height:42vh;padding:12px;border-radius:18px}.nova-chat-message{width:95%;padding:12px 14px}.nova-mic-button{width:auto}.nova-quiet-progress{font-size:.7rem}.nova-continuity-prompt > div{display:grid}.nova-continuity-prompt button{width:100%}}
 @media(prefers-reduced-motion:reduce){.nova-mic-button.is-listening{animation:none}}
