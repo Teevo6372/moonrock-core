@@ -59,6 +59,14 @@ export function completeHumanHandoff(identity: ContactIdentity, requestText: str
   return post<HumanHandoffResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/handoff`, { identity, requestText });
 }
 
+document.addEventListener("nova:complete-human-handoff", (event) => {
+  const detail = (event as CustomEvent<{ identity: ContactIdentity; requestText: string }>).detail;
+  if (!detail?.identity?.email || !detail.requestText) return;
+  void completeHumanHandoff(detail.identity, detail.requestText)
+    .then((response) => window.dispatchEvent(new CustomEvent("nova:human-handoff-complete", { detail: response })))
+    .catch((error: unknown) => window.dispatchEvent(new CustomEvent("nova:human-handoff-error", { detail: { message: error instanceof Error ? error.message : "Moonrock could not complete the handoff right now." } })));
+});
+
 const resourceQuestions: Record<string, string> = {
   pricing: "Can you explain the pricing for the recommendation in my Flight Plan?",
   payments: "What payment options or payment timing can we discuss?",
