@@ -11,7 +11,8 @@ function syncLearnedCount(): void {
   const progress = document.querySelector<HTMLButtonElement>("#nova-quiet-progress");
   if (!progress) return;
   const count = learnedCount();
-  progress.textContent = `Building your Flight Plan · ${count} ${count === 1 ? "thing" : "things"} learned`;
+  const nextText = `Building your Flight Plan · ${count} ${count === 1 ? "thing" : "things"} learned`;
+  if (progress.textContent !== nextText) progress.textContent = nextText;
 }
 
 function renderNovaAside(answer: string): void {
@@ -106,9 +107,16 @@ document.addEventListener("submit", (event) => {
   void handleOptionalSaveConversation(input);
 }, true);
 
-function scan(): void {
-  syncLearnedCount();
-}
+syncLearnedCount();
 
-scan();
-new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+const novaPanel = document.querySelector<HTMLElement>("#nova-panel");
+if (novaPanel) {
+  new MutationObserver((mutations) => {
+    const progressWasAdded = mutations.some((mutation) =>
+      Array.from(mutation.addedNodes).some((node) =>
+        node instanceof Element && (node.id === "nova-quiet-progress" || Boolean(node.querySelector?.("#nova-quiet-progress")))
+      )
+    );
+    if (progressWasAdded) syncLearnedCount();
+  }).observe(novaPanel, { childList: true, subtree: true });
+}
