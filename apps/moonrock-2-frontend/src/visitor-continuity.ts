@@ -6,11 +6,7 @@ const PREVIOUS_KEY = "moonrock:nova:previous-summary:v1";
 const RESUME_KEY = "moonrock:nova:resume-requested:v1";
 const MAX_RECENT_TURNS = 8;
 
-export interface StoredConversationTurn {
-  user?: string;
-  nova?: string;
-  at: string;
-}
+export interface StoredConversationTurn { user?: string; nova?: string; at: string; }
 
 export interface StoredNovaConversation {
   visitorId: string;
@@ -54,12 +50,8 @@ function summaryFor(conversation: StoredNovaConversation): string {
   const subject = conversation.businessName ? ` for ${conversation.businessName}` : "";
   const path = conversation.path === "startup" ? "a startup" : "an existing business";
   const state = conversation.lastResponse.completed ? "completed a Flight Plan" : `worked through ${learned} discovery ${learned === 1 ? "item" : "items"}`;
-  const recent = (conversation.recentTurns ?? []).slice(-3).map((turn) => {
-    const pieces = [turn.user ? `Visitor: ${compact(turn.user)}` : "", turn.nova ? `Nova: ${compact(turn.nova)}` : ""].filter(Boolean);
-    return pieces.join(" / ");
-  }).filter(Boolean);
-  const recentContext = recent.length ? ` Recent conversation context: ${recent.join(" | ")}.` : "";
-  return `This returning visitor previously discussed ${path}${subject} and ${state}.${recentContext} Treat this as prior context, not guaranteed-current fact. Preserve the thread, but verify anything that could have changed before relying on it.`;
+  const recent = (conversation.recentTurns ?? []).slice(-3).map((turn) => [turn.user ? `Visitor: ${compact(turn.user)}` : "", turn.nova ? `Nova: ${compact(turn.nova)}` : ""].filter(Boolean).join(" / ")).filter(Boolean);
+  return `This returning visitor previously discussed ${path}${subject} and ${state}.${recent.length ? ` Recent conversation context: ${recent.join(" | ")}.` : ""} Treat this as prior context, not guaranteed-current fact.`;
 }
 
 function persist(stored: StoredNovaConversation): void {
@@ -74,36 +66,31 @@ export function archiveActiveConversation(): void {
   sessionStorage.removeItem(RESUME_KEY);
 }
 
-export function saveConversation(
-  sessionId: string,
-  path: BusinessPath,
-  response: DiscoveryResponse,
-  answer?: { field: string; value: string | number | boolean },
-): StoredNovaConversation {
+export function saveConversation(sessionId: string, path: BusinessPath, response: DiscoveryResponse, answer?: { field: string; value: string | number | boolean }): StoredNovaConversation {
   const previous = loadActiveConversation();
   const sameSession = previous?.sessionId === sessionId;
   const answers = sameSession ? { ...previous.answers } : {};
   if (answer) {
     const normalized = response.interpretation?.field === answer.field ? response.interpretation.normalized : undefined;
-    const persistedValue = typeof normalized === "string" || typeof normalized === "number" || typeof normalized === "boolean" ? normalized : answer.value;
-    answers[answer.field] = persistedValue;
+    answers[answer.field] = typeof normalized === "string" || typeof normalized === "number" || typeof normalized === "boolean" ? normalized : answer.value;
   }
-  const businessName = answer?.field === "businessName" && typeof answer.value === "string"
-    ? answer.value.trim()
-    : sameSession ? previous?.businessName : undefined;
+  const businessName = answer?.field === "businessName" && typeof answer.value === "string" ? answer.value.trim() : sameSession ? previous?.businessName : undefined;
   const recentTurns = sameSession ? [...(previous?.recentTurns ?? [])] : [];
-  if (answer && response.conversationTurn?.answer) {
-    recentTurns.push({ user: String(answer.value), nova: response.conversationTurn.answer, at: new Date().toISOString() });
-  }
+  if (answer && response.conversationTurn?.answer) recentTurns.push({ user: String(answer.value), nova: response.conversationTurn.answer, at: new Date().toISOString() });
+  const stored: StoredNovaConversation = { visitorId: getOrCreateVisitorId(), sessionId, path, updatedAt: new Date().toISOString(), answers, lastResponse: response, recentTurns: recentTurns.slice(-MAX_RECENT_TURNS), ...(businessName ? { businessName } : {}) };
+  persist(stored);
+  return stored;
+}
+
+export function migrateConversationSession(previous: StoredNovaConversation, newSessionId: string, response: DiscoveryResponse): StoredNovaConversation {
   const stored: StoredNovaConversation = {
+    ...previous,
     visitorId: getOrCreateVisitorId(),
-    sessionId,
-    path,
+    sessionId: newSessionId,
     updatedAt: new Date().toISOString(),
-    answers,
     lastResponse: response,
-    recentTurns: recentTurns.slice(-MAX_RECENT_TURNS),
-    ...(businessName ? { businessName } : {}),
+    answers: { ...previous.answers },
+    recentTurns: [...(previous.recentTurns ?? [])].slice(-MAX_RECENT_TURNS),
   };
   persist(stored);
   return stored;
@@ -116,7 +103,14 @@ export function appendConversationTurn(user: string, nova: string): void {
   persist({ ...active, updatedAt: new Date().toISOString(), recentTurns });
 }
 
+export function updateLastResponse(response: DiscoveryResponse): void {
+  const active = loadActiveConversation();
+  if (!active) return;
+  persist({ ...active, updatedAt: new Date().toISOString(), lastResponse: response });
+}
+
 export function requestResume(): void { sessionStorage.setItem(RESUME_KEY, "true"); }
+
 export function consumeResume(path: BusinessPath): StoredNovaConversation | null {
   const requested = sessionStorage.getItem(RESUME_KEY) === "true";
   sessionStorage.removeItem(RESUME_KEY);
@@ -137,16 +131,8 @@ function installResumePrompt(): void {
   const status = active.lastResponse.completed ? "I still have the Flight Plan we built" : "I saved where we left off";
   card.innerHTML = `<strong>Welcome back.</strong><span>${status}${subject}. Want to pick it back up?</span><div><button type="button" data-resume-nova>Continue with Nova</button><button type="button" data-start-fresh>Start fresh</button></div>`;
   paths.insertAdjacentElement("beforebegin", card);
-  card.querySelector<HTMLButtonElement>("[data-resume-nova]")?.addEventListener("click", () => {
-    requestResume();
-    card.remove();
-    document.querySelector<HTMLButtonElement>(`[data-path="${active.path}"]`)?.click();
-  });
-  card.querySelector<HTMLButtonElement>("[data-start-fresh]")?.addEventListener("click", () => {
-    archiveActiveConversation();
-    window.dispatchEvent(new CustomEvent("nova:continuity-start-fresh"));
-    card.remove();
-  });
+  card.querySelector<HTMLButtonElement>("[data-resume-nova]")?.addEventListener("click", () => { requestResume(); card.remove(); document.querySelector<HTMLButtonElement>(`[data-path="${active.path}"]`)?.click(); });
+  card.querySelector<HTMLButtonElement>("[data-start-fresh]")?.addEventListener("click", () => { archiveActiveConversation(); window.dispatchEvent(new CustomEvent("nova:continuity-start-fresh")); card.remove(); });
 }
 
 export function initializeVisitorContinuity(): void {
