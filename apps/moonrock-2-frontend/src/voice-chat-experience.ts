@@ -1,4 +1,5 @@
 import "./voice-chat-experience.css";
+import type { DiscoveryResponse } from "./types.js";
 
 type SpeechRecognitionResultLike = { isFinal: boolean; 0?: { transcript: string } };
 type SpeechRecognitionResultEventLike = Event & { results: ArrayLike<SpeechRecognitionResultLike | undefined> };
@@ -18,6 +19,17 @@ let observed = false;
 let learnedCount = 0;
 
 function panel(): HTMLElement | null { return document.querySelector<HTMLElement>("#nova-panel"); }
+function chatThread(): HTMLDivElement | null {
+  let thread = document.querySelector<HTMLDivElement>("#nova-live-chat");
+  const root = panel(); const dialogue = document.querySelector<HTMLElement>(".nova-dialogue");
+  if (!root || !dialogue) return null;
+  if (!thread) {
+    thread = document.createElement("div"); thread.id = "nova-live-chat"; thread.className = "nova-live-chat";
+    thread.setAttribute("role", "log"); thread.setAttribute("aria-live", "polite"); thread.setAttribute("aria-label", "Conversation with Nova");
+    dialogue.insertAdjacentElement("afterend", thread);
+  }
+  return thread;
+}
 function dockAvatar(): void {
   const root = panel(); const stage = document.querySelector<HTMLElement>(".nova-visual-stage");
   if (!root || root.hidden || !stage || stage.classList.contains("conversation-docked")) return;
@@ -37,20 +49,18 @@ function enterFocusMode(): void {
     header.querySelector("button")?.setAttribute("aria-expanded", String(expanded));
   });
 }
-function chatThread(): HTMLDivElement | null {
-  let thread = document.querySelector<HTMLDivElement>("#nova-live-chat"); const root = panel(); const dialogue = document.querySelector<HTMLElement>(".nova-dialogue");
-  if (!root || !dialogue) return null;
-  if (!thread) { thread = document.createElement("div"); thread.id = "nova-live-chat"; thread.className = "nova-live-chat"; thread.setAttribute("role", "log"); thread.setAttribute("aria-live", "polite"); thread.setAttribute("aria-label", "Conversation with Nova"); dialogue.insertAdjacentElement("afterend", thread); }
-  return thread;
-}
 function updateProgress(): void {
   let progress = document.querySelector<HTMLButtonElement>("#nova-quiet-progress"); const thread = chatThread(); if (!thread) return;
-  if (!progress) { progress = document.createElement("button"); progress.id = "nova-quiet-progress"; progress.className = "nova-quiet-progress"; progress.type = "button"; progress.title = "Show conversation history"; progress.addEventListener("click", () => document.querySelector<HTMLButtonElement>(".nova-history-toggle")?.click()); thread.insertAdjacentElement("afterend", progress); }
-  progress.textContent = `Building your Flight Plan · ${learnedCount} ${learnedCount === 1 ? "thing" : "things"} learned`;
+  if (!progress) {
+    progress = document.createElement("button"); progress.id = "nova-quiet-progress"; progress.className = "nova-quiet-progress"; progress.type = "button"; progress.title = "Show conversation history";
+    progress.addEventListener("click", () => document.querySelector<HTMLButtonElement>(".nova-history-toggle")?.click());
+    thread.insertAdjacentElement("afterend", progress);
+  }
+  const next = `Building your Flight Plan · ${learnedCount} ${learnedCount === 1 ? "thing" : "things"} learned`;
+  if (progress.textContent !== next) progress.textContent = next;
 }
 function appendMessage(role: "nova" | "visitor" | "system", text: string, source?: "voice" | "text"): void {
   const clean = text.trim(); const thread = chatThread(); if (!thread || !clean) return; enterFocusMode();
-  if (role === "visitor") learnedCount += 1;
   const message = document.createElement("article"); message.className = `nova-chat-message nova-chat-${role}`;
   const who = role === "nova" ? "Nova" : role === "visitor" ? "You" : "Status";
   message.innerHTML = `<div class="nova-chat-meta"><strong>${who}</strong>${source ? `<span>${source === "voice" ? "spoken" : "typed"}</span>` : ""}</div><p></p>`;
@@ -59,9 +69,13 @@ function appendMessage(role: "nova" | "visitor" | "system", text: string, source
   thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" }); updateProgress();
 }
 function syncNovaMessage(): void {
-  const reaction = document.querySelector<HTMLParagraphElement>("#nova-reaction"); const headline = document.querySelector<HTMLHeadingElement>("#nova-headline"); const body = document.querySelector<HTMLParagraphElement>("#nova-body"); if (!headline || !body) return;
-  const parts = [!reaction?.hidden ? reaction?.textContent : "", headline.textContent, body.textContent].map((part) => part?.trim() ?? "").filter(Boolean); if (!parts.length) return;
-  const signature = parts.join("\n"); if (signature === lastNovaSignature) return; lastNovaSignature = signature; appendMessage("nova", signature); window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "speaking", durationMs: 1500 } }));
+  const reaction = document.querySelector<HTMLParagraphElement>("#nova-reaction"); const headline = document.querySelector<HTMLHeadingElement>("#nova-headline"); const body = document.querySelector<HTMLParagraphElement>("#nova-body");
+  if (!headline || !body) return;
+  const parts = [!reaction?.hidden ? reaction?.textContent : "", headline.textContent, body.textContent].map((part) => part?.trim() ?? "").filter(Boolean);
+  if (!parts.length) return;
+  const signature = parts.join("\n"); if (signature === lastNovaSignature) return;
+  lastNovaSignature = signature; appendMessage("nova", signature);
+  window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "speaking", durationMs: 1500 } }));
 }
 function recognitionConstructor(): SpeechRecognitionConstructor | undefined { return window.SpeechRecognition ?? window.webkitSpeechRecognition; }
 function voiceSupported(): boolean { return Boolean(recognitionConstructor()); }
@@ -76,14 +90,33 @@ function startRecognition(input: HTMLInputElement, form: HTMLFormElement, button
   recognition.start();
 }
 function attachVoiceButton(form: HTMLFormElement): void {
-  if (form.dataset.voiceReady === "true") return; const input = form.querySelector<HTMLInputElement>('input[name="answer"], #post-plan-input'); if (!input) return; form.dataset.voiceReady = "true";
-  input.placeholder = "Type a message…"; const button = document.createElement("button"); button.type = "button"; button.className = "nova-mic-button"; button.setAttribute("aria-label", voiceSupported() ? "Speak to Nova" : "Voice input unavailable"); button.setAttribute("aria-pressed", "false"); button.textContent = voiceSupported() ? "Speak" : "Mic unavailable"; button.disabled = !voiceSupported();
-  button.addEventListener("click", () => button.classList.contains("is-listening") ? stopRecognition() : startRecognition(input, form, button)); form.querySelector<HTMLButtonElement>('button[type="submit"]')?.insertAdjacentElement("beforebegin", button);
+  if (form.dataset.voiceReady === "true") return;
+  const input = form.querySelector<HTMLInputElement>('input[name="answer"], #post-plan-input'); if (!input) return;
+  form.dataset.voiceReady = "true"; input.placeholder = "Type a message…";
+  const button = document.createElement("button"); button.type = "button"; button.className = "nova-mic-button"; button.setAttribute("aria-label", voiceSupported() ? "Speak to Nova" : "Voice input unavailable"); button.setAttribute("aria-pressed", "false"); button.textContent = voiceSupported() ? "Speak" : "Mic unavailable"; button.disabled = !voiceSupported();
+  button.addEventListener("click", () => button.classList.contains("is-listening") ? stopRecognition() : startRecognition(input, form, button));
+  form.querySelector<HTMLButtonElement>('button[type="submit"]')?.insertAdjacentElement("beforebegin", button);
 }
 function enhanceForms(): void { document.querySelectorAll<HTMLFormElement>("[data-conversation-form], #post-plan-question").forEach(attachVoiceButton); }
-function captureVisitorSubmission(event: Event): void { const form = event.target instanceof HTMLFormElement ? event.target : null; if (!form || (!form.matches("[data-conversation-form]") && form.id !== "post-plan-question")) return; const input = form.querySelector<HTMLInputElement>('input[name="answer"], #post-plan-input'); const value = input?.value.trim() ?? ""; if (!value) return; if (input?.dataset.voiceCaptured === "true") { delete input.dataset.voiceCaptured; return; } appendMessage("visitor", value, "text"); }
+function captureVisitorSubmission(event: Event): void {
+  const form = event.target instanceof HTMLFormElement ? event.target : null; if (!form || (!form.matches("[data-conversation-form]") && form.id !== "post-plan-question")) return;
+  const input = form.querySelector<HTMLInputElement>('input[name="answer"], #post-plan-input'); const value = input?.value.trim() ?? ""; if (!value) return;
+  if (input?.dataset.voiceCaptured === "true") { delete input.dataset.voiceCaptured; return; }
+  appendMessage("visitor", value, "text");
+}
 function captureChoice(event: Event): void { const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-answer], [data-choice]") : null; if (!target) return; const value = target.dataset.choice ?? (target.dataset.answer === "true" ? "Yes, mostly" : "No, not really"); appendMessage("visitor", value, "text"); }
-function syncRuntimeAnswer(): void { const answer = document.querySelector<HTMLDivElement>("#resource-answer"); const text = answer?.textContent?.trim() ?? ""; if (!text || /Nova is thinking about that/.test(text) || text === lastNovaSignature) return; lastNovaSignature = text; appendMessage("nova", text); window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "speaking", durationMs: 1700 } })); }
-function scheduleSync(): void { window.setTimeout(() => { dockAvatar(); chatThread(); enhanceForms(); syncNovaMessage(); syncRuntimeAnswer(); }, 20); }
-export function initializeNovaVoiceChatExperience(): void { if (observed) return; observed = true; document.addEventListener("submit", captureVisitorSubmission, true); document.addEventListener("click", captureChoice, true); const observer = new MutationObserver(scheduleSync); observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden"] }); scheduleSync(); }
+function scheduleSync(): void { window.setTimeout(() => { dockAvatar(); chatThread(); enhanceForms(); syncNovaMessage(); updateProgress(); }, 20); }
+function handleConversationState(event: Event): void {
+  const response = (event as CustomEvent<DiscoveryResponse>).detail;
+  learnedCount = response?.progress?.answered ?? learnedCount;
+  scheduleSync();
+}
+export function initializeNovaVoiceChatExperience(): void {
+  if (observed) return; observed = true;
+  document.addEventListener("submit", captureVisitorSubmission, true); document.addEventListener("click", captureChoice, true);
+  window.addEventListener("nova:conversation-state", handleConversationState);
+  const root = panel() ?? document.body;
+  new MutationObserver(scheduleSync).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+  scheduleSync();
+}
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeNovaVoiceChatExperience, { once: true }); else initializeNovaVoiceChatExperience();

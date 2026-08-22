@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Pool } from "pg";
 import { DataType, newDb } from "pg-mem";
@@ -123,7 +123,7 @@ describe("PostgreSQL durable repository", () => {
 });
 
 describe("migration runner", () => {
-  it("records ordered checksums and is safe to rerun", async () => {
+  it("records every ordered migration checksum and is safe to rerun", async () => {
     const pool = await testPool();
     const first = await pool.query<{
       version: string;
@@ -131,10 +131,11 @@ describe("migration runner", () => {
     }>(
       "SELECT version, checksum FROM nova_schema_migrations ORDER BY version",
     );
-    expect(first.rows.map((row) => row.version)).toEqual([
-      "0001_staging_foundation",
-      "0002_session_discovery_count",
-    ]);
+    const expectedVersions = readdirSync(migrationsDirectory)
+      .filter((name) => name.endsWith(".sql"))
+      .map((name) => name.slice(0, -4))
+      .sort();
+    expect(first.rows.map((row) => row.version)).toEqual(expectedVersions);
     expect(first.rows.every((row) => /^[a-f0-9]{64}$/.test(row.checksum))).toBe(
       true,
     );

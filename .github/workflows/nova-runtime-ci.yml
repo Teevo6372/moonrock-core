@@ -1,0 +1,32 @@
+name: Nova Runtime CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/nova-website-advisor-runtime/**"
+      - ".github/workflows/nova-runtime-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/nova-website-advisor-runtime/**"
+      - ".github/workflows/nova-runtime-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/nova-website-advisor-runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install runtime dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck, test and build
+        run: npm run check

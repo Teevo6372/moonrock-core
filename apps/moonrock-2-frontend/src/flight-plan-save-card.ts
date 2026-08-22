@@ -1,132 +1,97 @@
 import "./flight-plan-save-card.css";
+import { saveFlightPlan } from "./api.js";
+import type { ContactIdentity, FlightPlanResult } from "./types.js";
 
-const CARD_SELECTOR = ".identity-card";
-const ENHANCED = "data-save-card-enhanced";
+type FlightPlan = FlightPlanResult["flightPlan"];
+let latestPlan: FlightPlan | undefined;
 
-function statusElement(): HTMLElement | null {
-  return document.querySelector<HTMLElement>("#status");
+function statusElement(): HTMLElement | null { return document.querySelector<HTMLElement>("#status"); }
+function setStatus(message: string): void { const status = statusElement(); if (status) status.textContent = message; }
+
+function cardMarkup(): string {
+  return `
+    <section class="identity-card" data-flight-plan-save-card aria-labelledby="identity-title">
+      <div class="save-card-toolbar" aria-label="Flight Plan save form controls">
+        <button type="button" class="save-card-icon" data-save-card-minimize aria-label="Minimize save form" title="Minimize">−</button>
+        <button type="button" class="save-card-icon" data-save-card-close aria-label="Close save form" title="Close">×</button>
+      </div>
+      <p class="identity-kicker">KEEP YOUR FLIGHT PLAN</p>
+      <h3 id="identity-title">Want me to save this with Moonrock?</h3>
+      <p>This is optional. Saving your plan does not control whether you can keep talking with Nova or continue reviewing the recommendation.</p>
+      <form data-flight-plan-save-form>
+        <div class="identity-grid">
+          <label>First name<input name="firstName" autocomplete="given-name" required></label>
+          <label>Last name<input name="lastName" autocomplete="family-name" required></label>
+          <label>Email<input name="email" type="email" autocomplete="email" required></label>
+          <label>Phone <span class="optional">optional</span><input name="phone" type="tel" autocomplete="tel"></label>
+        </div>
+        <label class="consent-row"><input name="consent" type="checkbox" required><span>Yes, save my Flight Plan and Moonrock inquiry using this email.</span></label>
+        <label class="consent-row"><input name="followUpConsent" type="checkbox"><span>Moonrock may follow up with me about this Flight Plan. Optional.</span></label>
+        <div class="save-card-actions"><button type="submit" class="save-card-submit">Save My Flight Plan</button><p data-save-card-confirmation class="save-card-confirmation" hidden></p></div>
+      </form>
+      <p class="save-card-note">Optional — minimize or close this and keep talking with Nova.</p>
+    </section>`;
 }
 
-function setStatus(message: string): void {
-  const status = statusElement();
-  if (status) status.textContent = message;
-}
-
-function cardInputs(card: HTMLElement): HTMLInputElement[] {
-  return Array.from(card.querySelectorAll<HTMLInputElement>("input"));
-}
-
-function validateSaveCard(card: HTMLElement): boolean {
-  let valid = true;
-  for (const input of cardInputs(card)) {
-    if (input.required && !input.checkValidity()) {
-      valid = false;
-      input.reportValidity();
-      break;
-    }
-  }
-  if (!valid) return false;
-
-  const consent = card.querySelector<HTMLInputElement>("#identity-consent");
-  if (!consent?.checked) {
-    consent?.focus();
-    setStatus("Please confirm permission to save and send your Flight Plan.");
-    return false;
-  }
-  return true;
+function renderCard(): void {
+  if (!latestPlan) return;
+  const result = document.querySelector<HTMLElement>("#nova-result");
+  if (!result || result.hidden || result.querySelector("[data-flight-plan-save-card]")) return;
+  result.insertAdjacentHTML("beforeend", cardMarkup());
+  const card = result.querySelector<HTMLElement>("[data-flight-plan-save-card]");
+  if (!card) return;
+  wireCard(card);
 }
 
 function ensureReopenBar(card: HTMLElement): HTMLButtonElement {
-  const controls = card.closest<HTMLElement>("#nova-controls") ?? card.parentElement ?? document.body;
-  let bar = controls.querySelector<HTMLButtonElement>("[data-save-card-reopen]");
+  const result = card.parentElement ?? document.body;
+  let bar = result.querySelector<HTMLButtonElement>("[data-save-card-reopen]");
   if (bar) return bar;
   bar = document.createElement("button");
-  bar.type = "button";
-  bar.className = "save-card-reopen";
-  bar.dataset.saveCardReopen = "true";
-  bar.textContent = "Save My Flight Plan";
-  bar.hidden = true;
-  bar.addEventListener("click", () => {
-    card.hidden = false;
-    card.dataset.minimized = "false";
-    bar!.hidden = true;
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
-  controls.insertBefore(bar, card);
+  bar.type = "button"; bar.className = "save-card-reopen"; bar.dataset.saveCardReopen = "true"; bar.textContent = "Save My Flight Plan"; bar.hidden = true;
+  bar.addEventListener("click", () => { card.hidden = false; bar!.hidden = true; card.scrollIntoView({ behavior: "smooth", block: "center" }); });
+  card.insertAdjacentElement("beforebegin", bar);
   return bar;
 }
 
-function minimize(card: HTMLElement): void {
-  const bar = ensureReopenBar(card);
-  card.dataset.minimized = "true";
-  card.hidden = true;
-  bar.hidden = false;
-  setStatus("Flight Plan save form minimized. You can keep talking with Nova and reopen it anytime.");
-}
-
-function close(card: HTMLElement): void {
-  const controls = card.closest<HTMLElement>("#nova-controls") ?? card.parentElement;
-  card.dataset.dismissed = "true";
-  card.hidden = true;
-  controls?.querySelector<HTMLElement>("[data-save-card-reopen]")?.remove();
-  setStatus("Save form closed. You can continue with Nova without saving a copy.");
-}
-
-function markSaveReady(card: HTMLElement): void {
-  if (!validateSaveCard(card)) return;
-  card.dataset.saveReady = "true";
-  const confirmation = card.querySelector<HTMLElement>("[data-save-card-confirmation]");
-  if (confirmation) {
-    confirmation.hidden = false;
-    confirmation.textContent = "Save details ready. Nova will attach them when your Flight Plan is submitted.";
-  }
-  minimize(card);
-
-  const controls = card.closest<HTMLElement>("#nova-controls");
-  const answerInput = controls?.querySelector<HTMLInputElement>("[data-conversation-form] input[name=answer]");
-  const answerForm = controls?.querySelector<HTMLFormElement>("[data-conversation-form]");
-  if (answerInput?.value.trim() && answerForm) {
-    answerForm.requestSubmit();
-    return;
-  }
-  setStatus("Your save details are ready. Continue with Nova; when the Flight Plan is generated, the requested copy can be attached to your inquiry.");
-}
-
-function enhance(card: HTMLElement): void {
-  if (card.getAttribute(ENHANCED) === "true") return;
-  card.setAttribute(ENHANCED, "true");
-
-  const toolbar = document.createElement("div");
-  toolbar.className = "save-card-toolbar";
-  toolbar.setAttribute("aria-label", "Flight Plan save form controls");
-  toolbar.innerHTML = `
-    <button type="button" class="save-card-icon" data-save-card-minimize aria-label="Minimize save form" title="Minimize">−</button>
-    <button type="button" class="save-card-icon" data-save-card-close aria-label="Close save form" title="Close">×</button>
-  `;
-  card.prepend(toolbar);
-
-  const actions = document.createElement("div");
-  actions.className = "save-card-actions";
-  actions.innerHTML = `
-    <button type="button" class="save-card-submit" data-save-card-submit>Save &amp; Send My Flight Plan</button>
-    <p class="save-card-confirmation" data-save-card-confirmation hidden></p>
-    <p class="save-card-note">Optional — you can minimize or close this and keep talking with Nova.</p>
-  `;
-  card.append(actions);
-
-  toolbar.querySelector<HTMLButtonElement>("[data-save-card-minimize]")?.addEventListener("click", () => minimize(card));
-  toolbar.querySelector<HTMLButtonElement>("[data-save-card-close]")?.addEventListener("click", () => close(card));
-  actions.querySelector<HTMLButtonElement>("[data-save-card-submit]")?.addEventListener("click", () => markSaveReady(card));
-
-  const controls = card.closest<HTMLElement>("#nova-controls");
-  controls?.querySelectorAll<HTMLButtonElement>("[data-conversation-form] button[type=submit]").forEach((button) => {
-    if (/build my flight plan/i.test(button.textContent ?? "")) button.textContent = "Continue to My Plan";
+function wireCard(card: HTMLElement): void {
+  card.querySelector<HTMLButtonElement>("[data-save-card-minimize]")?.addEventListener("click", () => {
+    const bar = ensureReopenBar(card); card.hidden = true; bar.hidden = false; setStatus("Flight Plan save form minimized. Nova is still available.");
   });
+  card.querySelector<HTMLButtonElement>("[data-save-card-close]")?.addEventListener("click", () => {
+    card.parentElement?.querySelector("[data-save-card-reopen]")?.remove(); card.remove(); setStatus("Save form closed. Your Nova conversation remains open.");
+  });
+  card.querySelector<HTMLFormElement>("[data-flight-plan-save-form]")?.addEventListener("submit", (event) => void submitSave(event, card));
 }
 
-function scan(): void {
-  document.querySelectorAll<HTMLElement>(CARD_SELECTOR).forEach(enhance);
+async function submitSave(event: SubmitEvent, card: HTMLElement): Promise<void> {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  if (!form.reportValidity()) return;
+  const data = new FormData(form);
+  if (!data.get("consent")) { setStatus("Please confirm permission to save the Flight Plan."); return; }
+  const identity: ContactIdentity = {
+    firstName: String(data.get("firstName") ?? "").trim(),
+    lastName: String(data.get("lastName") ?? "").trim(),
+    email: String(data.get("email") ?? "").trim(),
+    ...(String(data.get("phone") ?? "").trim() ? { phone: String(data.get("phone") ?? "").trim() } : {}),
+    followUpConsent: Boolean(data.get("followUpConsent")),
+  };
+  form.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input,button").forEach((element) => { element.disabled = true; });
+  setStatus("Saving your Flight Plan with Moonrock…");
+  try {
+    const response = await saveFlightPlan(identity);
+    const confirmation = card.querySelector<HTMLElement>("[data-save-card-confirmation]");
+    if (confirmation) { confirmation.hidden = false; confirmation.textContent = response.answer; }
+    setStatus(response.answer);
+    window.setTimeout(() => { if (!card.isConnected) return; const bar = ensureReopenBar(card); card.hidden = true; bar.hidden = false; bar.textContent = "Flight Plan Saved"; }, 900);
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Moonrock could not save the Flight Plan right now.");
+    form.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input,button").forEach((element) => { element.disabled = false; });
+  }
 }
 
-scan();
-new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
+window.addEventListener("nova:flight-plan", (event) => {
+  latestPlan = (event as CustomEvent<FlightPlan>).detail;
+  window.setTimeout(renderCard, 0);
+});

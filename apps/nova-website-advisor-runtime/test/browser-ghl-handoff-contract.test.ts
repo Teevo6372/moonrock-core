@@ -1,39 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { startNovaDiscovery, submitNovaDiscoveryAnswer } from "../src/discovery-api-contract.js";
 
-describe("browser GHL handoff discovery contract", () => {
-  it("marks only the last required question as the identity handoff boundary", () => {
+describe("browser discovery and Flight Plan save boundary", () => {
+  it("never makes identity a discovery requirement and produces a preliminary plan by four meaningful answers", () => {
     let current = startNovaDiscovery("existing_business");
-    expect(current.response.progress.requiredRemaining).toBe(6);
+    expect(current.response.completed).toBe(false);
     expect(current.response.nextQuestion?.isFinalRequired).toBe(false);
 
-    const answers: Array<[string, unknown]> = [
-      ["businessName", "Mission 20 Browser Test"],
+    const answers: Array<["businessName" | "industry" | "businessChallenges" | "monthlyLeads", unknown]> = [
+      ["businessName", "Mission 46 Browser Test"],
       ["industry", "Home Services"],
+      ["businessChallenges", "We miss calls and follow-up gets delayed when the team is in the field."],
       ["monthlyLeads", 40],
-      ["appointmentsNeedManualScheduling", true],
-      ["estimatesNeedManualFollowUp", true],
-      ["repetitiveSupportLoad", "medium"],
-      ["reviewRequestProcess", "manual"],
-      ["requestedCustomIntegrations", 0],
-      ["expectedVoiceMinutesPerMonth", 240],
-      ["missedCallsPerMonth", 0],
-      ["medianLeadResponseMinutes", 18],
     ];
 
-    for (const [field, value] of answers) {
-      current = submitNovaDiscoveryAnswer(current.state, field as never, value);
+    for (let index = 0; index < answers.length; index += 1) {
+      const [field, value] = answers[index]!;
+      current = submitNovaDiscoveryAnswer(current.state, field, value);
+      expect(current.response.nextQuestion?.isFinalRequired ?? false).toBe(false);
+      if (index < 3) expect(current.response.completed).toBe(false);
     }
 
-    expect(current.response.completed).toBe(false);
-    expect(current.response.progress.requiredRemaining).toBe(1);
-    expect(current.response.nextQuestion?.field).toBe("dormantCustomerList");
-    expect(current.response.nextQuestion?.required).toBe(true);
-    expect(current.response.nextQuestion?.isFinalRequired).toBe(true);
-
-    current = submitNovaDiscoveryAnswer(current.state, "dormantCustomerList", true);
     expect(current.response.completed).toBe(true);
     expect(current.response.progress.requiredRemaining).toBe(0);
     expect(current.response.nextQuestion).toBeUndefined();
+    expect(current.response.result?.flightPlan.status).toBe("preliminary");
   });
 });
