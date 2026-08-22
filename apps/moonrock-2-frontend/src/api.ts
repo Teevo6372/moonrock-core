@@ -100,7 +100,7 @@ export async function startDiscovery(sessionId: string, path: BusinessPath): Pro
   return publish(response);
 }
 
-export async function answerDiscovery(sessionId: string, field: string, value: string | number | boolean): Promise<DiscoveryResponse> {
+export async function answerDiscovery(sessionId: string, field: string, value: string | number | boolean, _identity?: ContactIdentity): Promise<DiscoveryResponse> {
   const effectiveSessionId = activeDiscoverySessionId || sessionId;
   const response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(effectiveSessionId)}/answers`, { field, value, visitorId: getOrCreateVisitorId() });
   if (activeDiscoveryPath) saveConversation(effectiveSessionId, activeDiscoveryPath, response, { field, value });
@@ -110,7 +110,9 @@ export async function answerDiscovery(sessionId: string, field: string, value: s
 export async function askNova(question: string): Promise<NovaConversationTurn> {
   if (!activeDiscoverySessionId) throw new Error("Nova's discovery session is not active.");
   const envelope = await post<NovaConversationEnvelope>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question, visitorId: getOrCreateVisitorId() });
-  const turn: NovaConversationTurn = envelope.conversationTurn ?? { answer: envelope.answer, mode: envelope.mode, intent: envelope.intent };
+  const turn: NovaConversationTurn = envelope.conversationTurn
+    ? { ...envelope.conversationTurn, ...(envelope.humanHandoff ? { humanHandoff: envelope.humanHandoff } : {}) }
+    : { answer: envelope.answer, mode: envelope.mode, intent: envelope.intent, ...(envelope.humanHandoff ? { humanHandoff: envelope.humanHandoff } : {}) };
   appendConversationTurn(question, turn.answer);
   if (envelope.completed !== undefined && envelope.progress && envelope.view && envelope.progressiveFlightPlan) {
     const activePath = activeDiscoveryPath;
