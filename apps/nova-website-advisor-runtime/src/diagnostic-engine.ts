@@ -114,7 +114,8 @@ function chooseOffer(findings: BottleneckFinding[]): AiEmployeeId {
   const ids = new Set(findings.map((finding) => finding.id));
   if (ids.has("multi_department")) return "ai_workforce";
   const frontOfficeCount = [...ids].filter((id) => FRONT_OFFICE_BOTTLENECKS.has(id)).length;
-  if (frontOfficeCount >= 3) return "front_office";
+  const crossesPhoneAndDigitalResponse = ids.has("missed_calls") && (ids.has("slow_lead_response") || ids.has("lead_capture") || ids.has("lead_qualification"));
+  if (frontOfficeCount >= 3 || crossesPhoneAndDigitalResponse) return "front_office";
   if (ids.has("missed_calls") || ids.has("appointment_booking")) return "receptionist";
   if (ids.has("estimate_follow_up") || ids.has("reactivation")) return "sales_follow_up";
   if (ids.has("slow_lead_response") || ids.has("lead_capture") || ids.has("lead_qualification")) return "lead_response";
