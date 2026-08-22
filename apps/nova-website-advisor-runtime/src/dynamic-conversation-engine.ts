@@ -87,9 +87,27 @@ function guidancePrompt(guidance?: NovaConversationGuidance): string {
   return `\n\nTURN GUIDANCE: Current journey stage: ${stage.stage}. ${stage.transition}`;
 }
 
+function completedPlanFallback(state: DiscoverySessionState, question: string): NovaConversationTurn | undefined {
+  if (!state.completed) return undefined;
+  const answers = state.answers as DiagnosticInput;
+  const diagnostic = diagnoseBusiness(answers);
+  const plan = buildFlightPlan(answers, diagnostic);
+  const q = question.toLowerCase();
+  const business = answers.businessName ? ` for ${answers.businessName}` : "";
+  if (/price|cost|month|setup|fee|what would this cost/.test(q)) {
+    return { mode: "grounded_fallback", intent: "pause_discovery", answer: `The documented recommendation${business} is ${plan.recommendation.offerName} at $${plan.recommendation.monthlyFeeUsd}/month plus $${plan.recommendation.setupFeeUsd} setup. That is the current catalog price for this Flight Plan; I won't invent a discount or different commercial term.` };
+  }
+  if (/implement|implementation|setup|onboard|how long|delivery/.test(q)) {
+    return { mode: "grounded_fallback", intent: "pause_discovery", answer: `Implementation starts by validating the workflow we just mapped, then Moonrock configures the approved customer experience, automation, monitoring, integrations, and escalation rules. The current documented delivery estimate is ${plan.recommendation.estimatedDelivery}. Moonrock handles the underlying vendor stack behind the scenes rather than exposing internal implementation recipes.` };
+  }
+  return undefined;
+}
+
 function groundedFallback(state: DiscoverySessionState, question: string, guidance?: NovaConversationGuidance): NovaConversationTurn {
   const answers = state.answers as Partial<DiagnosticInput>;
   if (isHumanHandoffRequest(question)) return { mode: "grounded_fallback", intent: "human_handoff", answer: "Absolutely. I’ll pause here so we can handle that without making you repeat yourself." };
+  const completed = completedPlanFallback(state, question);
+  if (completed) return completed;
   if (guidance?.resuming) {
     const lastNova = [...(state.conversationHistory ?? [])].reverse().find((turn) => turn.role === "nova")?.text;
     return { mode: "grounded_fallback", intent: "pause_discovery", answer: lastNova ? `Welcome back. I still have where we left off. ${lastNova}` : "Welcome back. I still have the business context we already worked through, so we can continue from there." };
