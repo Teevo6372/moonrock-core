@@ -43,7 +43,7 @@ async function restoreRenderedState(path: string): Promise<void> {
   button.click();
 }
 
-async function handleOptionalSaveConversation(form: HTMLFormElement, input: HTMLInputElement): Promise<void> {
+async function handleOptionalSaveConversation(input: HTMLInputElement): Promise<void> {
   const value = input.value.trim();
   if (!value) return;
   const active = loadActiveConversation();
@@ -103,7 +103,7 @@ document.addEventListener("submit", (event) => {
   if (!input?.value.trim()) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  void handleOptionalSaveConversation(form, input);
+  void handleOptionalSaveConversation(input);
 }, true);
 
 function scan(): void {
