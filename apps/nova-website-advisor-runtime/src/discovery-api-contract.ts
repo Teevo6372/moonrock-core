@@ -22,7 +22,7 @@ function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof re
   const nextQuestion = progress.nextQuestion;
   const requiredRemaining = state.completed ? 0 : getDiscoveryQuestions(state.path, state.answers).filter((question) => question.required && state.answers[question.field] === undefined).length;
   const response: NovaDiscoveryResponse = { path: state.path, completed: state.completed, progress: { answered, requiredRemaining }, progressiveFlightPlan: buildProgressiveFlightPlan(state.answers, state.completed) };
-  if (nextQuestion) response.nextQuestion = { id: nextQuestion.id, field: nextQuestion.field, prompt: nextQuestion.prompt, answerType: nextQuestion.answerType, required: nextQuestion.required, isFinalRequired: nextQuestion.required && requiredRemaining === 1, ...(nextQuestion.helpText ? { helpText: nextQuestion.helpText } : {}), ...(nextQuestion.options ? { options: nextQuestion.options } : {}) };
+  if (nextQuestion) response.nextQuestion = { id: nextQuestion.id, field: nextQuestion.field, prompt: nextQuestion.prompt, answerType: nextQuestion.answerType, required: nextQuestion.required, isFinalRequired: false, ...(nextQuestion.helpText ? { helpText: nextQuestion.helpText } : {}), ...(nextQuestion.options ? { options: nextQuestion.options } : {}) };
   if (progress.diagnostic && progress.flightPlan) response.result = { diagnostic: progress.diagnostic, flightPlan: progress.flightPlan, ghl: mapDiscoveryToGhl(state.answers as DiagnosticInput, progress.diagnostic, progress.flightPlan) };
   return response;
 }
@@ -30,17 +30,8 @@ function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof re
 export function startNovaDiscovery(path: BusinessPath, continuity?: DiscoveryContinuity): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
   const state = createDiscoverySession(path, continuity); const progress = resumeDiscovery(state); return { state, response: toResponse(state, progress) };
 }
-
-export function restoreNovaDiscovery(state: DiscoverySessionState): NovaDiscoveryResponse {
-  const progress = resumeDiscovery(state);
-  return toResponse(progress.state, progress);
-}
-
-export function requestPreliminaryFlightPlan(state: DiscoverySessionState): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
-  const progress = forcePreliminaryFlightPlan(state);
-  return { state: progress.state, response: toResponse(progress.state, progress) };
-}
-
+export function restoreNovaDiscovery(state: DiscoverySessionState): NovaDiscoveryResponse { const progress = resumeDiscovery(state); return toResponse(progress.state, progress); }
+export function requestPreliminaryFlightPlan(state: DiscoverySessionState): { state: DiscoverySessionState; response: NovaDiscoveryResponse } { const progress = forcePreliminaryFlightPlan(state); return { state: progress.state, response: toResponse(progress.state, progress) }; }
 export function submitNovaDiscoveryAnswer(state: DiscoverySessionState, field: keyof DiagnosticInput, value: unknown): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
   const normalized = normalizeDiscoveryAnswer(field, value);
   if (normalized.needsClarification) {
