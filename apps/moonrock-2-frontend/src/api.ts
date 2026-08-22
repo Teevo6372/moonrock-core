@@ -1,7 +1,7 @@
 import "./voice-chat-experience.js";
 import { assertFrontendConfig, config } from "./config.js";
 import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
-import { appendConversationTurn, archiveActiveConversation, consumeResume, getOrCreateVisitorId, initializeVisitorContinuity, previousConversationSummary, saveConversation } from "./visitor-continuity.js";
+import { appendConversationTurn, archiveActiveConversation, consumeResume, getOrCreateVisitorId, initializeVisitorContinuity, migrateConversationSession, previousConversationSummary, saveConversation, updateLastResponse } from "./visitor-continuity.js";
 import type { BusinessPath, ContactIdentity, DiscoveryResponse, HumanHandoffResponse, NovaConversationTurn } from "./types.js";
 
 let activeDiscoverySessionId = "";
@@ -12,6 +12,17 @@ interface DiscoveryResumeEnvelope {
   version: number;
   response: DiscoveryResponse;
 }
+
+interface NovaConversationEnvelope extends NovaConversationTurn {
+  completed?: boolean;
+  progress?: DiscoveryResponse["progress"];
+  view?: DiscoveryResponse["view"];
+  progressiveFlightPlan?: DiscoveryResponse["progressiveFlightPlan"];
+  result?: DiscoveryResponse["result"];
+  conversationTurn?: NovaConversationTurn;
+}
+
+interface SaveFlightPlanResponse { status: string; answer: string; }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   assertFrontendConfig();
@@ -32,20 +43,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 function post<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
-
 function get<T>(path: string): Promise<T> { return request<T>(path); }
 
 function publish(response: DiscoveryResponse): DiscoveryResponse {
   publishProgressiveFlightPlanResponse(response);
+  window.dispatchEvent(new CustomEvent("nova:conversation-state", { detail: response }));
+  if (response.completed && response.result) window.dispatchEvent(new CustomEvent("nova:flight-plan", { detail: response.result.flightPlan }));
   if (response.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: response.humanHandoff }));
   return response;
 }
 
 async function createServerConversation(sessionId: string, path: BusinessPath): Promise<DiscoveryResponse> {
-  const visitorId = getOrCreateVisitorId();
   return post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(sessionId)}/start`, {
     path,
-    visitorId,
+    visitorId: getOrCreateVisitorId(),
     conversationId: sessionId,
     previousConversationSummary: previousConversationSummary(),
   });
@@ -76,7 +87,7 @@ export async function startDiscovery(sessionId: string, path: BusinessPath): Pro
       activeDiscoverySessionId = sessionId;
       activeDiscoveryPath = path;
       const rebuilt = await rehydrateConversation(sessionId, path, resumable.answers);
-      saveConversation(sessionId, path, rebuilt);
+      migrateConversationSession(resumable, sessionId, rebuilt);
       return publish(rebuilt);
     }
   }
@@ -89,25 +100,31 @@ export async function startDiscovery(sessionId: string, path: BusinessPath): Pro
   return publish(response);
 }
 
-export async function answerDiscovery(sessionId: string, field: string, value: string | number | boolean, identity?: ContactIdentity): Promise<DiscoveryResponse> {
+export async function answerDiscovery(sessionId: string, field: string, value: string | number | boolean): Promise<DiscoveryResponse> {
   const effectiveSessionId = activeDiscoverySessionId || sessionId;
-  const response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(effectiveSessionId)}/answers`, {
-    field,
-    value,
-    visitorId: getOrCreateVisitorId(),
-    ...(identity ? { identity } : {}),
-  });
+  const response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(effectiveSessionId)}/answers`, { field, value, visitorId: getOrCreateVisitorId() });
   if (activeDiscoveryPath) saveConversation(effectiveSessionId, activeDiscoveryPath, response, { field, value });
   return publish(response);
 }
 
-export function askNova(question: string): Promise<NovaConversationTurn> {
+export async function askNova(question: string): Promise<NovaConversationTurn> {
+  if (!activeDiscoverySessionId) throw new Error("Nova's discovery session is not active.");
+  const envelope = await post<NovaConversationEnvelope>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question, visitorId: getOrCreateVisitorId() });
+  const turn: NovaConversationTurn = envelope.conversationTurn ?? { answer: envelope.answer, mode: envelope.mode, intent: envelope.intent };
+  appendConversationTurn(question, turn.answer);
+  if (envelope.completed !== undefined && envelope.progress && envelope.view && envelope.progressiveFlightPlan) {
+    const activePath = activeDiscoveryPath;
+    const response = { path: activePath ?? "existing_business", completed: envelope.completed, progress: envelope.progress, view: envelope.view, progressiveFlightPlan: envelope.progressiveFlightPlan, ...(envelope.result ? { result: envelope.result } : {}), conversationTurn: turn } as DiscoveryResponse;
+    updateLastResponse(response);
+    publish(response);
+  }
+  if (turn.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: turn.humanHandoff }));
+  return turn;
+}
+
+export function saveFlightPlan(identity: ContactIdentity): Promise<SaveFlightPlanResponse> {
   if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
-  return post<NovaConversationTurn>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question, visitorId: getOrCreateVisitorId() }).then((turn) => {
-    appendConversationTurn(question, turn.answer);
-    if (turn.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: turn.humanHandoff }));
-    return turn;
-  });
+  return post<SaveFlightPlanResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/save-flight-plan`, { identity, visitorId: getOrCreateVisitorId() });
 }
 
 export function completeHumanHandoff(identity: ContactIdentity, requestText: string): Promise<HumanHandoffResponse> {
