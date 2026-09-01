@@ -27,11 +27,22 @@ export interface SiteChangeExecutionContext {
   assetIds: string[];
 }
 
+export interface SiteRevision {
+  repository: string;
+  branch: string;
+  commitSha: string;
+}
+
+export interface SiteChangeExecutionResult {
+  summary: string;
+  revision: SiteRevision;
+}
+
 export interface SiteChangeExecutor {
   execute(
     request: SiteChangeRequest,
     context: SiteChangeExecutionContext,
-  ): Promise<{ summary: string }>;
+  ): Promise<SiteChangeExecutionResult>;
 }
 
 export interface AssetProvider {
@@ -41,7 +52,7 @@ export interface AssetProvider {
 export interface PreviewDeploymentProvider {
   createPreview(
     request: SiteChangeRequest,
-    execution: { summary: string; assetIds: string[] },
+    execution: SiteChangeExecutionResult & { assetIds: string[] },
   ): Promise<{ previewUrl: string }>;
 }
 

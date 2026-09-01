@@ -7,7 +7,7 @@ import {
   type ClaudeCodeTransport,
   type HiggsfieldTransport,
 } from "./provider-adapters";
-import type { SiteChangeExecutionContext } from "./orchestration";
+import type { SiteChangeExecutionContext, SiteRevision } from "./orchestration";
 import type { SiteChangeRequest } from "./site-change";
 
 const request: SiteChangeRequest = {
@@ -36,6 +36,12 @@ const request: SiteChangeRequest = {
 
 const executionContext: SiteChangeExecutionContext = {
   assetIds: ["asset-1"],
+};
+
+const revision: SiteRevision = {
+  repository: "Teevo6372/moonrock-core",
+  branch: "nova/change-req-200",
+  commitSha: "abc123",
 };
 
 describe("provider adapter contracts", () => {
@@ -68,12 +74,15 @@ describe("provider adapter contracts", () => {
     });
   });
 
-  it("executes through an injected Claude Code transport with generated assets", async () => {
-    const execute = vi.fn().mockResolvedValue({ summary: "updated hero" });
+  it("returns the committed source revision from Claude Code execution", async () => {
+    const execute = vi.fn().mockResolvedValue({ summary: "updated hero", revision });
     const transport: ClaudeCodeTransport = { execute };
     const executor = new ClaudeCodeSiteChangeExecutor(transport);
 
-    await expect(executor.execute(request, executionContext)).resolves.toEqual({ summary: "updated hero" });
+    await expect(executor.execute(request, executionContext)).resolves.toEqual({
+      summary: "updated hero",
+      revision,
+    });
     expect(execute).toHaveBeenCalledOnce();
     expect(execute).toHaveBeenCalledWith(toClaudeCodeChangeTask(request, executionContext));
   });

@@ -3,6 +3,7 @@ import type {
   AssetProvider,
   PreviewDeploymentProvider,
   SiteChangeExecutor,
+  SiteRevision,
 } from "./orchestration";
 import { runPreviewWorkflow } from "./preview-workflow";
 import type { SiteChangeRequest } from "./site-change";
@@ -28,9 +29,15 @@ function request(overrides: Partial<SiteChangeRequest> = {}): SiteChangeRequest 
   };
 }
 
+const revision: SiteRevision = {
+  repository: "Teevo6372/moonrock-core",
+  branch: "nova/change-req-300",
+  commitSha: "def456",
+};
+
 function dependencies() {
   const createAssets = vi.fn().mockResolvedValue({ assetIds: ["asset-1"] });
-  const execute = vi.fn().mockResolvedValue({ summary: "updated site" });
+  const execute = vi.fn().mockResolvedValue({ summary: "updated site", revision });
   const createPreview = vi.fn().mockResolvedValue({ previewUrl: "https://preview.example.test/req-300" });
 
   const assetProvider: AssetProvider = { createAssets };
@@ -48,7 +55,7 @@ function dependencies() {
 }
 
 describe("non-production preview workflow", () => {
-  it("creates assets, executes the change, and produces a preview", async () => {
+  it("creates assets, executes the change, and produces a preview from the committed revision", async () => {
     const deps = dependencies();
     const siteRequest = request({
       assetRequests: [
@@ -63,6 +70,7 @@ describe("non-production preview workflow", () => {
       status: "preview_ready",
       request: siteRequest,
       previewUrl: "https://preview.example.test/req-300",
+      revision,
       executionSummary: "updated site",
       assetIds: ["asset-1"],
       customerApprovalRequired: false,
@@ -72,6 +80,7 @@ describe("non-production preview workflow", () => {
     expect(deps.execute).toHaveBeenCalledWith(siteRequest, { assetIds: ["asset-1"] });
     expect(deps.createPreview).toHaveBeenCalledWith(siteRequest, {
       summary: "updated site",
+      revision,
       assetIds: ["asset-1"],
     });
   });
