@@ -1,0 +1,29 @@
+name: Nova Managed Site Reference CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/nova-managed-site-reference/**"
+      - ".github/workflows/nova-managed-site-reference-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/nova-managed-site-reference/**"
+      - ".github/workflows/nova-managed-site-reference-ci.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/nova-managed-site-reference
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/nova-managed-site-reference/package-lock.json
+      - run: npm install --package-lock-only
+      - run: npm ci
+      - run: npm run check
