@@ -1,0 +1,26 @@
+{
+  "name": "@moonrock/nova-managed-site-reference",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": ">=22 <27" },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "next": "16.2.11",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}
