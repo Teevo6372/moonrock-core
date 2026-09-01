@@ -1,7 +1,9 @@
 import type {
   AssetProvider,
   SiteChangeExecutionContext,
+  SiteChangeExecutionResult,
   SiteChangeExecutor,
+  SiteRevision,
 } from "./orchestration";
 import type {
   AssetRequest,
@@ -25,6 +27,7 @@ export interface ClaudeCodeChangeTask {
 
 export interface ClaudeCodeChangeResult {
   summary: string;
+  revision: SiteRevision;
 }
 
 export interface ClaudeCodeTransport {
@@ -91,7 +94,7 @@ export class ClaudeCodeSiteChangeExecutor implements SiteChangeExecutor {
   async execute(
     request: SiteChangeRequest,
     context: SiteChangeExecutionContext,
-  ): Promise<{ summary: string }> {
+  ): Promise<SiteChangeExecutionResult> {
     return this.transport.execute(toClaudeCodeChangeTask(request, context));
   }
 }
