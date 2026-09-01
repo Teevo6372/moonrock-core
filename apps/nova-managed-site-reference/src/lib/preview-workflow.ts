@@ -3,6 +3,7 @@ import {
   type AssetProvider,
   type PreviewDeploymentProvider,
   type SiteChangeExecutor,
+  type SiteRevision,
 } from "./orchestration";
 import type { SiteChangeRequest } from "./site-change";
 
@@ -21,6 +22,7 @@ export type PreviewWorkflowResult =
       status: "preview_ready";
       request: SiteChangeRequest;
       previewUrl: string;
+      revision: SiteRevision;
       executionSummary: string;
       assetIds: string[];
       customerApprovalRequired: boolean;
@@ -42,7 +44,7 @@ export async function runPreviewWorkflow(
 
   const execution = await dependencies.executor.execute(request, { assetIds });
   const preview = await dependencies.previewDeployment.createPreview(request, {
-    summary: execution.summary,
+    ...execution,
     assetIds,
   });
 
@@ -50,6 +52,7 @@ export async function runPreviewWorkflow(
     status: "preview_ready",
     request,
     previewUrl: preview.previewUrl,
+    revision: execution.revision,
     executionSummary: execution.summary,
     assetIds,
     customerApprovalRequired: decision.status === "preview_required",
