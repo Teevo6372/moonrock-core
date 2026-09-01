@@ -1,17 +1,15 @@
-import type { PreviewDeploymentProvider } from "./orchestration";
+import type {
+  PreviewDeploymentProvider,
+  SiteChangeExecutionResult,
+  SiteRevision,
+} from "./orchestration";
 import type { SiteChangeRequest } from "./site-change";
-
-export interface PreviewRevision {
-  repository: string;
-  branch: string;
-  commitSha: string;
-}
 
 export interface CloudflarePreviewTask {
   schemaVersion: "1";
   requestId: string;
   siteId: string;
-  revision: PreviewRevision;
+  revision: SiteRevision;
   executionSummary: string;
   assetIds: string[];
   constraints: {
@@ -31,7 +29,7 @@ export interface CloudflarePreviewTransport {
 
 export function toCloudflarePreviewTask(
   request: SiteChangeRequest,
-  execution: { summary: string; assetIds: string[]; revision: PreviewRevision },
+  execution: SiteChangeExecutionResult & { assetIds: string[] },
 ): CloudflarePreviewTask {
   return {
     schemaVersion: "1",
@@ -52,7 +50,7 @@ export class CloudflarePagesPreviewDeploymentProvider implements PreviewDeployme
 
   async createPreview(
     request: SiteChangeRequest,
-    execution: { summary: string; assetIds: string[]; revision: PreviewRevision },
+    execution: SiteChangeExecutionResult & { assetIds: string[] },
   ): Promise<{ previewUrl: string }> {
     const result = await this.transport.createPreview(toCloudflarePreviewTask(request, execution));
     return { previewUrl: result.previewUrl };
