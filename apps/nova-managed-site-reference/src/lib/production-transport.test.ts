@@ -128,14 +128,15 @@ describe("git-backed Cloudflare production transport", () => {
     await expect(transport.publish(task)).rejects.toThrow("cloudflare_revision_mismatch");
   });
 
-  it("rejects any transport task that expands production scope into DNS or custom-domain mutation", async () => {
-    const unsafeTask: CloudflareProductionReleaseTask = {
+  it("rejects runtime input that expands production scope into DNS or custom-domain mutation", async () => {
+    const unsafeRuntimeInput = {
       ...task,
       constraints: {
         ...task.constraints,
         dnsMutationAllowed: true,
       },
     };
+    const unsafeTask = unsafeRuntimeInput as unknown as CloudflareProductionReleaseTask;
 
     const promoteFastForward = vi.fn();
     const waitForProductionDeployment = vi.fn();
