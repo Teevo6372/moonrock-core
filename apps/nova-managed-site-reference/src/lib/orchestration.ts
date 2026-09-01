@@ -23,17 +23,26 @@ export interface SiteChangeInterpreter {
   interpret(message: string): Promise<ParsedSiteChange>;
 }
 
+export interface SiteChangeExecutionContext {
+  assetIds: string[];
+}
+
 export interface SiteChangeExecutor {
-  execute(request: SiteChangeRequest): Promise<{ summary: string }>;
+  execute(
+    request: SiteChangeRequest,
+    context: SiteChangeExecutionContext,
+  ): Promise<{ summary: string }>;
 }
 
 export interface AssetProvider {
   createAssets(requests: AssetRequest[], request: SiteChangeRequest): Promise<{ assetIds: string[] }>;
 }
 
-export interface DeploymentProvider {
-  createPreview(request: SiteChangeRequest): Promise<{ previewUrl: string }>;
-  deploy(request: SiteChangeRequest): Promise<{ deploymentUrl: string }>;
+export interface PreviewDeploymentProvider {
+  createPreview(
+    request: SiteChangeRequest,
+    execution: { summary: string; assetIds: string[] },
+  ): Promise<{ previewUrl: string }>;
 }
 
 export type OrchestrationDecision =
