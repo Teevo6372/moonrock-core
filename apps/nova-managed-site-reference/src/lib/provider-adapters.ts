@@ -1,5 +1,6 @@
 import type {
   AssetProvider,
+  SiteChangeExecutionContext,
   SiteChangeExecutor,
 } from "./orchestration";
 import type {
@@ -14,6 +15,7 @@ export interface ClaudeCodeChangeTask {
   siteId: string;
   intent: string;
   requestedChanges: RequestedChange[];
+  assetIds: string[];
   constraints: {
     repositoryIsSourceOfTruth: true;
     requireValidation: true;
@@ -48,13 +50,17 @@ export interface HiggsfieldTransport {
   generate(task: HiggsfieldAssetTask): Promise<HiggsfieldAssetResult>;
 }
 
-export function toClaudeCodeChangeTask(request: SiteChangeRequest): ClaudeCodeChangeTask {
+export function toClaudeCodeChangeTask(
+  request: SiteChangeRequest,
+  context: SiteChangeExecutionContext,
+): ClaudeCodeChangeTask {
   return {
     schemaVersion: "1",
     requestId: request.id,
     siteId: request.siteId,
     intent: request.intent,
     requestedChanges: request.requestedChanges,
+    assetIds: context.assetIds,
     constraints: {
       repositoryIsSourceOfTruth: true,
       requireValidation: true,
@@ -82,8 +88,11 @@ export function toHiggsfieldAssetTask(
 export class ClaudeCodeSiteChangeExecutor implements SiteChangeExecutor {
   constructor(private readonly transport: ClaudeCodeTransport) {}
 
-  async execute(request: SiteChangeRequest): Promise<{ summary: string }> {
-    return this.transport.execute(toClaudeCodeChangeTask(request));
+  async execute(
+    request: SiteChangeRequest,
+    context: SiteChangeExecutionContext,
+  ): Promise<{ summary: string }> {
+    return this.transport.execute(toClaudeCodeChangeTask(request, context));
   }
 }
 

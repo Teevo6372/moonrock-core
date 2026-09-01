@@ -7,6 +7,7 @@ import {
   type ClaudeCodeTransport,
   type HiggsfieldTransport,
 } from "./provider-adapters";
+import type { SiteChangeExecutionContext } from "./orchestration";
 import type { SiteChangeRequest } from "./site-change";
 
 const request: SiteChangeRequest = {
@@ -33,14 +34,19 @@ const request: SiteChangeRequest = {
   createdAt: "2026-09-01T23:20:00.000Z",
 };
 
+const executionContext: SiteChangeExecutionContext = {
+  assetIds: ["asset-1"],
+};
+
 describe("provider adapter contracts", () => {
-  it("maps the canonical request to a bounded Claude Code task", () => {
-    expect(toClaudeCodeChangeTask(request)).toEqual({
+  it("maps the canonical request and generated assets to a bounded Claude Code task", () => {
+    expect(toClaudeCodeChangeTask(request, executionContext)).toEqual({
       schemaVersion: "1",
       requestId: "req-200",
       siteId: "reference",
       intent: "update_hero",
       requestedChanges: request.requestedChanges,
+      assetIds: ["asset-1"],
       constraints: {
         repositoryIsSourceOfTruth: true,
         requireValidation: true,
@@ -62,14 +68,14 @@ describe("provider adapter contracts", () => {
     });
   });
 
-  it("executes through an injected Claude Code transport", async () => {
+  it("executes through an injected Claude Code transport with generated assets", async () => {
     const execute = vi.fn().mockResolvedValue({ summary: "updated hero" });
     const transport: ClaudeCodeTransport = { execute };
     const executor = new ClaudeCodeSiteChangeExecutor(transport);
 
-    await expect(executor.execute(request)).resolves.toEqual({ summary: "updated hero" });
+    await expect(executor.execute(request, executionContext)).resolves.toEqual({ summary: "updated hero" });
     expect(execute).toHaveBeenCalledOnce();
-    expect(execute).toHaveBeenCalledWith(toClaudeCodeChangeTask(request));
+    expect(execute).toHaveBeenCalledWith(toClaudeCodeChangeTask(request, executionContext));
   });
 
   it("creates assets through an injected Higgsfield transport", async () => {
