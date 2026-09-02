@@ -3,9 +3,10 @@ import {
   createProductionReleaseEvidence,
   type ProductionReleaseEvidence,
 } from "./release-evidence";
-import type {
-  ProductionReleaseResult,
-  ReleaseDecision,
+import {
+  isReleaseBlockedDecision,
+  type ProductionReleaseResult,
+  type ReleaseDecision,
 } from "./release-gate";
 import {
   HttpProductionDeploymentVerifier,
@@ -73,7 +74,7 @@ export async function runProductionPilot(input: {
     runtime,
   );
 
-  if ("status" in release && release.status === "blocked") {
+  if (isReleaseBlockedDecision(release)) {
     return { status: "blocked", decision: release };
   }
 
