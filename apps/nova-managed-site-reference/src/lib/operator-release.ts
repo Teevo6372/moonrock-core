@@ -35,7 +35,9 @@ export interface OperatorReleaseRuntime {
   sleep?: Sleep;
 }
 
-function requireEnvironmentValue(environment: NodeJS.ProcessEnv, name: string): string {
+export type OperatorEnvironmentSource = Readonly<Record<string, string | undefined>>;
+
+function requireEnvironmentValue(environment: OperatorEnvironmentSource, name: string): string {
   const value = environment[name]?.trim();
   if (!value) {
     throw new Error(`operator_release_env_missing:${name}`);
@@ -44,7 +46,7 @@ function requireEnvironmentValue(environment: NodeJS.ProcessEnv, name: string): 
 }
 
 export function readOperatorReleaseEnvironment(
-  environment: NodeJS.ProcessEnv,
+  environment: OperatorEnvironmentSource,
 ): OperatorReleaseEnvironment {
   return {
     githubToken: requireEnvironmentValue(environment, "MOONROCK_GITHUB_TOKEN"),
