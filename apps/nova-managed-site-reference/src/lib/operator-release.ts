@@ -11,8 +11,8 @@ import {
   publishAuthorizedRelease,
   type ProductionReleaseResult,
   type ReleaseAuthorization,
+  type ReleaseBlockedDecision,
   type ReleaseCandidate,
-  type ReleaseDecision,
 } from "./release-gate";
 
 export interface OperatorReleaseEnvelope {
@@ -105,7 +105,7 @@ export async function runOperatorProductionRelease(
   envelope: OperatorReleaseEnvelope,
   environment: OperatorReleaseEnvironment,
   runtime: OperatorReleaseRuntime = {},
-): Promise<ProductionReleaseResult | ReleaseDecision> {
+): Promise<ProductionReleaseResult | ReleaseBlockedDecision> {
   const promoter = new GitHubApiProductionBranchPromoter(
     { token: environment.githubToken },
     runtime.githubFetch,
