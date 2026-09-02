@@ -54,6 +54,8 @@ export type ReleaseDecision =
       reason: ReleaseBlockReason;
     };
 
+export type ReleaseBlockedDecision = Extract<ReleaseDecision, { status: "blocked" }>;
+
 export function toReleaseCandidate(result: PreviewWorkflowResult): ReleaseCandidate | null {
   if (result.status !== "preview_ready") {
     return null;
@@ -123,7 +125,7 @@ export async function publishAuthorizedRelease(
   candidate: ReleaseCandidate,
   provider: ProductionReleaseProvider,
   authorization?: ReleaseAuthorization,
-): Promise<ProductionReleaseResult | ReleaseDecision> {
+): Promise<ProductionReleaseResult | ReleaseBlockedDecision> {
   const decision = decideProductionRelease(candidate, authorization);
 
   if (decision.status === "blocked") {
