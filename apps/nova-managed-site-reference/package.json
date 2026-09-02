@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "release:operator": "tsx src/operator-release.ts",
+    "rollback:operator": "tsx src/operator-rollback.ts",
     "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
