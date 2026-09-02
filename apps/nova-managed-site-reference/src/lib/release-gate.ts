@@ -56,6 +56,12 @@ export type ReleaseDecision =
 
 export type ReleaseBlockedDecision = Extract<ReleaseDecision, { status: "blocked" }>;
 
+export function isReleaseBlockedDecision(
+  result: ProductionReleaseResult | ReleaseBlockedDecision,
+): result is ReleaseBlockedDecision {
+  return "status" in result && result.status === "blocked";
+}
+
 export function toReleaseCandidate(result: PreviewWorkflowResult): ReleaseCandidate | null {
   if (result.status !== "preview_ready") {
     return null;
