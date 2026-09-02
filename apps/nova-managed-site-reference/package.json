@@ -11,6 +11,7 @@
     "test": "vitest run",
     "release:operator": "tsx src/operator-release.ts",
     "rollback:operator": "tsx src/operator-rollback.ts",
+    "pilot:production": "tsx src/production-pilot.ts",
     "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
