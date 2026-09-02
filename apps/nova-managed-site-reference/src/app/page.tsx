@@ -3,6 +3,7 @@ import { business } from "../content/business";
 export default function HomePage() {
   return (
     <main>
+      <span hidden>moonrock-production-pilot-001</span>
       <section className="hero">
         <div className="eyebrow">Nova-managed reference site</div>
         <h1>{business.name}</h1>
