@@ -19,12 +19,18 @@ import type { StreamItem } from "../event-stream.js";
 
 type Variables = { correlationId: string };
 
+export interface AppLiveStatus {
+  mode: "live" | "local-mock";
+  providers: "connected" | "partially-connected" | "disconnected";
+}
+
 export interface AppOptions {
   runtime?: LocalRuntime;
   allowedOrigins?: string[];
   rateLimit?: number;
   bodyLimitBytes?: number;
   baseDir?: string;
+  liveStatus?: AppLiveStatus;
 }
 
 const disclosure = {
@@ -107,8 +113,8 @@ export function createApp(options: AppOptions = {}): {
     return context.json(
       {
         status: ready ? "ready" : "degraded",
-        mode: "local-mock",
-        providers: "disconnected",
+        mode: options.liveStatus?.mode ?? "local-mock",
+        providers: options.liveStatus?.providers ?? "disconnected",
         persistenceMode: runtime.persistence.currentMode,
         knowledgeVersion: runtime.knowledgeVersion,
       },

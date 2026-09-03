@@ -12,7 +12,19 @@ export interface Moonrock2AppOptions extends AppOptions {
 
 export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnType<typeof createApp> {
   const { discoveryRepository = new InMemoryDiscoveryStateRepository(), productionGhl, conversationEngine, ...appOptions } = options;
-  const base = createApp(appOptions);
+  const llmConnected = Boolean(conversationEngine);
+  const ghlConnected = Boolean(productionGhl);
+  const base = createApp({
+    ...appOptions,
+    liveStatus: {
+      mode: llmConnected || ghlConnected ? "live" : "local-mock",
+      providers: llmConnected && ghlConnected
+        ? "connected"
+        : llmConnected || ghlConnected
+          ? "partially-connected"
+          : "disconnected",
+    },
+  });
   base.app.route("/v1/discovery", createDiscoveryRouter(discoveryRepository, {
     ...(productionGhl ? { productionGhl } : {}),
     ...(conversationEngine ? { conversationEngine } : {}),
