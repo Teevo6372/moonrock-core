@@ -51,4 +51,36 @@ describe("Moonrock 2 app", () => {
     const ready = await app.request("/health/ready");
     expect(await ready.json()).toMatchObject({ mode: "live", providers: "partially-connected" });
   });
+
+  it("routes a visitor with no existing website to the website_build tier and produces a brief", async () => {
+    const { app } = createMoonrock2App();
+    const sessionId = "test-website-build-session";
+    await app.request(`http://localhost/v1/discovery/${sessionId}/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: "existing_business" }),
+    });
+
+    async function answer(field: string, value: unknown) {
+      const response = await app.request(`http://localhost/v1/discovery/${sessionId}/answers`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ field, value }),
+      });
+      return response.json() as Promise<{ tier: string; completed: boolean; websiteBuildResult?: { brief: { offerId: string; offerName: string } } }>;
+    }
+
+    await answer("businessName", "Acme Landscaping");
+    await answer("industry", "Landscaping");
+    let latest = await answer("businessChallenges", "We don't have a website at all right now.");
+    expect(latest.tier).toBe("website_build");
+
+    latest = await answer("hasExistingWebsite", false);
+    latest = await answer("websiteScopeNeeded", "multi_page");
+
+    expect(latest.completed).toBe(true);
+    expect(latest.tier).toBe("website_build");
+    expect(latest.websiteBuildResult?.brief.offerId).toBe("growth_site");
+    expect(latest.websiteBuildResult?.brief.offerName).toBe("Growth Site");
+  });
 });

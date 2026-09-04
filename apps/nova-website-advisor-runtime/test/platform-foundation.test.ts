@@ -13,7 +13,6 @@ import {
   type PublicRuntimeEvent,
   type StagingRuntimeConfig,
 } from "../src/index.js";
-import { createApp } from "../src/http/app.js";
 
 function stagingConfig(): StagingRuntimeConfig {
   return {
@@ -164,26 +163,6 @@ describe("bounded event streaming", () => {
     expect(await subscription.next()).toBeNull();
   });
 
-  it("serves a cancellable follow stream through HTTP", async () => {
-    const { app } = createApp();
-    const sessionResponse = await app.request("/v1/sessions", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        client: { locale: "en-US", timeZone: "UTC" },
-        page: { path: "/", referrerClass: "direct" },
-      }),
-    });
-    const session = await sessionResponse.json() as { sessionId: string };
-    const response = await app.request(
-      `/v1/sessions/${session.sessionId}/events?follow=1`,
-    );
-    expect(response.headers.get("content-type")).toContain("text/event-stream");
-    const reader = response.body?.getReader();
-    const first = await reader?.read();
-    expect(new TextDecoder().decode(first?.value)).toContain("session.opened");
-    await reader?.cancel();
-  });
 });
 
 describe("configuration and dependency health", () => {

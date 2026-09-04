@@ -166,3 +166,96 @@ export function priceOffer(
     setupFeeUsd: offer.foundingCustomerSetupFeeUsd,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Service tiers beyond AI Employee. Additive only: nothing above this line
+// changes for the ai_employee tier. Digital Products is intentionally not
+// modeled yet (catalog inventory is unvetted); ServiceTier and the
+// classify/dispatch pattern in diagnostic-engine.ts are built so it can be
+// added as a fourth tier later without disruption.
+// ---------------------------------------------------------------------------
+
+export type ServiceTier = "ai_employee" | "website_build" | "ghl_saas";
+
+export type WebsiteBuildId = "starter_site" | "growth_site" | "custom_site";
+
+export interface WebsiteBuildOffer {
+  id: WebsiteBuildId;
+  name: string;
+  setupFeeUsd: number;
+  scopeDescription: string;
+  estimatedDelivery: string;
+  componentLibraryTier: "standard" | "custom";
+}
+
+export const WEBSITE_BUILD_CATALOG: Readonly<Record<WebsiteBuildId, WebsiteBuildOffer>> = {
+  starter_site: {
+    id: "starter_site",
+    name: "Starter Site",
+    setupFeeUsd: 500,
+    scopeDescription: "Single-page/brochure site, up to 5 sections, built from Moonrock's standard component library.",
+    estimatedDelivery: "About 5–7 business days after the brief is confirmed",
+    componentLibraryTier: "standard",
+  },
+  growth_site: {
+    id: "growth_site",
+    name: "Growth Site",
+    setupFeeUsd: 1200,
+    scopeDescription: "Multi-page site (5–10 pages) with a structured business-data model and booking/contact integration.",
+    estimatedDelivery: "About 7–12 business days after the brief is confirmed",
+    componentLibraryTier: "standard",
+  },
+  custom_site: {
+    id: "custom_site",
+    name: "Custom Site",
+    setupFeeUsd: 2500,
+    scopeDescription: "Larger multi-page site with custom sections or integrations beyond the standard component library.",
+    estimatedDelivery: "About 10–15 business days after the brief is confirmed",
+    componentLibraryTier: "custom",
+  },
+};
+
+export type GhlSaasId = "saas_starter" | "saas_growth" | "saas_pro";
+
+export interface GhlSaasOffer {
+  id: GhlSaasId;
+  name: string;
+  monthlyFeeUsd: number;
+  includedSeats: number;
+  includedFeatures: readonly string[];
+}
+
+export const GHL_SAAS_CATALOG: Readonly<Record<GhlSaasId, GhlSaasOffer>> = {
+  saas_starter: {
+    id: "saas_starter",
+    name: "SaaS Starter",
+    monthlyFeeUsd: 97,
+    includedSeats: 1,
+    includedFeatures: [
+      "White-labeled GHL sub-account provisioned under your brand",
+      "Core CRM and pipeline features for your own client base",
+    ],
+  },
+  saas_growth: {
+    id: "saas_growth",
+    name: "SaaS Growth",
+    monthlyFeeUsd: 197,
+    includedSeats: 3,
+    includedFeatures: [
+      "Everything in SaaS Starter",
+      "Automation and workflow templates",
+      "Additional user seats",
+    ],
+  },
+  saas_pro: {
+    id: "saas_pro",
+    name: "SaaS Pro",
+    monthlyFeeUsd: 297,
+    includedSeats: 10,
+    includedFeatures: [
+      "Everything in SaaS Growth",
+      "Full white-label branding",
+      "Highest usage limits and priority provisioning",
+    ],
+  },
+};

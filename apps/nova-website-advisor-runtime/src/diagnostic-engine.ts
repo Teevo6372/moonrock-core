@@ -1,4 +1,12 @@
-import { AI_EMPLOYEE_CATALOG, type AiEmployeeId } from "./ai-employee-catalog.js";
+import {
+  AI_EMPLOYEE_CATALOG,
+  GHL_SAAS_CATALOG,
+  WEBSITE_BUILD_CATALOG,
+  type AiEmployeeId,
+  type GhlSaasId,
+  type ServiceTier,
+  type WebsiteBuildId,
+} from "./ai-employee-catalog.js";
 
 export type BusinessPath = "startup" | "existing_business";
 
@@ -53,6 +61,15 @@ export interface DiagnosticInput {
   requestedCustomIntegrations?: number;
   expectedVoiceMinutesPerMonth?: number;
   riskCategories?: readonly RiskCategory[];
+  // Signals for tier classification (§4 of the service-tier plan). Optional
+  // and unread by diagnoseBusiness/scoreFindings/chooseOffer, so the
+  // ai_employee path is unaffected by these fields existing.
+  hasExistingWebsite?: boolean;
+  websiteScopeNeeded?: "landing_page" | "multi_page" | "ecommerce";
+  websiteMustHaves?: string;
+  hasApprovedBrandAssets?: boolean;
+  isAgencyOrReseller?: boolean;
+  numberOfClientsManaged?: number;
 }
 
 export interface BottleneckFinding { id: BottleneckId; score: number; reason: string; }
@@ -139,4 +156,86 @@ export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
   const recommendationReason = top ? `The strongest opportunities are ${top}. ${offer.name} is the best fit for that combination.` : `${offer.name} provides a practical starting point while Moonrock gathers more operating data.`;
   const opportunityEstimate = estimateOpportunity(input);
   return { path: input.path, bottlenecks, recommendedOfferId, recommendationReason, autonomousCloseAllowed, escalationReasons, ...(opportunityEstimate ? { opportunityEstimate } : {}) };
+}
+
+// ---------------------------------------------------------------------------
+// Tier classification. Fully additive: diagnoseBusiness/scoreFindings/
+// chooseOffer above are untouched. classifyAndDiagnose is a new entry point
+// above diagnoseBusiness, not a replacement for it — existing callers of
+// diagnoseBusiness keep calling it directly for the ai_employee tier.
+// ---------------------------------------------------------------------------
+
+export interface ServiceTierClassification {
+  tier: ServiceTier;
+  confidence: "explicit" | "inferred";
+  reason: string;
+}
+
+const AGENCY_CHALLENGE_PATTERN = /my clients|resell|white.?label|agency/i;
+const AGENCY_INDUSTRY_PATTERN = /agency|marketing|consult/i;
+const NO_WEBSITE_CHALLENGE_PATTERN = /don'?t have a (website|site)|need a (new )?website|no website/i;
+
+export function classifyServiceTier(input: DiagnosticInput): ServiceTierClassification {
+  const challenges = input.businessChallenges ?? "";
+  const industry = input.industry ?? "";
+
+  if (input.isAgencyOrReseller === true) {
+    return { tier: "ghl_saas", confidence: "explicit", reason: "The visitor explicitly identified as an agency or reseller." };
+  }
+  if (AGENCY_CHALLENGE_PATTERN.test(challenges) && AGENCY_INDUSTRY_PATTERN.test(industry)) {
+    return { tier: "ghl_saas", confidence: "inferred", reason: "The stated challenge and industry both point to reselling software to the visitor's own clients." };
+  }
+
+  if (input.hasExistingWebsite === false) {
+    return { tier: "website_build", confidence: "explicit", reason: "The visitor confirmed they do not have a website today." };
+  }
+  if (NO_WEBSITE_CHALLENGE_PATTERN.test(challenges)) {
+    return { tier: "website_build", confidence: "inferred", reason: "The stated challenge describes not having a website." };
+  }
+
+  return { tier: "ai_employee", confidence: "inferred", reason: "No stronger signal for another tier was found; defaulting to the AI Employee bottleneck diagnosis." };
+}
+
+export interface WebsiteBuildDiagnosticResult {
+  tier: "website_build";
+  recommendedOfferId: WebsiteBuildId;
+  recommendationReason: string;
+}
+
+export function diagnoseWebsiteBuild(input: DiagnosticInput): WebsiteBuildDiagnosticResult {
+  const scope = input.websiteScopeNeeded;
+  const recommendedOfferId: WebsiteBuildId = scope === "landing_page" ? "starter_site" : scope === "ecommerce" ? "custom_site" : "growth_site";
+  const offer = WEBSITE_BUILD_CATALOG[recommendedOfferId];
+  const recommendationReason = scope
+    ? `The visitor described a ${scope.replaceAll("_", " ")} scope, which matches ${offer.name}.`
+    : `No specific scope was confirmed yet, so ${offer.name} is the starting recommendation pending the site brief.`;
+  return { tier: "website_build", recommendedOfferId, recommendationReason };
+}
+
+export interface GhlSaasDiagnosticResult {
+  tier: "ghl_saas";
+  recommendedOfferId: GhlSaasId;
+  recommendationReason: string;
+}
+
+export function diagnoseGhlSaas(input: DiagnosticInput): GhlSaasDiagnosticResult {
+  const clients = input.numberOfClientsManaged ?? 0;
+  const recommendedOfferId: GhlSaasId = clients > 20 ? "saas_pro" : clients > 5 ? "saas_growth" : "saas_starter";
+  const offer = GHL_SAAS_CATALOG[recommendedOfferId];
+  const recommendationReason = clients > 0
+    ? `Managing roughly ${clients} clients points to ${offer.name}.`
+    : `No client count was confirmed yet, so ${offer.name} is the starting recommendation.`;
+  return { tier: "ghl_saas", recommendedOfferId, recommendationReason };
+}
+
+export type TieredDiagnosticResult =
+  | (DiagnosticResult & { tier: "ai_employee" })
+  | WebsiteBuildDiagnosticResult
+  | GhlSaasDiagnosticResult;
+
+export function classifyAndDiagnose(input: DiagnosticInput): TieredDiagnosticResult {
+  const { tier } = classifyServiceTier(input);
+  if (tier === "website_build") return diagnoseWebsiteBuild(input);
+  if (tier === "ghl_saas") return diagnoseGhlSaas(input);
+  return { tier: "ai_employee", ...diagnoseBusiness(input) };
 }
