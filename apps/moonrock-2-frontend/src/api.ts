@@ -15,10 +15,13 @@ interface DiscoveryResumeEnvelope {
 
 interface NovaConversationEnvelope extends NovaConversationTurn {
   completed?: boolean;
+  tier?: DiscoveryResponse["tier"];
   progress?: DiscoveryResponse["progress"];
   view?: DiscoveryResponse["view"];
   progressiveFlightPlan?: DiscoveryResponse["progressiveFlightPlan"];
   result?: DiscoveryResponse["result"];
+  websiteBuildResult?: DiscoveryResponse["websiteBuildResult"];
+  ghlSaasResult?: DiscoveryResponse["ghlSaasResult"];
   conversationTurn?: NovaConversationTurn;
 }
 
@@ -49,6 +52,8 @@ function publish(response: DiscoveryResponse): DiscoveryResponse {
   publishProgressiveFlightPlanResponse(response);
   window.dispatchEvent(new CustomEvent("nova:conversation-state", { detail: response }));
   if (response.completed && response.result) window.dispatchEvent(new CustomEvent("nova:flight-plan", { detail: response.result.flightPlan }));
+  if (response.completed && response.websiteBuildResult) window.dispatchEvent(new CustomEvent("nova:website-build-result", { detail: response.websiteBuildResult }));
+  if (response.completed && response.ghlSaasResult) window.dispatchEvent(new CustomEvent("nova:ghl-saas-result", { detail: response.ghlSaasResult }));
   if (response.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: response.humanHandoff }));
   return response;
 }
@@ -116,7 +121,18 @@ export async function askNova(question: string): Promise<NovaConversationTurn> {
   appendConversationTurn(question, turn.answer);
   if (envelope.completed !== undefined && envelope.progress && envelope.view && envelope.progressiveFlightPlan) {
     const activePath = activeDiscoveryPath;
-    const response = { path: activePath ?? "existing_business", completed: envelope.completed, progress: envelope.progress, view: envelope.view, progressiveFlightPlan: envelope.progressiveFlightPlan, ...(envelope.result ? { result: envelope.result } : {}), conversationTurn: turn } as DiscoveryResponse;
+    const response = {
+      path: activePath ?? "existing_business",
+      completed: envelope.completed,
+      ...(envelope.tier ? { tier: envelope.tier } : {}),
+      progress: envelope.progress,
+      view: envelope.view,
+      progressiveFlightPlan: envelope.progressiveFlightPlan,
+      ...(envelope.result ? { result: envelope.result } : {}),
+      ...(envelope.websiteBuildResult ? { websiteBuildResult: envelope.websiteBuildResult } : {}),
+      ...(envelope.ghlSaasResult ? { ghlSaasResult: envelope.ghlSaasResult } : {}),
+      conversationTurn: turn,
+    } as DiscoveryResponse;
     updateLastResponse(response);
     publish(response);
   }

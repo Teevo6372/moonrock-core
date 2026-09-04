@@ -1,7 +1,7 @@
 import "./styles.css";
 import { answerDiscovery, startDiscovery } from "./api.js";
 import { createNovaVisualStage } from "./visual-stage.js";
-import type { BusinessPath, ContactIdentity, DiscoveryQuestion, DiscoveryResponse } from "./types.js";
+import type { BusinessPath, ContactIdentity, DiscoveryQuestion, DiscoveryResponse, GhlSaasResult, WebsiteBuildResult } from "./types.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Moonrock frontend root not found");
@@ -78,6 +78,26 @@ function renderResponse(response: DiscoveryResponse, isOpening = false): void {
     headline.textContent = response.view.headline;
     body.textContent = "I’ll show you what I’m seeing, why it matters, and a few reasonable ways Moonrock could help. You can keep asking me questions after the plan—there’s no pressure to make a decision right now.";
     renderFlightPlan(response);
+    return;
+  }
+
+  if (response.completed && response.websiteBuildResult) {
+    reaction.hidden = false;
+    reaction.textContent = "I’ve got enough to put together a starting brief. This is a direction to react to, not a locked-in scope.";
+    eyebrow.textContent = "NOVA · YOUR SITE BRIEF";
+    headline.textContent = response.websiteBuildResult.brief.offerName;
+    body.textContent = "Here’s the preliminary direction, the included scope, and what’s still worth confirming before build work begins.";
+    renderWebsiteBuildResult(response.websiteBuildResult);
+    return;
+  }
+
+  if (response.completed && response.ghlSaasResult) {
+    reaction.hidden = false;
+    reaction.textContent = "I’ve got enough for a starting recommendation on your white-label setup.";
+    eyebrow.textContent = "NOVA · YOUR RECOMMENDATION";
+    headline.textContent = response.ghlSaasResult.offerName;
+    body.textContent = "This is a starting point based on what you’ve told me—we can size it up or down once Moonrock confirms your client count and needs.";
+    renderGhlSaasResult(response.ghlSaasResult);
     return;
   }
 
@@ -335,6 +355,13 @@ function renderFlightPlan(response: DiscoveryResponse): void {
       <p>This Flight Plan is a starting recommendation, not a judgment on how you run the business. Moonrock would validate the workflow with you before changing anything. The goal is to use reliable automation, monitoring, and AI-assisted customer handling where it removes repetitive work or protects opportunities—while keeping human judgment where it matters.</p>
     </div>
     <p class="disclaimer">${escapeHtml(opportunity?.disclaimer ?? flightPlan.disclosures[0] ?? "")}</p>
+    ${renderNextStepsSection()}
+  `;
+  wireResultCardInteractions();
+}
+
+function renderNextStepsSection(): string {
+  return `
     <section class="next-steps" aria-labelledby="next-steps-title">
       <div class="result-kicker">KEEP EXPLORING</div>
       <h4 id="next-steps-title">You don’t have to decide anything right now.</h4>
@@ -351,9 +378,10 @@ function renderFlightPlan(response: DiscoveryResponse): void {
         <input id="post-plan-input" type="text" placeholder="Ask Nova another question…" autocomplete="off">
         <button type="submit">Ask Nova</button>
       </form>
-    </section>
-  `;
+    </section>`;
+}
 
+function wireResultCardInteractions(): void {
   result.querySelectorAll<HTMLButtonElement>("[data-resource]").forEach((button) => {
     button.addEventListener("click", () => answerResourceQuestion(button.dataset.resource ?? ""));
   });
@@ -362,6 +390,48 @@ function renderFlightPlan(response: DiscoveryResponse): void {
     const input = result.querySelector<HTMLInputElement>("#post-plan-input");
     if (input?.value.trim()) answerOpenQuestion(input.value.trim());
   });
+}
+
+function renderWebsiteBuildResult(websiteBuildResult: WebsiteBuildResult): void {
+  const brief = websiteBuildResult.brief;
+  controls.innerHTML = "";
+  result.hidden = false;
+  result.innerHTML = `
+    <div class="result-kicker">NOVA'S RECOMMENDATION</div>
+    <h3>${escapeHtml(brief.offerName)}</h3>
+    <p>${escapeHtml(brief.recommendationReason)}</p>
+    <div class="price-row"><strong>$${brief.setupFeeUsd.toLocaleString()}</strong><span>one-time setup</span></div>
+    <div class="plan-guidance">
+      <h4>What's included</h4>
+      <p>${escapeHtml(brief.scopeDescription)}</p>
+    </div>
+    <div class="bottlenecks">
+      <h4>Estimated delivery</h4>
+      <div class="bottleneck"><span>${escapeHtml(brief.estimatedDelivery)}</span></div>
+    </div>
+    ${brief.assumptionsToConfirm.length ? `<div class="plan-guidance"><h4>Still to confirm</h4><p>${brief.assumptionsToConfirm.map(escapeHtml).join(" · ")}</p></div>` : ""}
+    <p class="disclaimer">${escapeHtml(brief.disclosures[0] ?? "")}</p>
+    ${renderNextStepsSection()}
+  `;
+  wireResultCardInteractions();
+}
+
+function renderGhlSaasResult(ghlSaasResult: GhlSaasResult): void {
+  controls.innerHTML = "";
+  result.hidden = false;
+  result.innerHTML = `
+    <div class="result-kicker">NOVA'S RECOMMENDATION</div>
+    <h3>${escapeHtml(ghlSaasResult.offerName)}</h3>
+    <p>${escapeHtml(ghlSaasResult.recommendationReason)}</p>
+    <div class="price-row"><strong>$${ghlSaasResult.monthlyFeeUsd}/mo</strong><span>${ghlSaasResult.includedSeats} seat${ghlSaasResult.includedSeats === 1 ? "" : "s"} included</span></div>
+    <div class="bottlenecks"><h4>What's included</h4>${ghlSaasResult.includedFeatures.map((feature) => `<div class="bottleneck"><span>${escapeHtml(feature)}</span></div>`).join("")}</div>
+    <div class="plan-guidance">
+      <h4>What this means</h4>
+      <p>This is a starting recommendation for reselling white-labeled software to your own clients. Moonrock would confirm your client count and branding needs before provisioning anything.</p>
+    </div>
+    ${renderNextStepsSection()}
+  `;
+  wireResultCardInteractions();
 }
 
 function answerResourceQuestion(topic: string): void {

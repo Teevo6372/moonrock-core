@@ -215,6 +215,10 @@ export function diagnoseWebsiteBuild(input: DiagnosticInput): WebsiteBuildDiagno
 export interface GhlSaasDiagnosticResult {
   tier: "ghl_saas";
   recommendedOfferId: GhlSaasId;
+  offerName: string;
+  monthlyFeeUsd: number;
+  includedSeats: number;
+  includedFeatures: readonly string[];
   recommendationReason: string;
 }
 
@@ -225,7 +229,15 @@ export function diagnoseGhlSaas(input: DiagnosticInput): GhlSaasDiagnosticResult
   const recommendationReason = clients > 0
     ? `Managing roughly ${clients} clients points to ${offer.name}.`
     : `No client count was confirmed yet, so ${offer.name} is the starting recommendation.`;
-  return { tier: "ghl_saas", recommendedOfferId, recommendationReason };
+  return {
+    tier: "ghl_saas",
+    recommendedOfferId,
+    offerName: offer.name,
+    monthlyFeeUsd: offer.monthlyFeeUsd,
+    includedSeats: offer.includedSeats,
+    includedFeatures: offer.includedFeatures,
+    recommendationReason,
+  };
 }
 
 export type TieredDiagnosticResult =

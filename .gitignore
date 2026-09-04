@@ -36,3 +36,4 @@ build/
 # Python (future use)
 __pycache__/
 *.pyc.wrangler/
+*.tsbuildinfo
