@@ -16,6 +16,8 @@ const BOOLEAN_FIELDS = new Set<keyof DiagnosticInput>([
   "estimatesNeedManualFollowUp",
   "dormantCustomerList",
   "founderHandlesMostAdmin",
+  "hasExistingWebsite",
+  "hasApprovedBrandAssets",
 ]);
 
 export interface NormalizedDiscoveryAnswer {
@@ -77,6 +79,8 @@ function clarificationFor(field: keyof DiagnosticInput): string {
     estimatesNeedManualFollowUp: "For quotes and qualified leads specifically: does somebody usually have to remember the follow-up, or is that already handled consistently without manual effort?",
     dormantCustomerList: "On old leads and past customers specifically: do you have a list you could realistically follow up with, or not really?",
     founderHandlesMostAdmin: "At launch specifically: will most calls, scheduling, follow-up, and customer admin land on you, or will someone else already own a good share of that?",
+    hasExistingWebsite: "Just to confirm: do you already have a website live today, or would this be a brand new site?",
+    hasApprovedBrandAssets: "On brand assets specifically: do you already have an approved logo and colors ready to use, or would that need to be created?",
     monthlyLeads: "No problem—give me a rough range instead. Are we talking a handful of inquiries a month, a few dozen, or hundreds?",
     missedCallsPerMonth: "A rough pattern is enough. On a typical week, would you say you miss none, a couple, or quite a few calls?",
     averageJobValueUsd: "An estimate is fine. What would you call a typical sale or job—hundreds, a few thousand, or more?",
@@ -106,6 +110,19 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
     return value === undefined
       ? { value: raw, interpreted: false, needsClarification: true, clarification: clarificationFor(field) }
       : { value, interpreted: true, note: text };
+  }
+
+  if (field === "websiteScopeNeeded") {
+    const value = /e.?commerce|online store|sell (products|stuff|items)|shopping cart|checkout/i.test(text)
+      ? "ecommerce"
+      : /landing page|single page|one.?pager|just one page/i.test(text)
+        ? "landing_page"
+        : /multi.?page|several pages|\d+\s*(to|-|–)\s*\d+\s*pages?|\bpages?\b/i.test(text)
+          ? "multi_page"
+          : undefined;
+    return value
+      ? { value, interpreted: true, note: text }
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "Roughly how many pages or sections are we talking about — a single landing page, a handful of pages, or something with online sales/checkout?" };
   }
 
   if (field === "repetitiveSupportLoad") {

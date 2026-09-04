@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
 import { classifyServiceTier, diagnoseGhlSaas, diagnoseWebsiteBuild, type DiagnosticInput } from "../src/diagnostic-engine.js";
+import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
 
 function input(overrides: Partial<DiagnosticInput> = {}): DiagnosticInput {
@@ -72,6 +73,16 @@ describe("diagnoseGhlSaas", () => {
     expect(diagnoseGhlSaas(input({ numberOfClientsManaged: 12 })).recommendedOfferId).toBe("saas_growth");
   });
 
+  it("resolves the full catalog offer (name, price, seats, features), not just an id", () => {
+    const result = diagnoseGhlSaas(input({ numberOfClientsManaged: 3 }));
+    expect(result).toMatchObject({
+      offerName: "SaaS Starter",
+      monthlyFeeUsd: 97,
+      includedSeats: 1,
+    });
+    expect(result.includedFeatures.length).toBeGreaterThan(0);
+  });
+
   it("recommends saas_pro for a large client count", () => {
     expect(diagnoseGhlSaas(input({ numberOfClientsManaged: 30 })).recommendedOfferId).toBe("saas_pro");
   });
@@ -131,5 +142,37 @@ describe("toWebsiteBuildRequest", () => {
     const request = toWebsiteBuildRequest(brief, "session-789");
     expect(request.assetRequests).toHaveLength(1);
     expect(request.assetRequests?.[0]?.purpose).toBe("brand_assets");
+  });
+});
+
+describe("normalizeDiscoveryAnswer for new service-tier fields", () => {
+  it("coerces free-text 'no' answers to false for hasExistingWebsite", () => {
+    const result = normalizeDiscoveryAnswer("hasExistingWebsite", "No, we don't have a website yet.");
+    expect(result).toMatchObject({ value: false, interpreted: true });
+  });
+
+  it("coerces free-text 'yes' answers to true for hasExistingWebsite", () => {
+    const result = normalizeDiscoveryAnswer("hasExistingWebsite", "Yes, we have one already.");
+    expect(result).toMatchObject({ value: true, interpreted: true });
+  });
+
+  it("asks for clarification when hasExistingWebsite can't be interpreted", () => {
+    const result = normalizeDiscoveryAnswer("hasExistingWebsite", "Maybe, not totally sure.");
+    expect(result.needsClarification).toBe(true);
+  });
+
+  it("coerces multi-page free text to the multi_page enum for websiteScopeNeeded", () => {
+    const result = normalizeDiscoveryAnswer("websiteScopeNeeded", "We'd want a multi-page site, probably 5 to 8 pages.");
+    expect(result).toMatchObject({ value: "multi_page", interpreted: true });
+  });
+
+  it("coerces landing-page free text to the landing_page enum for websiteScopeNeeded", () => {
+    const result = normalizeDiscoveryAnswer("websiteScopeNeeded", "Just a single landing page is fine.");
+    expect(result).toMatchObject({ value: "landing_page", interpreted: true });
+  });
+
+  it("coerces online-store free text to the ecommerce enum for websiteScopeNeeded", () => {
+    const result = normalizeDiscoveryAnswer("websiteScopeNeeded", "We want to sell products online with a shopping cart.");
+    expect(result).toMatchObject({ value: "ecommerce", interpreted: true });
   });
 });

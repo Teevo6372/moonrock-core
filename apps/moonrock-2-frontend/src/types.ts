@@ -1,4 +1,5 @@
 export type BusinessPath = "startup" | "existing_business";
+export type ServiceTier = "ai_employee" | "website_build" | "ghl_saas";
 export type AnswerType = "text" | "number" | "boolean" | "single_select";
 export type NovaVisualState = "idle" | "listening" | "thinking" | "speaking" | "diagnosis" | "recommendation" | "handoff";
 
@@ -44,6 +45,33 @@ export interface FlightPlanResult {
     disclosures: string[];
   };
 }
+export interface WebsiteBuildResult {
+  brief: {
+    offerId: string;
+    offerName: string;
+    setupFeeUsd: number;
+    scopeDescription: string;
+    estimatedDelivery: string;
+    businessName: string | null;
+    hasExistingWebsite: boolean | null;
+    mustHaves: string | null;
+    brandAssetsReady: boolean | null;
+    recommendationReason: string;
+    assumptionsToConfirm: string[];
+    disclosures: string[];
+  };
+}
+
+export interface GhlSaasResult {
+  tier: "ghl_saas";
+  recommendedOfferId: string;
+  offerName: string;
+  monthlyFeeUsd: number;
+  includedSeats: number;
+  includedFeatures: string[];
+  recommendationReason: string;
+}
+
 export interface ProgressiveFlightPlanSignal { id: string; label: string; status: "watching" | "emerging" | "confirmed" | "healthy"; insight: string; }
 export interface ProgressiveFlightPlan { phase: "listening" | "mapping" | "prioritizing" | "ready"; summary: string; signals: ProgressiveFlightPlanSignal[]; nextFocus?: string; }
 export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; humanHandoff?: HumanHandoffPrompt; }
@@ -51,6 +79,7 @@ export interface NovaConversationTurn { answer: string; mode: "grounded_fallback
 export interface DiscoveryResponse {
   path: BusinessPath;
   completed: boolean;
+  tier?: ServiceTier;
   progress: { answered: number; requiredRemaining: number };
   nextQuestion?: DiscoveryQuestion;
   view: DiscoveryView;
@@ -60,5 +89,7 @@ export interface DiscoveryResponse {
   conversationTurn?: NovaConversationTurn;
   humanHandoff?: HumanHandoffPrompt;
   result?: FlightPlanResult;
+  websiteBuildResult?: WebsiteBuildResult;
+  ghlSaasResult?: GhlSaasResult;
   ghlHandoff?: GhlHandoffResult;
 }
