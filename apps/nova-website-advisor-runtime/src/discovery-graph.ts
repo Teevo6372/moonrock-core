@@ -1,3 +1,4 @@
+import type { ServiceTier } from "./ai-employee-catalog.js";
 import type { BusinessPath, DiagnosticInput } from "./diagnostic-engine.js";
 
 export type DiscoveryField = keyof DiagnosticInput;
@@ -57,4 +58,39 @@ export function getNextDiscoveryQuestion(path: BusinessPath, answers: Partial<Di
 
 export function discoveryIsComplete(path: BusinessPath, answers: Partial<DiagnosticInput>): boolean {
   return getDiscoveryQuestions(path, answers).filter((question) => question.required).every((question) => answers[question.field] !== undefined);
+}
+
+// ---------------------------------------------------------------------------
+// Tier-aware question selection. Additive: getDiscoveryQuestions above keeps
+// its exact current signature and behavior for the ai_employee tier and any
+// existing direct caller. GHL White Label SaaS has no bespoke question set —
+// it classifies from the same shared business-identity questions below.
+// ---------------------------------------------------------------------------
+
+const identityQuestions = sharedQuestions.filter((question) =>
+  question.id === "business-name" || question.id === "industry" || question.id === "business-challenges");
+
+const websiteBuildQuestions: DiscoveryQuestion[] = [
+  { id: "has-existing-website", path: "shared", field: "hasExistingWebsite", prompt: "Do you already have a website today, or would this be brand new?", answerType: "boolean", required: true },
+  { id: "website-scope", path: "shared", field: "websiteScopeNeeded", prompt: "Roughly how many pages or sections do you think you'll need?", helpText: "A landing page, a multi-page site, or something with e-commerce is enough for the initial brief.", answerType: "single_select", required: true, options: ["landing_page", "multi_page", "ecommerce"] },
+  { id: "website-must-haves", path: "shared", field: "websiteMustHaves", prompt: "Any must-have pages, integrations, or features I should know about?", answerType: "text", required: false },
+  { id: "website-brand-assets", path: "shared", field: "hasApprovedBrandAssets", prompt: "Do you already have a logo and brand colors ready, or would Higgsfield need to help create some?", answerType: "boolean", required: false },
+];
+
+export function getDiscoveryQuestionsForTier(tier: ServiceTier, path: BusinessPath, answers: Partial<DiagnosticInput> = {}): DiscoveryQuestion[] {
+  if (tier === "website_build") {
+    const withPath = { ...answers, path } as Partial<DiagnosticInput>;
+    return [...identityQuestions, ...websiteBuildQuestions].filter((question) => !question.askWhen || question.askWhen(withPath));
+  }
+  return getDiscoveryQuestions(path, answers);
+}
+
+export function getNextDiscoveryQuestionForTier(tier: ServiceTier, path: BusinessPath, answers: Partial<DiagnosticInput>): DiscoveryQuestion | undefined {
+  const questions = getDiscoveryQuestionsForTier(tier, path, answers);
+  return questions.find((question) => question.required && answers[question.field] === undefined)
+    ?? questions.find((question) => answers[question.field] === undefined);
+}
+
+export function discoveryIsCompleteForTier(tier: ServiceTier, path: BusinessPath, answers: Partial<DiagnosticInput>): boolean {
+  return getDiscoveryQuestionsForTier(tier, path, answers).filter((question) => question.required).every((question) => answers[question.field] !== undefined);
 }

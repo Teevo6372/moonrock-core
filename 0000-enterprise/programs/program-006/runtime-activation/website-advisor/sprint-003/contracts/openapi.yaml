@@ -4,6 +4,13 @@ info:
   version: 1.0.0-draft
   summary: Public Release 1 browser-to-runtime contract
   description: |
+    SUPERSEDED: the /v1/sessions* paths documented here were removed from
+    apps/nova-website-advisor-runtime in the service-tier expansion pass.
+    Production Nova traffic runs through /v1/discovery
+    (see apps/nova-website-advisor-runtime/src/discovery-router.ts and
+    src/discovery-api-contract.ts), which this document does not describe.
+    Retained as a historical sprint-003 artifact; do not treat as current.
+
     Specification only. This contract does not authorize deployment or provider access.
     All external actions are subject to server-side lifecycle, consent, authority,
     schema, rate, and dependency validation.

@@ -1,29 +1,40 @@
-import type { BusinessPath, DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
+import type { ServiceTier } from "./ai-employee-catalog.js";
+import type { BusinessPath, DiagnosticInput, DiagnosticResult, GhlSaasDiagnosticResult } from "./diagnostic-engine.js";
 import type { FlightPlan } from "./flight-plan.js";
-import { getDiscoveryQuestions } from "./discovery-graph.js";
+import { getDiscoveryQuestions, getDiscoveryQuestionsForTier } from "./discovery-graph.js";
 import { applyDiscoveryAnswer, createDiscoverySession, forcePreliminaryFlightPlan, resumeDiscovery, type DiscoveryContinuity, type DiscoverySessionState } from "./discovery-session.js";
 import { mapDiscoveryToGhl, type GhlDiscoveryPayload } from "./ghl-discovery-mapping.js";
 import { normalizeDiscoveryAnswer } from "./conversation-normalizer.js";
 import { buildProgressiveFlightPlan, type ProgressiveFlightPlan } from "./progressive-flight-plan.js";
+import type { WebsiteBuildBrief } from "./website-build.js";
 
 export interface NovaDiscoveryResponse {
   path: BusinessPath;
   completed: boolean;
+  tier: ServiceTier;
   progress: { answered: number; requiredRemaining: number };
   nextQuestion?: { id: string; field: keyof DiagnosticInput; prompt: string; helpText?: string; answerType: string; required: boolean; isFinalRequired: boolean; options?: readonly string[] };
   interpretation?: { field: keyof DiagnosticInput; raw: unknown; normalized: unknown; note?: string };
   clarification?: { field: keyof DiagnosticInput; message: string; originalAnswer: unknown };
   progressiveFlightPlan: ProgressiveFlightPlan;
   result?: { diagnostic: DiagnosticResult; flightPlan: FlightPlan; ghl: GhlDiscoveryPayload };
+  websiteBuildResult?: { brief: WebsiteBuildBrief };
+  ghlSaasResult?: GhlSaasDiagnosticResult;
 }
 
 function toResponse(state: DiscoverySessionState, progress: ReturnType<typeof resumeDiscovery>): NovaDiscoveryResponse {
+  const tier: ServiceTier = state.tier ?? "ai_employee";
   const answered = Object.keys(state.answers).filter((key) => key !== "path").length;
   const nextQuestion = progress.nextQuestion;
-  const requiredRemaining = state.completed ? 0 : getDiscoveryQuestions(state.path, state.answers).filter((question) => question.required && state.answers[question.field] === undefined).length;
-  const response: NovaDiscoveryResponse = { path: state.path, completed: state.completed, progress: { answered, requiredRemaining }, progressiveFlightPlan: buildProgressiveFlightPlan(state.answers, state.completed) };
+  const requiredRemaining = state.completed
+    ? 0
+    : (tier === "website_build" ? getDiscoveryQuestionsForTier(tier, state.path, state.answers) : getDiscoveryQuestions(state.path, state.answers))
+        .filter((question) => question.required && state.answers[question.field] === undefined).length;
+  const response: NovaDiscoveryResponse = { path: state.path, completed: state.completed, tier, progress: { answered, requiredRemaining }, progressiveFlightPlan: buildProgressiveFlightPlan(state.answers, state.completed) };
   if (nextQuestion) response.nextQuestion = { id: nextQuestion.id, field: nextQuestion.field, prompt: nextQuestion.prompt, answerType: nextQuestion.answerType, required: nextQuestion.required, isFinalRequired: false, ...(nextQuestion.helpText ? { helpText: nextQuestion.helpText } : {}), ...(nextQuestion.options ? { options: nextQuestion.options } : {}) };
   if (progress.diagnostic && progress.flightPlan) response.result = { diagnostic: progress.diagnostic, flightPlan: progress.flightPlan, ghl: mapDiscoveryToGhl(state.answers as DiagnosticInput, progress.diagnostic, progress.flightPlan) };
+  if (progress.websiteBuildBrief) response.websiteBuildResult = { brief: progress.websiteBuildBrief };
+  if (progress.ghlSaasResult) response.ghlSaasResult = progress.ghlSaasResult;
   return response;
 }
 

@@ -16,7 +16,6 @@ COPY --from=build /workspace/apps/nova-website-advisor-runtime/package.json ./
 COPY --from=build /workspace/apps/nova-website-advisor-runtime/node_modules ./node_modules
 COPY --from=build /workspace/apps/nova-website-advisor-runtime/dist ./dist
 COPY --from=build /workspace/apps/nova-website-advisor-runtime/fixtures ./fixtures
-COPY --from=build /workspace/apps/nova-website-advisor-runtime/prototype ./prototype
 COPY --from=build /workspace/apps/nova-website-advisor-runtime/migrations ./migrations
 USER node
 EXPOSE 8787

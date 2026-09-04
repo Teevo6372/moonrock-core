@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
-import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery, submitNovaDiscoveryAnswer } from "./discovery-api-contract.js";
+import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery, submitNovaDiscoveryAnswer, type NovaDiscoveryResponse } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
 import { appendConversationExchange, isFlightPlanRequest, type DiscoverySessionState } from "./discovery-session.js";
 import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type NovaConversationEngine, type NovaConversationTurn } from "./dynamic-conversation-engine.js";
@@ -23,6 +23,16 @@ function responseWithView(state: DiscoverySessionState) {
 
 function handoffPrompt(requestText: string) {
   return { status: "contact_required" as const, requestText, message: "Nova paused discovery. Add your contact details and Moonrock can continue from what you've already shared." };
+}
+
+function completionAnswerForTier(response: NovaDiscoveryResponse): string {
+  if (response.websiteBuildResult) {
+    return `I have enough to put together a starting brief. Here's the preliminary direction for ${response.websiteBuildResult.brief.offerName}; anything still unknown is an assumption we can confirm before build work begins.`;
+  }
+  if (response.ghlSaasResult) {
+    return "I have enough to give you a starting recommendation for your white-label setup; anything still unknown is an assumption we can confirm before provisioning.";
+  }
+  return "I have enough to give you a useful starting direction. Here's your Preliminary Flight Plan; anything still unknown is an assumption we can fine-tune after you see the recommendation.";
 }
 
 export function createDiscoveryRouter(repository: DiscoveryStateRepository = new InMemoryDiscoveryStateRepository(), options: DiscoveryRouterOptions = {}): Hono {
@@ -67,7 +77,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const conversationTurn: NovaConversationTurn = result.response.clarification
       ? { answer: result.response.clarification.message, mode: "grounded_fallback", intent: "pause_discovery" }
       : result.response.completed
-        ? { answer: "I have enough to give you a useful starting direction. Here's your Preliminary Flight Plan; anything still unknown is an assumption we can fine-tune after you see the recommendation.", mode: "grounded_fallback", intent: "pause_discovery" }
+        ? { answer: completionAnswerForTier(result.response), mode: "grounded_fallback", intent: "pause_discovery" }
         : await conversationEngine.respond(result.state, rawCustomerText, { progressPercent: view.progressPercent, ...(result.response.nextQuestion ? { nextNeed: { field: String(result.response.nextQuestion.field), prompt: result.response.nextQuestion.prompt } } : {}) });
     const state = appendConversationExchange(result.state, rawCustomerText, conversationTurn.answer);
     try { await repository.save(sessionId, state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
@@ -84,7 +94,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
 
     if (!current.state.completed && isFlightPlanRequest(question)) {
       const result = requestPreliminaryFlightPlan(current.state);
-      const answer = "Absolutely. I'm stopping discovery here and showing you the best Preliminary Flight Plan I can build from what you've already told me.";
+      const answer = `Absolutely. I'm stopping discovery here. ${completionAnswerForTier(result.response)}`;
       const conversationTurn: NovaConversationTurn = { answer, mode: "grounded_fallback", intent: "pause_discovery" };
       const state = appendConversationExchange(result.state, question, answer);
       try { await repository.save(sessionId, state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }

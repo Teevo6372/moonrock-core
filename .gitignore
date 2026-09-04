@@ -35,4 +35,4 @@ build/
 
 # Python (future use)
 __pycache__/
-*.pyc
+*.pyc.wrangler/

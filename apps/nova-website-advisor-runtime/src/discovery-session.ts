@@ -1,7 +1,9 @@
-import type { BusinessPath, DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
-import { diagnoseBusiness } from "./diagnostic-engine.js";
+import type { ServiceTier } from "./ai-employee-catalog.js";
+import type { BusinessPath, DiagnosticInput, DiagnosticResult, GhlSaasDiagnosticResult } from "./diagnostic-engine.js";
+import { classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas } from "./diagnostic-engine.js";
 import { buildFlightPlan, type FlightPlan } from "./flight-plan.js";
-import { discoveryIsComplete, getNextDiscoveryQuestion, type DiscoveryQuestion } from "./discovery-graph.js";
+import { discoveryIsComplete, discoveryIsCompleteForTier, getNextDiscoveryQuestion, getNextDiscoveryQuestionForTier, type DiscoveryQuestion } from "./discovery-graph.js";
+import { buildWebsiteBrief, type WebsiteBuildBrief } from "./website-build.js";
 
 export interface DiscoveryContinuity {
   visitorId: string;
@@ -22,6 +24,7 @@ export interface DiscoverySessionState {
   meaningfulTurns?: number;
   continuity?: DiscoveryContinuity;
   conversationHistory?: DiscoveryConversationTurn[];
+  tier?: ServiceTier;
 }
 
 export interface DiscoveryProgress {
@@ -29,6 +32,8 @@ export interface DiscoveryProgress {
   nextQuestion?: DiscoveryQuestion;
   diagnostic?: DiagnosticResult;
   flightPlan?: FlightPlan;
+  websiteBuildBrief?: WebsiteBuildBrief;
+  ghlSaasResult?: GhlSaasDiagnosticResult;
 }
 
 export const MAX_MEANINGFUL_TURNS_BEFORE_PRELIMINARY_PLAN = 4;
@@ -45,6 +50,13 @@ export function shouldProducePreliminaryPlan(path: BusinessPath, answers: Partia
 }
 
 function completedProgress(state: DiscoverySessionState): DiscoveryProgress {
+  const tier = state.tier ?? classifyServiceTier(state.answers as DiagnosticInput).tier;
+  if (tier === "website_build") {
+    return { state, websiteBuildBrief: buildWebsiteBrief(state.answers as DiagnosticInput) };
+  }
+  if (tier === "ghl_saas") {
+    return { state, ghlSaasResult: diagnoseGhlSaas(state.answers as DiagnosticInput) };
+  }
   const diagnostic = diagnoseBusiness(state.answers as DiagnosticInput);
   return { state, diagnostic, flightPlan: buildFlightPlan(state.answers as DiagnosticInput, diagnostic) };
 }
@@ -72,8 +84,23 @@ export function forcePreliminaryFlightPlan(state: DiscoverySessionState): Discov
 export function applyDiscoveryAnswer(state: DiscoverySessionState, field: keyof DiagnosticInput, value: unknown): DiscoveryProgress {
   const answers = { ...state.answers, [field]: value, path: state.path } as Partial<DiagnosticInput>;
   const meaningfulTurns = (state.meaningfulTurns ?? 0) + 1;
+  const tier = classifyServiceTier(answers as DiagnosticInput).tier;
+
+  if (tier === "website_build") {
+    const completed = discoveryIsCompleteForTier(tier, state.path, answers);
+    const nextState: DiscoverySessionState = { ...state, answers, completed, meaningfulTurns, tier };
+    if (!completed) {
+      const nextQuestion = getNextDiscoveryQuestionForTier(tier, state.path, answers);
+      return nextQuestion ? { state: nextState, nextQuestion } : { state: nextState };
+    }
+    return completedProgress(nextState);
+  }
+
+  // ghl_saas classifies from the same shared answers as ai_employee and has
+  // no bespoke question set, so it follows the identical discovery flow
+  // below; only completedProgress's tier dispatch changes the result shape.
   const completed = shouldProducePreliminaryPlan(state.path, answers, meaningfulTurns);
-  const nextState: DiscoverySessionState = { ...state, answers, completed, meaningfulTurns };
+  const nextState: DiscoverySessionState = { ...state, answers, completed, meaningfulTurns, tier };
 
   if (!completed) {
     const nextQuestion = getNextDiscoveryQuestion(state.path, answers);
@@ -83,8 +110,18 @@ export function applyDiscoveryAnswer(state: DiscoverySessionState, field: keyof 
 }
 
 export function resumeDiscovery(state: DiscoverySessionState): DiscoveryProgress {
+  const tier = state.tier ?? classifyServiceTier(state.answers as DiagnosticInput).tier;
+
+  if (tier === "website_build") {
+    const completed = discoveryIsCompleteForTier(tier, state.path, state.answers);
+    const resumedState = completed === state.completed && tier === state.tier ? state : { ...state, completed, tier };
+    if (completed) return completedProgress(resumedState);
+    const nextQuestion = getNextDiscoveryQuestionForTier(tier, state.path, state.answers);
+    return nextQuestion ? { state: resumedState, nextQuestion } : { state: resumedState };
+  }
+
   const completed = shouldProducePreliminaryPlan(state.path, state.answers, state.meaningfulTurns ?? 0);
-  const resumedState = completed === state.completed ? state : { ...state, completed };
+  const resumedState = completed === state.completed && tier === state.tier ? state : { ...state, completed, tier };
   if (completed) return completedProgress(resumedState);
   const nextQuestion = getNextDiscoveryQuestion(state.path, state.answers);
   return nextQuestion ? { state: resumedState, nextQuestion } : { state: resumedState };

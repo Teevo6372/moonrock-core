@@ -10,6 +10,8 @@ architecture_owner: To Be Assigned Before Implementation
 last_updated: 2026-07-30
 ---
 
+> **SUPERSEDED:** the `/v1/sessions*` API documented in this sprint-002 draft was removed from `apps/nova-website-advisor-runtime` in the service-tier expansion pass. Production Nova traffic runs through `/v1/discovery` (`src/discovery-router.ts`, `src/discovery-api-contract.ts`). Retained as a historical artifact; do not treat as current.
+
 # Nova Website Advisor Technical Architecture
 
 ## 1. Purpose

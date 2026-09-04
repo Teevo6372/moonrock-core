@@ -16,6 +16,7 @@ describe("toImmersiveNovaView", () => {
     const response: NovaDiscoveryResponse = {
       path: "startup",
       completed: false,
+      tier: "ai_employee",
       progress: { answered: 0, requiredRemaining: 0 },
       progressiveFlightPlan: {
         phase: "listening",
