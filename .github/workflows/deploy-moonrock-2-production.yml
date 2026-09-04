@@ -86,8 +86,8 @@ jobs:
           test -n "$FRONTEND_URL"
 
           frontend_body="$(curl --fail --silent --show-error --location --retry 4 --retry-delay 2 "$FRONTEND_URL/")"
-          if ! printf '%s' "$frontend_body" | grep -q '<title>Moonrock 2.0</title>'; then
-            echo "Smoke failure: deployed frontend did not contain the expected Moonrock 2.0 title." >&2
+          if ! printf '%s' "$frontend_body" | grep -q '<title>Moonrock Marketing</title>'; then
+            echo "Smoke failure: deployed frontend did not contain the expected Moonrock Marketing title." >&2
             exit 1
           fi
 
