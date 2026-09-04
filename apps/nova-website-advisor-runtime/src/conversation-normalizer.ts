@@ -62,7 +62,7 @@ function cadenceToMonthly(text: string, number: number): number {
 
 function booleanFromText(text: string): boolean | undefined {
   if (/\b(no|nope|not really|never|already automated|doesn't|does not|don't|do not)\b/i.test(text)) return false;
-  if (/\b(yes|yeah|yep|usually|mostly|manual|someone|person|we do|i do|depends on me|depends on us)\b/i.test(text)) return true;
+  if (/\b(yes|yeah|yep|usually|mostly|manual|someone|person|we do|i do|depends on me|depends on us|i'?ll handle|i will handle|i'?m handling|i handle|on me|myself|my responsibility|falls? on me|handle (it|most|that|those|these|this|everything))\b/i.test(text)) return true;
   return undefined;
 }
 

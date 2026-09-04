@@ -175,4 +175,15 @@ describe("normalizeDiscoveryAnswer for new service-tier fields", () => {
     const result = normalizeDiscoveryAnswer("websiteScopeNeeded", "We want to sell products online with a shopping cart.");
     expect(result).toMatchObject({ value: "ecommerce", interpreted: true });
   });
+
+  it("coerces 'I'll handle most of those tasks' to true for founderHandlesMostAdmin (regression: previously stuck in a clarification loop)", () => {
+    const result = normalizeDiscoveryAnswer("founderHandlesMostAdmin", "I'll handle most of those tasks.");
+    expect(result).toMatchObject({ value: true, interpreted: true });
+  });
+
+  it("coerces other 'it's on me' phrasings to true for boolean fields", () => {
+    expect(normalizeDiscoveryAnswer("founderHandlesMostAdmin", "That'll fall on me.")).toMatchObject({ value: true, interpreted: true });
+    expect(normalizeDiscoveryAnswer("founderHandlesMostAdmin", "I'm handling all of it myself.")).toMatchObject({ value: true, interpreted: true });
+    expect(normalizeDiscoveryAnswer("founderHandlesMostAdmin", "It's my responsibility for now.")).toMatchObject({ value: true, interpreted: true });
+  });
 });
