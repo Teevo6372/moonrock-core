@@ -1,5 +1,6 @@
 import type { DiscoveryConversationTurn } from "./discovery-session.js";
 import type { NovaConversationGenerator } from "./dynamic-conversation-engine.js";
+import { stripMarkdownArtifacts } from "./text-sanitizer.js";
 
 export interface GroqConversationGeneratorOptions {
   apiKey: string;
@@ -47,7 +48,7 @@ export class GroqConversationGenerator implements NovaConversationGenerator {
       const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null } }> };
       const answer = payload.choices?.[0]?.message?.content?.trim();
       if (!answer) throw new Error("Groq returned an empty response");
-      return answer;
+      return stripMarkdownArtifacts(answer);
     } finally {
       clearTimeout(timeout);
     }
