@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
-import { classifyServiceTier, diagnoseGhlSaas, diagnoseWebsiteBuild, type DiagnosticInput } from "../src/diagnostic-engine.js";
+import { chooseOfferWithinBudget, classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, extractStatedMonthlyBudgetUsd, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
 
@@ -200,5 +200,58 @@ describe("approvedServiceCatalog", () => {
   it("never includes a hallucination-prone third-party platform name that isn't an actual offer", () => {
     const names = approvedServiceCatalog().map((service) => service.name.toLowerCase());
     expect(names.some((name) => name.includes("shopify"))).toBe(false);
+  });
+});
+
+describe("extractStatedMonthlyBudgetUsd", () => {
+  it("extracts a dollar amount stated with '/month' alongside an affordability objection", () => {
+    expect(extractStatedMonthlyBudgetUsd("I'm a small business and can't afford $500.00 per month.")).toBe(500);
+  });
+
+  it("extracts a bare monthly amount without a dollar sign", () => {
+    expect(extractStatedMonthlyBudgetUsd("That's too much, can we do 250 a month instead?")).toBe(250);
+  });
+
+  it("extracts an amount stated right after 'afford' even without a month suffix", () => {
+    expect(extractStatedMonthlyBudgetUsd("Honestly I can only afford $150 right now.")).toBe(150);
+  });
+
+  it("extracts a budget stated as 'my budget is $X'", () => {
+    expect(extractStatedMonthlyBudgetUsd("My budget is $300 for something like this.")).toBe(300);
+  });
+
+  it("does not treat an unrelated dollar amount as a budget ceiling", () => {
+    expect(extractStatedMonthlyBudgetUsd("We do about $12,000 in monthly revenue.")).toBeUndefined();
+  });
+
+  it("does not misfire on ordinary conversation with no budget objection cue", () => {
+    expect(extractStatedMonthlyBudgetUsd("Sounds good, tell me more about the Front Office plan.")).toBeUndefined();
+  });
+});
+
+describe("chooseOfferWithinBudget", () => {
+  it("picks the highest-value offer at or under the stated budget", () => {
+    expect(chooseOfferWithinBudget(200)).toMatchObject({ offerId: "customer_care", fitsWithinBudget: true });
+  });
+
+  it("falls back to the cheapest catalog offer, honestly flagged, when nothing fits", () => {
+    expect(chooseOfferWithinBudget(10)).toMatchObject({ offerId: "reputation_retention", fitsWithinBudget: false, cheapestMonthlyFeeUsd: 149 });
+  });
+});
+
+describe("diagnoseBusiness budget-aware revision", () => {
+  it("overrides the need-based recommendation when it exceeds a stated budget ceiling", () => {
+    const result = diagnoseBusiness({ path: "existing_business", missedCallsPerMonth: 10, medianLeadResponseMinutes: 45 });
+    expect(result.recommendedOfferId).toBe("front_office");
+
+    const budgeted = diagnoseBusiness({ path: "existing_business", missedCallsPerMonth: 10, medianLeadResponseMinutes: 45, budgetCeilingMonthlyUsd: 200 });
+    expect(budgeted.recommendedOfferId).toBe("customer_care");
+    expect(budgeted.recommendationReason).toContain("$200/month budget");
+  });
+
+  it("leaves the need-based recommendation untouched when it already fits the stated budget", () => {
+    const result = diagnoseBusiness({ path: "existing_business", repetitiveSupportLoad: "medium", budgetCeilingMonthlyUsd: 500 });
+    expect(result.recommendedOfferId).toBe("customer_care");
+    expect(result.recommendationReason).not.toContain("budget");
   });
 });

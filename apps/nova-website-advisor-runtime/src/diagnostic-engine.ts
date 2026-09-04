@@ -70,6 +70,10 @@ export interface DiagnosticInput {
   hasApprovedBrandAssets?: boolean;
   isAgencyOrReseller?: boolean;
   numberOfClientsManaged?: number;
+  // Stated post-recommendation budget ceiling (§ budget-aware revision).
+  // Optional and only consulted by diagnoseBusiness's offer selection below;
+  // scoreFindings/chooseOffer/bottleneck logic is unaffected when unset.
+  budgetCeilingMonthlyUsd?: number;
 }
 
 export interface BottleneckFinding { id: BottleneckId; score: number; reason: string; }
@@ -141,9 +145,44 @@ function chooseOffer(findings: BottleneckFinding[]): AiEmployeeId {
   return "front_office";
 }
 
+export interface BudgetFitOffer { offerId: AiEmployeeId; fitsWithinBudget: boolean; cheapestMonthlyFeeUsd: number; }
+
+/** Picks the highest-value catalog offer at or under a stated monthly budget. If nothing fits, returns the cheapest documented offer with fitsWithinBudget:false so callers can be honest about the catalog floor rather than inventing a discount. */
+export function chooseOfferWithinBudget(budgetCeilingUsd: number): BudgetFitOffer {
+  const byPrice = Object.values(AI_EMPLOYEE_CATALOG).slice().sort((a, b) => a.monthlyFeeUsd - b.monthlyFeeUsd);
+  const cheapest = byPrice[0]!;
+  const withinBudget = byPrice.filter((offer) => offer.monthlyFeeUsd <= budgetCeilingUsd);
+  if (withinBudget.length === 0) return { offerId: cheapest.id, fitsWithinBudget: false, cheapestMonthlyFeeUsd: cheapest.monthlyFeeUsd };
+  const best = withinBudget[withinBudget.length - 1]!;
+  return { offerId: best.id, fitsWithinBudget: true, cheapestMonthlyFeeUsd: cheapest.monthlyFeeUsd };
+}
+
+const BUDGET_OBJECTION_CUE = /\bafford|\bbudget|too (?:expensive|much|pricey)|can'?t (?:swing|justify|do)|cheaper|smaller (?:plan|option|package|tier)|tight on (?:cash|budget|money)|out of (?:my|our) (?:price range|budget)/i;
+const MONTHLY_AMOUNT_PATTERN = /\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:\/|\s*(?:a|per)\s*)?\s*(?:month|mo\b|\/mo)/i;
+const AFFORD_AMOUNT_PATTERN = /(?:afford|budget(?:\s+is)?|spend|pay)\D{0,15}?\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)/i;
+
+/** Deterministic (non-LLM) extraction of a stated monthly budget from free text, gated behind a budget-objection cue so an unrelated dollar amount in conversation doesn't get misread as a budget ceiling. */
+export function extractStatedMonthlyBudgetUsd(text: string): number | undefined {
+  if (!BUDGET_OBJECTION_CUE.test(text)) return undefined;
+  const monthly = text.match(MONTHLY_AMOUNT_PATTERN);
+  if (monthly) return Number(monthly[1]!.replace(/,/g, ""));
+  const afford = text.match(AFFORD_AMOUNT_PATTERN);
+  if (afford) return Number(afford[1]!.replace(/,/g, ""));
+  return undefined;
+}
+
 export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
   const bottlenecks = scoreFindings(input);
-  const recommendedOfferId = chooseOffer(bottlenecks);
+  const needBasedOfferId = chooseOffer(bottlenecks);
+  let recommendedOfferId = needBasedOfferId;
+  let budgetNote: string | undefined;
+  if (input.budgetCeilingMonthlyUsd !== undefined && AI_EMPLOYEE_CATALOG[needBasedOfferId].monthlyFeeUsd > input.budgetCeilingMonthlyUsd) {
+    const budgetFit = chooseOfferWithinBudget(input.budgetCeilingMonthlyUsd);
+    recommendedOfferId = budgetFit.offerId;
+    budgetNote = budgetFit.fitsWithinBudget
+      ? `That fits inside a stated $${input.budgetCeilingMonthlyUsd}/month budget.`
+      : `Even Moonrock's most affordable AI Employee option runs $${budgetFit.cheapestMonthlyFeeUsd}/month; that is the published catalog floor, not a discount.`;
+  }
   const offer = AI_EMPLOYEE_CATALOG[recommendedOfferId];
   const escalationReasons: string[] = [];
   const risks = input.riskCategories ?? [];
@@ -153,7 +192,8 @@ export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
   if ((input.expectedVoiceMinutesPerMonth ?? 0) > 5000) escalationReasons.push("High projected voice volume requires usage review.");
   const autonomousCloseAllowed = escalationReasons.length === 0 && offer.autonomousSaleAllowed;
   const top = bottlenecks.slice(0, 3).map((finding) => finding.id.replaceAll("_", " ")).join(", ");
-  const recommendationReason = top ? `The strongest opportunities are ${top}. ${offer.name} is the best fit for that combination.` : `${offer.name} provides a practical starting point while Moonrock gathers more operating data.`;
+  const baseReason = top ? `The strongest opportunities are ${top}. ${offer.name} is the best fit for that combination.` : `${offer.name} provides a practical starting point while Moonrock gathers more operating data.`;
+  const recommendationReason = budgetNote ? `${baseReason} ${budgetNote}` : baseReason;
   const opportunityEstimate = estimateOpportunity(input);
   return { path: input.path, bottlenecks, recommendedOfferId, recommendationReason, autonomousCloseAllowed, escalationReasons, ...(opportunityEstimate ? { opportunityEstimate } : {}) };
 }

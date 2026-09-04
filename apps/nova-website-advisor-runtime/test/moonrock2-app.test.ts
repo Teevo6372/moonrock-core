@@ -83,4 +83,74 @@ describe("Moonrock 2 app", () => {
     expect(latest.websiteBuildResult?.brief.offerId).toBe("growth_site");
     expect(latest.websiteBuildResult?.brief.offerName).toBe("Growth Site");
   });
+
+  it("reprices the completed Flight Plan when the visitor states a monthly budget objection in free-text conversation (regression: previously Nova could offer to reprice but never actually could)", async () => {
+    const { app } = createMoonrock2App();
+    const sessionId = "test-budget-objection-session";
+    await app.request(`http://localhost/v1/discovery/${sessionId}/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: "existing_business" }),
+    });
+
+    async function answer(field: string, value: unknown) {
+      const response = await app.request(`http://localhost/v1/discovery/${sessionId}/answers`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ field, value }),
+      });
+      return response.json() as Promise<{ tier: string; completed: boolean; result?: { flightPlan: { recommendation: { offerName: string; monthlyFeeUsd: number } } } }>;
+    }
+
+    await answer("businessName", "Prairie Card Shop");
+    await answer("industry", "retail");
+    await answer("missedCallsPerMonth", 10);
+    const latest = await answer("medianLeadResponseMinutes", 45);
+    expect(latest.completed).toBe(true);
+    expect(latest.tier).toBe("ai_employee");
+    const baseline = latest.result!.flightPlan.recommendation;
+    expect(baseline.monthlyFeeUsd).toBeGreaterThan(200);
+
+    const conversationResponse = await app.request(`http://localhost/v1/discovery/${sessionId}/conversation`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question: "I'm a small business and can't afford $200/month for this." }),
+    });
+    expect(conversationResponse.status).toBe(200);
+    const envelope = await conversationResponse.json() as { conversationTurn: { answer: string }; result?: { flightPlan: { recommendation: { offerName: string; monthlyFeeUsd: number } } } };
+    expect(envelope.result?.flightPlan.recommendation.monthlyFeeUsd).toBeLessThanOrEqual(200);
+    expect(envelope.result?.flightPlan.recommendation.offerName).not.toBe(baseline.offerName);
+    expect(envelope.conversationTurn.answer).toContain("$200/month budget");
+  });
+
+  it("is honest about the catalog floor instead of inventing a discount when even the cheapest offer exceeds the stated budget", async () => {
+    const { app } = createMoonrock2App();
+    const sessionId = "test-budget-floor-session";
+    await app.request(`http://localhost/v1/discovery/${sessionId}/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: "existing_business" }),
+    });
+    async function answer(field: string, value: unknown) {
+      const response = await app.request(`http://localhost/v1/discovery/${sessionId}/answers`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ field, value }),
+      });
+      return response.json() as Promise<{ completed: boolean }>;
+    }
+    await answer("businessName", "Prairie Card Shop");
+    await answer("industry", "retail");
+    await answer("missedCallsPerMonth", 10);
+    await answer("medianLeadResponseMinutes", 45);
+
+    const conversationResponse = await app.request(`http://localhost/v1/discovery/${sessionId}/conversation`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question: "Honestly my budget is only $10/month, can we do that?" }),
+    });
+    const envelope = await conversationResponse.json() as { conversationTurn: { answer: string }; result?: { flightPlan: { recommendation: { monthlyFeeUsd: number } } } };
+    expect(envelope.result?.flightPlan.recommendation.monthlyFeeUsd).toBe(149);
+    expect(envelope.conversationTurn.answer).toContain("catalog floor");
+  });
 });

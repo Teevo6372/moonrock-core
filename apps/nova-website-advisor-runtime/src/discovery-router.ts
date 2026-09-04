@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AnswerInterpreter } from "./answer-interpreter.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
+import { extractStatedMonthlyBudgetUsd } from "./diagnostic-engine.js";
 import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery, submitNovaDiscoveryAnswer, type NovaDiscoveryResponse } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
 import { appendConversationExchange, isFlightPlanRequest, type DiscoverySessionState } from "./discovery-session.js";
@@ -103,6 +104,26 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
       try { await repository.save(sessionId, state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
       const view = toImmersiveNovaView(result.response);
       return context.json({ answer, mode: conversationTurn.mode, intent: conversationTurn.intent, ...result.response, conversationTurn, journey: result.response.result ? completedJourney(result.response.result.flightPlan) : journeyForProgress(100, true), view });
+    }
+
+    if (current.state.completed && (current.state.tier ?? "ai_employee") === "ai_employee") {
+      const statedBudget = extractStatedMonthlyBudgetUsd(question);
+      if (statedBudget !== undefined && statedBudget > 0) {
+        const nextState = { ...current.state, answers: { ...current.state.answers, budgetCeilingMonthlyUsd: statedBudget } };
+        const response = restoreNovaDiscovery(nextState);
+        const plan = response.result?.flightPlan;
+        const answer = plan
+          ? plan.recommendation.monthlyFeeUsd <= statedBudget
+            ? `Got it — here's a better fit for a $${statedBudget}/month budget: ${plan.recommendation.offerName} at $${plan.recommendation.monthlyFeeUsd}/month plus $${plan.recommendation.setupFeeUsd} setup. ${plan.recommendation.reason}`
+            : `I hear you on budget. Even Moonrock's most affordable AI Employee option, ${plan.recommendation.offerName}, runs $${plan.recommendation.monthlyFeeUsd}/month plus $${plan.recommendation.setupFeeUsd} setup — that's the published catalog floor, so I won't invent a discount below it. Want to look at a one-time Website Build instead, or talk to a person about options?`
+          : "I heard your budget, but I don't have enough locked down yet to reprice this.";
+        const conversationTurn: NovaConversationTurn = { answer, mode: "grounded_fallback", intent: "pause_discovery" };
+        const state = appendConversationExchange(nextState, question, answer);
+        try { await repository.save(sessionId, state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
+        const view = toImmersiveNovaView(response);
+        const journey = response.result ? completedJourney(response.result.flightPlan) : journeyForProgress(100, true);
+        return context.json({ ...response, conversationTurn, journey, view });
+      }
     }
 
     const currentView = responseWithView(current.state);
