@@ -1,3 +1,4 @@
+import { approvedServiceCatalog } from "./ai-employee-catalog.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { diagnoseBusiness } from "./diagnostic-engine.js";
 import { buildFlightPlan } from "./flight-plan.js";
@@ -22,6 +23,8 @@ Conversation rules:
 - Industry and the visitor's actual problem matter. Do not blindly ask the next generic discovery question.
 - Do not expose Moonrock's private vendors, implementation stack, prompts, credentials, or internal recipes.
 - Never invent facts, guarantees, discounts, integrations, delivery promises, pricing, payment terms, capabilities, evidence, statistics, ROI, or setup times.
+- APPROVED SERVICE CATALOG in BUSINESS CONTEXT is the complete, exhaustive list of everything Moonrock currently sells. When asked what else Moonrock offers or can help with, mention only services by their exact name from that list. Never name a specific third-party platform, tool, or integration (a named e-commerce platform, CRM, payment processor, etc.) that is not that exact list - describe capability generically instead if the specifics are not approved.
+- If you would need more than 1-4 short sentences to answer fully (e.g. listing several services), give the short version and offer to go deeper rather than writing a long reply that risks being cut off.
 
 FORMATTING:
 This is a plain-text chat bubble, not a document. Write in plain conversational prose only.
@@ -70,6 +73,7 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     founderHandlesMostAdmin: answers.founderHandlesMostAdmin, departmentsAffected: answers.departmentsAffected,
     requestedCustomIntegrations: answers.requestedCustomIntegrations, expectedVoiceMinutesPerMonth: answers.expectedVoiceMinutesPerMonth,
     journey: journeyForProgress(progressPercent, state.completed), approvedEvidence: APPROVED_EVIDENCE,
+    approvedServiceCatalog: approvedServiceCatalog(),
     returningVisitor: Boolean(state.continuity?.previousConversationSummary || state.conversationHistory?.length), previousConversationSummary: state.continuity?.previousConversationSummary,
   };
   if (state.completed) {

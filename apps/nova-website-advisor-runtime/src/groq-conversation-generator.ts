@@ -34,7 +34,7 @@ export class GroqConversationGenerator implements NovaConversationGenerator {
         body: JSON.stringify({
           model: this.model,
           temperature: 0.45,
-          max_completion_tokens: 450,
+          max_completion_tokens: 700,
           messages: [
             { role: "system", content: input.system },
             { role: "system", content: `BUSINESS CONTEXT\n${JSON.stringify(input.businessContext)}` },
