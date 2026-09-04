@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SessionGroundedNovaConversationEngine } from "../src/dynamic-conversation-engine.js";
+import type { NovaConversationGenerator } from "../src/dynamic-conversation-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import type { DiscoverySessionState } from "../src/discovery-session.js";
 
@@ -41,6 +42,32 @@ describe("SessionGroundedNovaConversationEngine", () => {
     const turn = await engine.respond(completedState(), "How would implementation work?");
     expect(turn.answer).toContain("validating the workflow");
     expect(turn.answer).toContain("vendor stack");
+  });
+
+  it("regression: does not fall back to the pre-completion discovery question once a Flight Plan exists (this previously caused a repeating-question lockup when the LLM provider failed)", async () => {
+    const engine = new SessionGroundedNovaConversationEngine();
+    const turn = await engine.respond(completedState(), "I can't afford that much per month, can we look at something smaller?");
+    expect(turn.answer).not.toContain("before I recommend a starting plan");
+    expect(turn.answer).toContain("Flight Plan");
+  });
+
+  it("retries the generator once before falling back, so a single transient provider failure does not surface the fallback", async () => {
+    const generate = vi.fn<NovaConversationGenerator["generate"]>()
+      .mockRejectedValueOnce(new Error("Groq request failed with 429"))
+      .mockResolvedValueOnce("Here's a smaller option that fits your budget.");
+    const engine = new SessionGroundedNovaConversationEngine({ generate });
+    const turn = await engine.respond(completedState(), "Something smaller?");
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(turn.mode).toBe("generated");
+    expect(turn.answer).toBe("Here's a smaller option that fits your budget.");
+  });
+
+  it("falls back gracefully (without throwing) when the generator fails on every attempt", async () => {
+    const generate = vi.fn<NovaConversationGenerator["generate"]>().mockRejectedValue(new Error("Groq request failed with 503"));
+    const engine = new SessionGroundedNovaConversationEngine({ generate });
+    const turn = await engine.respond(completedState(), "Something smaller?");
+    expect(turn.mode).toBe("grounded_fallback");
+    expect(turn.answer).toContain("Flight Plan");
   });
 });
 

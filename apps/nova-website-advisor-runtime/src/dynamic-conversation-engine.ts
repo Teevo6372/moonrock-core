@@ -118,6 +118,12 @@ function groundedFallback(state: DiscoverySessionState, question: string, guidan
   if (isHumanHandoffRequest(question)) return { mode: "grounded_fallback", intent: "human_handoff", answer: "Absolutely. I’ll pause here so we can handle that without making you repeat yourself." };
   const completed = completedPlanFallback(state, question);
   if (completed) return completed;
+  if (state.completed) {
+    const answersForPlan = answers as DiagnosticInput;
+    const diagnostic = diagnoseBusiness(answersForPlan);
+    const plan = buildFlightPlan(answersForPlan, diagnostic);
+    return { mode: "grounded_fallback", intent: "pause_discovery", answer: `I've still got your Flight Plan on ${plan.recommendation.offerName} ready. Tell me what you'd like adjusted, ask me anything about it, or let me know you're ready to move forward.` };
+  }
   if (guidance?.resuming) {
     const lastNova = [...(state.conversationHistory ?? [])].reverse().find((turn) => turn.role === "nova")?.text;
     return { mode: "grounded_fallback", intent: "pause_discovery", answer: lastNova ? `Welcome back. I still have where we left off. ${lastNova}` : "Welcome back. I still have the business context we already worked through, so we can continue from there." };
@@ -134,10 +140,16 @@ export class SessionGroundedNovaConversationEngine implements NovaConversationEn
     if (!trimmed) throw new Error("Nova needs a question to respond to.");
     if (isHumanHandoffRequest(trimmed)) return groundedFallback(state, trimmed, guidance);
     if (this.generator) {
-      try {
-        const answer = (await this.generator.generate({ system: `${SYSTEM_PROMPT}${guidancePrompt(guidance)}`, businessContext: contextForState(state, guidance?.progressPercent ?? 0), question: trimmed, history: state.conversationHistory ?? [] })).trim();
-        if (answer) return { answer, mode: "generated", intent: "pause_discovery" };
-      } catch { /* provider outage falls back safely */ }
+      const attempts = 2;
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          const answer = (await this.generator.generate({ system: `${SYSTEM_PROMPT}${guidancePrompt(guidance)}`, businessContext: contextForState(state, guidance?.progressPercent ?? 0), question: trimmed, history: state.conversationHistory ?? [] })).trim();
+          if (answer) return { answer, mode: "generated", intent: "pause_discovery" };
+          console.warn(`[nova-conversation] generator returned an empty answer (attempt ${attempt}/${attempts})`);
+        } catch (error) {
+          console.error(`[nova-conversation] generator failed (attempt ${attempt}/${attempts}):`, error instanceof Error ? error.message : error);
+        }
+      }
     }
     return groundedFallback(state, trimmed, guidance);
   }
