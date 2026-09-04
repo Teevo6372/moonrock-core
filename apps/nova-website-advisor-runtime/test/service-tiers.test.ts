@@ -25,6 +25,17 @@ describe("classifyServiceTier", () => {
     expect(result.tier).toBe("website_build");
   });
 
+  it("infers website_build when the visitor wants online store/e-commerce setup, even without saying they lack a website (regression: this previously fell through to ai_employee)", () => {
+    expect(classifyServiceTier(input({ businessChallenges: "I run a card shop and I'm seeking online store setup." })).tier).toBe("website_build");
+    expect(classifyServiceTier(input({ businessChallenges: "We want to start selling online, maybe an e-commerce site." })).tier).toBe("website_build");
+    expect(classifyServiceTier(input({ businessChallenges: "Need a shopping cart added so customers can check out." })).tier).toBe("website_build");
+  });
+
+  it("does not misclassify unrelated 'store' or 'online' mentions as an online-store request", () => {
+    const result = classifyServiceTier(input({ businessChallenges: "We store customer records manually and it's a mess.", industry: "home services" }));
+    expect(result.tier).toBe("ai_employee");
+  });
+
   it("classifies ghl_saas when the visitor explicitly identifies as an agency/reseller", () => {
     const result = classifyServiceTier(input({ isAgencyOrReseller: true }));
     expect(result).toMatchObject({ tier: "ghl_saas", confidence: "explicit" });
