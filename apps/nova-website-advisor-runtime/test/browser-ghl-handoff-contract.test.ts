@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { startNovaDiscovery, submitNovaDiscoveryAnswer } from "../src/discovery-api-contract.js";
 
 describe("browser discovery and Flight Plan save boundary", () => {
-  it("never makes identity a discovery requirement and produces a preliminary plan by four meaningful answers", () => {
+  it("never makes identity a discovery requirement and produces a preliminary plan by four meaningful answers", async () => {
     let current = startNovaDiscovery("existing_business");
     expect(current.response.completed).toBe(false);
     expect(current.response.nextQuestion?.isFinalRequired).toBe(false);
@@ -16,7 +16,7 @@ describe("browser discovery and Flight Plan save boundary", () => {
 
     for (let index = 0; index < answers.length; index += 1) {
       const [field, value] = answers[index]!;
-      current = submitNovaDiscoveryAnswer(current.state, field, value);
+      current = await submitNovaDiscoveryAnswer(current.state, field, value);
       expect(current.response.nextQuestion?.isFinalRequired ?? false).toBe(false);
       if (index < 3) expect(current.response.completed).toBe(false);
     }

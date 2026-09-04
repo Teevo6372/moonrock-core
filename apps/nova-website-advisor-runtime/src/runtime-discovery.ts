@@ -12,7 +12,7 @@ export function beginRuntimeDiscovery(sessionId: string, path: BusinessPath): Ru
   return { sessionId, discovery: result.state };
 }
 
-export function continueRuntimeDiscovery(state: RuntimeDiscoveryState, field: keyof DiagnosticInput, value: unknown): RuntimeDiscoveryState {
-  const result = submitNovaDiscoveryAnswer(state.discovery, field, value);
+export async function continueRuntimeDiscovery(state: RuntimeDiscoveryState, field: keyof DiagnosticInput, value: unknown): Promise<RuntimeDiscoveryState> {
+  const result = await submitNovaDiscoveryAnswer(state.discovery, field, value);
   return { sessionId: state.sessionId, discovery: result.state };
 }
