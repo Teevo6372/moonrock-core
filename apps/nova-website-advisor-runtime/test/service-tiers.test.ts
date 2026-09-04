@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
+import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
 import { classifyServiceTier, diagnoseGhlSaas, diagnoseWebsiteBuild, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
@@ -185,5 +185,20 @@ describe("normalizeDiscoveryAnswer for new service-tier fields", () => {
     expect(normalizeDiscoveryAnswer("founderHandlesMostAdmin", "That'll fall on me.")).toMatchObject({ value: true, interpreted: true });
     expect(normalizeDiscoveryAnswer("founderHandlesMostAdmin", "I'm handling all of it myself.")).toMatchObject({ value: true, interpreted: true });
     expect(normalizeDiscoveryAnswer("founderHandlesMostAdmin", "It's my responsibility for now.")).toMatchObject({ value: true, interpreted: true });
+  });
+});
+
+describe("approvedServiceCatalog", () => {
+  it("includes every AI Employee, Website Build, and GHL SaaS offer by real name", () => {
+    const names = approvedServiceCatalog().map((service) => service.name);
+    expect(names).toContain("Moonrock AI Front Office");
+    expect(names).toContain("Growth Site");
+    expect(names).toContain("SaaS Starter");
+    expect(names.length).toBe(Object.keys(AI_EMPLOYEE_CATALOG).length + Object.keys(WEBSITE_BUILD_CATALOG).length + Object.keys(GHL_SAAS_CATALOG).length);
+  });
+
+  it("never includes a hallucination-prone third-party platform name that isn't an actual offer", () => {
+    const names = approvedServiceCatalog().map((service) => service.name.toLowerCase());
+    expect(names.some((name) => name.includes("shopify"))).toBe(false);
   });
 });

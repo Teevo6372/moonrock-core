@@ -259,3 +259,22 @@ export const GHL_SAAS_CATALOG: Readonly<Record<GhlSaasId, GhlSaasOffer>> = {
     ],
   },
 };
+
+export interface ApprovedServiceSummary {
+  name: string;
+  oneLiner: string;
+}
+
+/**
+ * Every currently sellable service across all tiers, name + one-line
+ * description only. Fed to the conversation LLM as grounding so it never has
+ * to (and must never) invent a product, platform, or capability Moonrock
+ * does not actually offer when asked what else Moonrock can help with.
+ */
+export function approvedServiceCatalog(): ApprovedServiceSummary[] {
+  return [
+    ...Object.values(AI_EMPLOYEE_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
+    ...Object.values(WEBSITE_BUILD_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.scopeDescription })),
+    ...Object.values(GHL_SAAS_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
+  ];
+}
