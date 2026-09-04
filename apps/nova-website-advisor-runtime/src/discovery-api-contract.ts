@@ -1,4 +1,5 @@
 import type { ServiceTier } from "./ai-employee-catalog.js";
+import type { AnswerInterpreter } from "./answer-interpreter.js";
 import type { BusinessPath, DiagnosticInput, DiagnosticResult, GhlSaasDiagnosticResult } from "./diagnostic-engine.js";
 import type { FlightPlan } from "./flight-plan.js";
 import { getDiscoveryQuestions, getDiscoveryQuestionsForTier } from "./discovery-graph.js";
@@ -43,9 +44,29 @@ export function startNovaDiscovery(path: BusinessPath, continuity?: DiscoveryCon
 }
 export function restoreNovaDiscovery(state: DiscoverySessionState): NovaDiscoveryResponse { const progress = resumeDiscovery(state); return toResponse(progress.state, progress); }
 export function requestPreliminaryFlightPlan(state: DiscoverySessionState): { state: DiscoverySessionState; response: NovaDiscoveryResponse } { const progress = forcePreliminaryFlightPlan(state); return { state: progress.state, response: toResponse(progress.state, progress) }; }
-export function submitNovaDiscoveryAnswer(state: DiscoverySessionState, field: keyof DiagnosticInput, value: unknown): { state: DiscoverySessionState; response: NovaDiscoveryResponse } {
+function findQuestionPrompt(state: DiscoverySessionState, field: keyof DiagnosticInput): string | undefined {
+  const tier: ServiceTier = state.tier ?? "ai_employee";
+  return getDiscoveryQuestionsForTier(tier, state.path, state.answers).find((question) => question.field === field)?.prompt;
+}
+
+export async function submitNovaDiscoveryAnswer(
+  state: DiscoverySessionState,
+  field: keyof DiagnosticInput,
+  value: unknown,
+  interpreter?: AnswerInterpreter,
+): Promise<{ state: DiscoverySessionState; response: NovaDiscoveryResponse }> {
   const normalized = normalizeDiscoveryAnswer(field, value);
   if (normalized.needsClarification) {
+    if (interpreter && normalized.expectedKind && typeof value === "string" && value.trim()) {
+      const prompt = findQuestionPrompt(state, field) ?? normalized.clarification ?? String(field);
+      const interpreted = await interpreter.interpret({ prompt, expectedKind: normalized.expectedKind, rawText: value });
+      if (interpreted) {
+        const progress = applyDiscoveryAnswer(state, field, interpreted.value);
+        const response = toResponse(progress.state, progress);
+        response.interpretation = { field, raw: value, normalized: interpreted.value, note: `AI-assisted interpretation (${interpreted.confidence} confidence)` };
+        return { state: progress.state, response };
+      }
+    }
     const progress = resumeDiscovery(state); const response = toResponse(state, progress);
     response.clarification = { field, message: normalized.clarification ?? "I want to make sure I understood that before I use it in your Flight Plan.", originalAnswer: value };
     return { state, response };

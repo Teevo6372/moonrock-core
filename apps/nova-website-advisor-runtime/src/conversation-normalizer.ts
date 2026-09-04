@@ -20,12 +20,18 @@ const BOOLEAN_FIELDS = new Set<keyof DiagnosticInput>([
   "hasApprovedBrandAssets",
 ]);
 
+export type ExpectedAnswerKind =
+  | { type: "boolean" }
+  | { type: "number" }
+  | { type: "select"; options: string[] };
+
 export interface NormalizedDiscoveryAnswer {
   value: unknown;
   interpreted: boolean;
   note?: string;
   needsClarification?: boolean;
   clarification?: string;
+  expectedKind?: ExpectedAnswerKind;
 }
 
 function firstNumber(text: string): number | undefined {
@@ -62,7 +68,7 @@ function cadenceToMonthly(text: string, number: number): number {
 
 function booleanFromText(text: string): boolean | undefined {
   if (/\b(no|nope|not really|never|already automated|doesn't|does not|don't|do not)\b/i.test(text)) return false;
-  if (/\b(yes|yeah|yep|usually|mostly|manual|someone|person|we do|i do|depends on me|depends on us)\b/i.test(text)) return true;
+  if (/\b(yes|yeah|yep|usually|mostly|manual|someone|person|we do|i do|depends on me|depends on us|i'?ll handle|i will handle|i'?m handling|i handle|on me|myself|my responsibility|falls? on me|handle (it|most|that|those|these|this|everything))\b/i.test(text)) return true;
   return undefined;
 }
 
@@ -108,11 +114,12 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
   if (BOOLEAN_FIELDS.has(field)) {
     const value = booleanFromText(text);
     return value === undefined
-      ? { value: raw, interpreted: false, needsClarification: true, clarification: clarificationFor(field) }
+      ? { value: raw, interpreted: false, needsClarification: true, clarification: clarificationFor(field), expectedKind: { type: "boolean" } }
       : { value, interpreted: true, note: text };
   }
 
   if (field === "websiteScopeNeeded") {
+    const options = ["landing_page", "multi_page", "ecommerce"];
     const value = /e.?commerce|online store|sell (products|stuff|items)|shopping cart|checkout/i.test(text)
       ? "ecommerce"
       : /landing page|single page|one.?pager|just one page/i.test(text)
@@ -122,10 +129,11 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
           : undefined;
     return value
       ? { value, interpreted: true, note: text }
-      : { value: raw, interpreted: false, needsClarification: true, clarification: "Roughly how many pages or sections are we talking about — a single landing page, a handful of pages, or something with online sales/checkout?" };
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "Roughly how many pages or sections are we talking about — a single landing page, a handful of pages, or something with online sales/checkout?", expectedKind: { type: "select", options } };
   }
 
   if (field === "repetitiveSupportLoad") {
+    const options = ["low", "medium", "high"];
     const value = /high|a lot|constant|tons?|heavy|all day|too much/i.test(text)
       ? "high"
       : /medium|some|sometimes|moderate|fair amount/i.test(text)
@@ -135,10 +143,11 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
           : undefined;
     return value
       ? { value, interpreted: true, note: text }
-      : { value: raw, interpreted: false, needsClarification: true, clarification: "On the repetitive-question piece specifically, would you call it a small amount, a noticeable amount, or a pretty heavy load?" };
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "On the repetitive-question piece specifically, would you call it a small amount, a noticeable amount, or a pretty heavy load?", expectedKind: { type: "select", options } };
   }
 
   if (field === "reviewRequestProcess") {
+    const options = ["none", "manual", "automated"];
     const value = /automat|system|workflow|trigger/i.test(text)
       ? "automated"
       : /manual|ask them|we ask|person|remember/i.test(text)
@@ -148,7 +157,7 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
           : undefined;
     return value
       ? { value, interpreted: true, note: text }
-      : { value: raw, interpreted: false, needsClarification: true, clarification: "On review requests specifically, is that happening automatically, manually when somebody remembers, or not consistently yet?" };
+      : { value: raw, interpreted: false, needsClarification: true, clarification: "On review requests specifically, is that happening automatically, manually when somebody remembers, or not consistently yet?", expectedKind: { type: "select", options } };
   }
 
   if (!NUMERIC_FIELDS.has(field)) return { value: raw, interpreted: false };
@@ -164,6 +173,7 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
       note: text,
       needsClarification: true,
       clarification: clarificationFor(field),
+      expectedKind: { type: "number" },
     };
   }
   if (field === "expectedVoiceMinutesPerMonth") number = voiceToMinutes(text, number);

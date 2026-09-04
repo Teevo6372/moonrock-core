@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { AnswerInterpreter } from "./answer-interpreter.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery, submitNovaDiscoveryAnswer, type NovaDiscoveryResponse } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
@@ -8,7 +9,7 @@ import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlCon
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 import { completedJourney, journeyForProgress } from "./nova-sales-journey.js";
 
-export interface DiscoveryRouterOptions { productionGhl?: ProductionGhlHandoffConfig; conversationEngine?: NovaConversationEngine; }
+export interface DiscoveryRouterOptions { productionGhl?: ProductionGhlHandoffConfig; conversationEngine?: NovaConversationEngine; answerInterpreter?: AnswerInterpreter; }
 
 function answeredCount(state: DiscoverySessionState): number {
   return Object.keys(state.answers).filter((key) => key !== "path").length;
@@ -71,7 +72,9 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
       return context.json({ ...currentView.response, conversationTurn, humanHandoff: handoffPrompt(rawCustomerText), journey: currentView.journey, view: { ...currentView.view, visualState: "handoff" } });
     }
 
-    const result = isFlightPlanRequest(rawCustomerText) ? requestPreliminaryFlightPlan(current.state) : submitNovaDiscoveryAnswer(current.state, body.field as keyof DiagnosticInput, body.value);
+    const result = isFlightPlanRequest(rawCustomerText)
+      ? requestPreliminaryFlightPlan(current.state)
+      : await submitNovaDiscoveryAnswer(current.state, body.field as keyof DiagnosticInput, body.value, options.answerInterpreter);
     const view = toImmersiveNovaView(result.response);
     const journey = result.response.completed && result.response.result ? completedJourney(result.response.result.flightPlan) : journeyForProgress(view.progressPercent, false);
     const conversationTurn: NovaConversationTurn = result.response.clarification

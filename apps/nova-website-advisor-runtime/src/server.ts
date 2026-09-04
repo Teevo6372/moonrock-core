@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { resolve } from "node:path";
 import { Pool } from "pg";
+import { GroqAnswerInterpreter } from "./answer-interpreter.js";
 import { corsHeaders, isOriginAllowed, parseAllowedOrigins } from "./cors-policy.js";
 import { SessionGroundedNovaConversationEngine } from "./dynamic-conversation-engine.js";
 import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "./ghl-production-registry.js";
@@ -46,7 +47,14 @@ async function start(): Promise<void> {
   }) : undefined);
   process.stdout.write(`Nova conversation provider: ${llmEnabled ? `Groq/${process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b"}` : "grounded fallback"}\n`);
 
-  const { app } = createMoonrock2App({ allowedOrigins, ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}), ...(productionGhl ? { productionGhl } : {}), conversationEngine });
+  const answerInterpreter = llmEnabled ? new GroqAnswerInterpreter({
+    apiKey: groqApiKey!,
+    model: process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b",
+    baseUrl: process.env.NOVA_LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
+    timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
+  }) : undefined;
+
+  const { app } = createMoonrock2App({ allowedOrigins, ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}), ...(productionGhl ? { productionGhl } : {}), conversationEngine, ...(answerInterpreter ? { answerInterpreter } : {}) });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
     const originAllowed = isOriginAllowed(origin, allowedOrigins);

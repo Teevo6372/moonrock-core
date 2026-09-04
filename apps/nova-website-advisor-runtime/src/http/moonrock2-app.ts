@@ -1,3 +1,4 @@
+import type { AnswerInterpreter } from "../answer-interpreter.js";
 import { createDiscoveryRouter } from "../discovery-router.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "../discovery-state-repository.js";
 import type { NovaConversationEngine } from "../dynamic-conversation-engine.js";
@@ -8,10 +9,11 @@ export interface Moonrock2AppOptions extends AppOptions {
   discoveryRepository?: DiscoveryStateRepository;
   productionGhl?: ProductionGhlHandoffConfig;
   conversationEngine?: NovaConversationEngine;
+  answerInterpreter?: AnswerInterpreter;
 }
 
 export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnType<typeof createApp> {
-  const { discoveryRepository = new InMemoryDiscoveryStateRepository(), productionGhl, conversationEngine, ...appOptions } = options;
+  const { discoveryRepository = new InMemoryDiscoveryStateRepository(), productionGhl, conversationEngine, answerInterpreter, ...appOptions } = options;
   const llmConnected = Boolean(conversationEngine);
   const ghlConnected = Boolean(productionGhl);
   const base = createApp({
@@ -28,6 +30,7 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   base.app.route("/v1/discovery", createDiscoveryRouter(discoveryRepository, {
     ...(productionGhl ? { productionGhl } : {}),
     ...(conversationEngine ? { conversationEngine } : {}),
+    ...(answerInterpreter ? { answerInterpreter } : {}),
   }));
   return base;
 }
