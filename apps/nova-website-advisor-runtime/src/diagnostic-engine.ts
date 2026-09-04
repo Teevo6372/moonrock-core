@@ -214,6 +214,7 @@ export interface ServiceTierClassification {
 const AGENCY_CHALLENGE_PATTERN = /my clients|resell|white.?label|agency/i;
 const AGENCY_INDUSTRY_PATTERN = /agency|marketing|consult/i;
 const NO_WEBSITE_CHALLENGE_PATTERN = /don'?t have a (website|site)|need a (new )?website|no website/i;
+const WANTS_ONLINE_STORE_PATTERN = /online store|e-?commerce|sell\s+(?:products?|things?|items?|stuff|goods)?\s*online|shopping cart|web store|start selling online/i;
 
 export function classifyServiceTier(input: DiagnosticInput): ServiceTierClassification {
   const challenges = input.businessChallenges ?? "";
@@ -231,6 +232,9 @@ export function classifyServiceTier(input: DiagnosticInput): ServiceTierClassifi
   }
   if (NO_WEBSITE_CHALLENGE_PATTERN.test(challenges)) {
     return { tier: "website_build", confidence: "inferred", reason: "The stated challenge describes not having a website." };
+  }
+  if (WANTS_ONLINE_STORE_PATTERN.test(challenges)) {
+    return { tier: "website_build", confidence: "inferred", reason: "The stated challenge describes wanting to sell online or set up an online store, which is a website/e-commerce build rather than an AI Employee subscription." };
   }
 
   return { tier: "ai_employee", confidence: "inferred", reason: "No stronger signal for another tier was found; defaulting to the AI Employee bottleneck diagnosis." };
