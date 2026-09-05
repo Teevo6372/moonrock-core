@@ -36,3 +36,61 @@ export function truncateToLastCompleteSentence(text: string): string {
   const complete = trimmed.slice(0, lastBoundary + 1).trim();
   return complete || trimmed;
 }
+
+// Known third-party platforms/tools/integrations the system prompt already
+// instructs Nova never to name (only Moonrock's own approved catalog may be
+// named) - grouped by the categories that prompt explicitly calls out
+// (e-commerce, CRM, payment processor, etc.) plus the underlying GHL/
+// HighLevel platform, which must stay invisible per the white-label rule.
+const DISALLOWED_THIRD_PARTY_NAMES = [
+  "Stripe", "PayPal", "Square", "Venmo", "Zelle",
+  "Shopify", "WooCommerce", "BigCommerce", "Wix", "Squarespace",
+  "HubSpot", "Salesforce", "Zoho",
+  "GoHighLevel", "HighLevel", "GHL",
+  "Calendly", "Acuity",
+  "CallRail",
+  "Mailchimp", "Constant Contact", "ActiveCampaign", "Keap",
+  "ClickFunnels", "Leadpages",
+  "DocuSign", "HelloSign",
+  "Yext", "BrightLocal",
+  "Jasper", "Drift", "Intercom", "Zendesk",
+  "Kajabi", "Teachable", "Thinkific",
+  "Skool", "Circle",
+  "Podium", "Birdeye",
+  "Jotform", "Typeform",
+  "Skipio",
+  "QuickBooks", "Xero",
+  "Twilio",
+] as const;
+
+function buildWordBoundaryPattern(names: readonly string[]): RegExp {
+  const escaped = names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`\\b(?:${escaped.join("|")})\\b`, "i");
+}
+
+const THIRD_PARTY_NAME_PATTERN = buildWordBoundaryPattern(DISALLOWED_THIRD_PARTY_NAMES);
+
+/**
+ * Defensive safety net for when the model names a specific third-party
+ * platform/tool/integration despite the system prompt's explicit instruction
+ * not to. Strips the smallest enclosing clause naming the disallowed brand -
+ * a parenthetical aside, a trailing "like/such as/e.g." example clause, or
+ * as a last resort the bare word itself - rather than blocking the whole
+ * reply, since in practice these mentions are almost always a non-essential
+ * example the model added on its own.
+ */
+export function stripDisallowedThirdPartyMentions(text: string): string {
+  if (!THIRD_PARTY_NAME_PATTERN.test(text)) return text;
+
+  return text
+    // "(like Stripe or PayPal)" - drop the whole parenthetical.
+    .replace(/\s*\([^()]*\)/g, (match) => (THIRD_PARTY_NAME_PATTERN.test(match) ? "" : match))
+    // "..., like/such as/e.g. Stripe" - drop from the keyword up to (but not
+    // consuming) the next sentence boundary, so terminal punctuation survives.
+    .replace(/,?\s*\b(?:like|such as|e\.g\.,?|for example,?)\b[^.,!?]*(?=[.,!?]|$)/gi, (match) => (THIRD_PARTY_NAME_PATTERN.test(match) ? "" : match))
+    // Last resort: remove any remaining bare mention.
+    .replace(new RegExp(THIRD_PARTY_NAME_PATTERN.source, "gi"), "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;!?])/g, "$1")
+    .trim();
+}

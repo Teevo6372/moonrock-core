@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stripMarkdownArtifacts } from "../src/text-sanitizer.js";
+import { stripDisallowedThirdPartyMentions, stripMarkdownArtifacts } from "../src/text-sanitizer.js";
 
 describe("stripMarkdownArtifacts", () => {
   it("removes bold markers while keeping the text", () => {
@@ -56,5 +56,36 @@ describe("stripMarkdownArtifacts", () => {
     expect(cleaned).toContain("What's included");
     expect(cleaned).toContain("• Targeted local-search ads");
     expect(cleaned).toContain("• A seasonal email-drip campaign");
+  });
+});
+
+describe("stripDisallowedThirdPartyMentions", () => {
+  it("fixes the exact reported bug: a parenthetical naming real payment processors", () => {
+    const messy = "Do you already have a payment processor you'd like to use (like Stripe or PayPal) for the online sales?";
+    expect(stripDisallowedThirdPartyMentions(messy)).toBe("Do you already have a payment processor you'd like to use for the online sales?");
+  });
+
+  it("drops a trailing 'like/such as/e.g.' example clause naming a disallowed tool, keeping the sentence's punctuation", () => {
+    expect(stripDisallowedThirdPartyMentions("You can accept payments through tools like Stripe or Square.")).toBe("You can accept payments through tools.");
+    expect(stripDisallowedThirdPartyMentions("We can sync with your CRM, such as HubSpot or Salesforce, if needed.")).toBe("We can sync with your CRM, if needed.");
+  });
+
+  it("removes a bare mention as a last resort when no clause pattern matches", () => {
+    expect(stripDisallowedThirdPartyMentions("We integrate directly with Shopify.")).not.toMatch(/Shopify/i);
+  });
+
+  it("never lets the underlying GHL/HighLevel platform name through", () => {
+    expect(stripDisallowedThirdPartyMentions("This runs on GoHighLevel under the hood.")).not.toMatch(/gohighlevel|\bghl\b/i);
+    expect(stripDisallowedThirdPartyMentions("We use HighLevel for this.")).not.toMatch(/highlevel/i);
+  });
+
+  it("leaves clean text with no third-party names untouched", () => {
+    const clean = "I can get you set up with CRM & Pipeline Management at no setup cost.";
+    expect(stripDisallowedThirdPartyMentions(clean)).toBe(clean);
+  });
+
+  it("does not false-positive on Moonrock's own approved catalog names", () => {
+    const clean = "The Moonrock AI Front Office plan includes call handling and lead routing.";
+    expect(stripDisallowedThirdPartyMentions(clean)).toBe(clean);
   });
 });

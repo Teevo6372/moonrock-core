@@ -1,6 +1,6 @@
 import type { DiscoveryConversationTurn } from "./discovery-session.js";
 import type { NovaConversationGenerator } from "./dynamic-conversation-engine.js";
-import { stripMarkdownArtifacts, truncateToLastCompleteSentence } from "./text-sanitizer.js";
+import { stripDisallowedThirdPartyMentions, stripMarkdownArtifacts, truncateToLastCompleteSentence } from "./text-sanitizer.js";
 
 export interface GroqConversationGeneratorOptions {
   apiKey: string;
@@ -50,7 +50,7 @@ export class GroqConversationGenerator implements NovaConversationGenerator {
       const rawAnswer = choice?.message?.content?.trim();
       if (!rawAnswer) throw new Error("Groq returned an empty response");
       const answer = choice?.finish_reason === "length" ? truncateToLastCompleteSentence(rawAnswer) : rawAnswer;
-      return stripMarkdownArtifacts(answer);
+      return stripDisallowedThirdPartyMentions(stripMarkdownArtifacts(answer));
     } finally {
       clearTimeout(timeout);
     }
