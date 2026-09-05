@@ -56,4 +56,18 @@ describe("Nova Flight Plan", () => {
     expect(plan.nextAction).toBe("continue_discovery");
     expect(plan.recommendedAddOns).toEqual([]);
   });
+
+  it("adds an ai_workforce futureUpgrade when fast-track fires but the existing departmentsAffected trigger would not", () => {
+    const input = { path: "existing_business" as const, missedCallsPerMonth: 10, medianLeadResponseMinutes: 45, businessChallenges: "We operate across 5 locations." };
+    const diagnosis = diagnoseBusiness(input);
+    const plan = buildFlightPlan(input, diagnosis);
+    expect(plan.futureUpgrades.some((upgrade) => upgrade.offerId === "ai_workforce")).toBe(true);
+  });
+
+  it("does not duplicate the ai_workforce futureUpgrade when both the existing trigger and fast-track fire", () => {
+    const input = { path: "existing_business" as const, missedCallsPerMonth: 10, medianLeadResponseMinutes: 45, departmentsAffected: 2, businessChallenges: "We operate across 5 locations." };
+    const diagnosis = diagnoseBusiness(input);
+    const plan = buildFlightPlan(input, diagnosis);
+    expect(plan.futureUpgrades.filter((upgrade) => upgrade.offerId === "ai_workforce")).toHaveLength(1);
+  });
 });

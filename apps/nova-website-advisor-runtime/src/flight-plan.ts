@@ -1,6 +1,7 @@
 import { AI_EMPLOYEE_CATALOG, priceOffer, type AiEmployeeId } from "./ai-employee-catalog.js";
 import type { AscensionBundle } from "./ascension-bundle.js";
 import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
+import { evaluateFastTrack } from "./fast-track.js";
 
 export interface FlightPlanCommercialOption {
   offerId: AiEmployeeId;
@@ -71,8 +72,18 @@ export function buildFlightPlan(input: DiagnosticInput, diagnosis: DiagnosticRes
 
   const secondary = evidenceBackedSecondaryOffers(diagnosis);
   const recommendedAddOns = secondary.slice(0, 2).map((id) => commercialOption(id, `Recommended because discovery identified a related ${AI_EMPLOYEE_CATALOG[id].solves.find((signal) => diagnosis.bottlenecks.some((finding) => finding.id === signal))?.replaceAll("_", " ") ?? "operational"} bottleneck.`, Boolean(options.foundingCustomer)));
-  const futureUpgrades = diagnosis.recommendedOfferId !== "ai_workforce" && (input.departmentsAffected ?? 0) >= 2
-    ? [commercialOption("ai_workforce", "Future upgrade to consider if the confirmed scope expands across multiple business functions or requires coordinated custom workflows.", Boolean(options.foundingCustomer))]
+
+  const fastTrack = evaluateFastTrack(input, diagnosis.bottlenecks);
+  const workforceUpgradeAlreadyEligible = diagnosis.recommendedOfferId !== "ai_workforce" && (input.departmentsAffected ?? 0) >= 2;
+  const fastTrackWantsWorkforceUpgrade = diagnosis.recommendedOfferId !== "ai_workforce" && fastTrack.fastTrackEligible && fastTrack.targetTier === "ai_workforce";
+  const futureUpgrades = workforceUpgradeAlreadyEligible || fastTrackWantsWorkforceUpgrade
+    ? [commercialOption(
+        "ai_workforce",
+        fastTrackWantsWorkforceUpgrade && !workforceUpgradeAlreadyEligible
+          ? `Future upgrade to consider: ${fastTrack.reasons.join(" ")}`
+          : "Future upgrade to consider if the confirmed scope expands across multiple business functions or requires coordinated custom workflows.",
+        Boolean(options.foundingCustomer),
+      )]
     : [];
 
   return {

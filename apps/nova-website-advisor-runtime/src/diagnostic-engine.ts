@@ -228,6 +228,26 @@ export function chooseGhlSaasOfferWithinBudget(budgetCeilingUsd: number): GhlSaa
   return { offerId: best.id, fitsWithinBudget: true, cheapestMonthlyFeeUsd: cheapest.monthlyFeeUsd };
 }
 
+/**
+ * The direct-escalation mechanism: signals that push straight into
+ * escalationReasons and gate autonomousCloseAllowed. Extracted from
+ * diagnoseBusiness (behavior-identical - same three checks, same order, same
+ * strings) so fast-track.ts's evaluateFastTrack can reuse this exact logic
+ * rather than duplicating it. Note this is one of two distinct escalation
+ * mechanisms in this file - the other (multi_department routing offers to
+ * ai_workforce via chooseOffer) works indirectly through offer selection,
+ * not through this list. See fast-track.ts for where both are reconciled.
+ */
+export function computeDirectEscalationReasons(input: DiagnosticInput): string[] {
+  const escalationReasons: string[] = [];
+  const risks = input.riskCategories ?? [];
+  if (risks.includes("illegal_or_abusive")) escalationReasons.push("REFUSE: requested use appears illegal or abusive and must not be sold or automated.");
+  for (const risk of risks) if (risk !== "illegal_or_abusive" && ESCALATION_RISKS.has(risk)) escalationReasons.push(`Risk category requires review: ${risk}`);
+  if ((input.requestedCustomIntegrations ?? 0) > 2) escalationReasons.push("More than two custom integrations require solution review.");
+  if ((input.expectedVoiceMinutesPerMonth ?? 0) > 5000) escalationReasons.push("High projected voice volume requires usage review.");
+  return escalationReasons;
+}
+
 export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
   const bottlenecks = scoreFindings(input);
   const needBasedOfferId = chooseOffer(bottlenecks);
@@ -241,12 +261,7 @@ export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
       : `Even Moonrock's most affordable AI Employee option runs $${budgetFit.cheapestMonthlyFeeUsd}/month; that is the published catalog floor, not a discount.`;
   }
   const offer = AI_EMPLOYEE_CATALOG[recommendedOfferId];
-  const escalationReasons: string[] = [];
-  const risks = input.riskCategories ?? [];
-  if (risks.includes("illegal_or_abusive")) escalationReasons.push("REFUSE: requested use appears illegal or abusive and must not be sold or automated.");
-  for (const risk of risks) if (risk !== "illegal_or_abusive" && ESCALATION_RISKS.has(risk)) escalationReasons.push(`Risk category requires review: ${risk}`);
-  if ((input.requestedCustomIntegrations ?? 0) > 2) escalationReasons.push("More than two custom integrations require solution review.");
-  if ((input.expectedVoiceMinutesPerMonth ?? 0) > 5000) escalationReasons.push("High projected voice volume requires usage review.");
+  const escalationReasons = computeDirectEscalationReasons(input);
   const autonomousCloseAllowed = escalationReasons.length === 0 && offer.autonomousSaleAllowed;
   const top = bottlenecks.slice(0, 3).map((finding) => finding.id.replaceAll("_", " ")).join(", ");
   const baseReason = top ? `The strongest opportunities are ${top}. ${offer.name} is the best fit for that combination.` : `${offer.name} provides a practical starting point while Moonrock gathers more operating data.`;
