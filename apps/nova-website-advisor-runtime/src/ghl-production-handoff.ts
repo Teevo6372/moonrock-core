@@ -2,7 +2,7 @@ import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
 import { AI_EMPLOYEE_CATALOG } from "./ai-employee-catalog.js";
 import type { DiscoverySessionState } from "./discovery-session.js";
 import type { FlightPlan } from "./flight-plan.js";
-import { buildGhlFlightPlanSyncPlan } from "./ghl-flight-plan-sync.js";
+import { buildGhlFlightPlanSyncPlan, type GhlAscensionSyncFields } from "./ghl-flight-plan-sync.js";
 import type { GhlFieldRegistry } from "./ghl-field-registry.js";
 import { MOONROCK_NOVA_SALES_PIPELINE } from "./ghl-production-registry.js";
 
@@ -30,6 +30,7 @@ export interface ProductionGhlHandoffInput {
   diagnosticInput: DiagnosticInput;
   diagnostic: DiagnosticResult;
   flightPlan: FlightPlan;
+  ascension?: GhlAscensionSyncFields;
 }
 
 export interface ProductionGhlHumanHandoffInput {
@@ -83,6 +84,9 @@ export async function handoffHumanRequestToGhl(
     ...(answers.businessName ? [{ id: config.fieldRegistry.contact.businessName, fieldValue: answers.businessName }] : []),
     ...(answers.industry ? [{ id: config.fieldRegistry.contact.industry, fieldValue: answers.industry }] : []),
     ...(typeof answers.monthlyLeads === "number" ? [{ id: config.fieldRegistry.contact.monthlyLeads, fieldValue: answers.monthlyLeads }] : []),
+    ...(typeof input.state.ascensionScore === "number" ? [{ id: config.fieldRegistry.contact.ascensionScore, fieldValue: input.state.ascensionScore }] : []),
+    ...(input.state.currentTier ? [{ id: config.fieldRegistry.contact.currentTier, fieldValue: input.state.currentTier }] : []),
+    ...(input.state.lastEngagementAt ? [{ id: config.fieldRegistry.contact.lastEngagementAt, fieldValue: input.state.lastEngagementAt }] : []),
   ];
   const contactPayload = await postJson<{ contact?: { id?: string }; id?: string }>(fetchImpl, `${baseUrl}/contacts/upsert`, headers, {
     locationId: config.locationId,
@@ -115,7 +119,7 @@ export async function handoffHumanRequestToGhl(
 
 export async function handoffFlightPlanToGhl(input: ProductionGhlHandoffInput, config: ProductionGhlHandoffConfig, options: { apply?: boolean; fetchImpl?: typeof fetch } = {}): Promise<ProductionGhlHandoffResult> {
   assertProductionHandoffReady(input, config, Boolean(options.apply));
-  const plan = buildGhlFlightPlanSyncPlan({ sessionId: input.sessionId, diagnosticInput: input.diagnosticInput, diagnostic: input.diagnostic, flightPlan: input.flightPlan, fieldRegistry: config.fieldRegistry });
+  const plan = buildGhlFlightPlanSyncPlan({ sessionId: input.sessionId, diagnosticInput: input.diagnosticInput, diagnostic: input.diagnostic, flightPlan: input.flightPlan, fieldRegistry: config.fieldRegistry, ...(input.ascension ? { ascension: input.ascension } : {}) });
   if (!options.apply) return { status: "dry_run", autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled: false, deferredOperations: [] };
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = (config.baseUrl ?? "https://services.leadconnectorhq.com").replace(/\/$/, "");

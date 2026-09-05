@@ -32,6 +32,15 @@ export const MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY: GhlFieldRegistry = {
     industry: "sawfd5G93MRMFjg96RfZ",
     monthlyLeads: "NwYVzpLhCTHUDFBU2bFF",
     expectedVoiceMinutes: "lZYqPQI9BMUXfLAD4xAe",
+    // PENDING: run `npm run provision:ghl-fields -- --apply` then
+    // `npm run inspect:ghl` against the live Moonrock GHL location, and
+    // paste the four resolved real field IDs here. Left as obviously-invalid
+    // placeholders (rather than empty strings) so a forgotten fill-in fails
+    // loudly against the real GHL API instead of silently upserting garbage.
+    ascensionScore: "PENDING_ascensionScore_field_id",
+    currentTier: "PENDING_currentTier_field_id",
+    lastOfferedTier: "PENDING_lastOfferedTier_field_id",
+    lastEngagementAt: "PENDING_lastEngagementAt_field_id",
   },
   opportunity: {
     flightPlanStatus: "cVaTeGYQsaGRgcUjRww9",
@@ -47,6 +56,10 @@ export const MOONROCK_GHL_FIELD_PROVISIONING = [
   { logicalKey: "contact.industry", model: "contact", name: "Moonrock Industry", dataType: "TEXT", fieldKey: "contact.moonrock_industry" },
   { logicalKey: "contact.monthlyLeads", model: "contact", name: "Moonrock Monthly Leads", dataType: "NUMERICAL", fieldKey: "contact.moonrock_monthly_leads" },
   { logicalKey: "contact.expectedVoiceMinutes", model: "contact", name: "Moonrock Expected Voice Minutes", dataType: "NUMERICAL", fieldKey: "contact.moonrock_expected_voice_minutes" },
+  { logicalKey: "contact.ascensionScore", model: "contact", name: "Moonrock Ascension Score", dataType: "NUMERICAL", fieldKey: "contact.moonrock_ascension_score" },
+  { logicalKey: "contact.currentTier", model: "contact", name: "Moonrock Current Tier", dataType: "TEXT", fieldKey: "contact.moonrock_current_tier" },
+  { logicalKey: "contact.lastOfferedTier", model: "contact", name: "Moonrock Last Offered Tier", dataType: "TEXT", fieldKey: "contact.moonrock_last_offered_tier" },
+  { logicalKey: "contact.lastEngagementAt", model: "contact", name: "Moonrock Last Engagement At", dataType: "TEXT", fieldKey: "contact.moonrock_last_engagement_at" },
   { logicalKey: "opportunity.flightPlanStatus", model: "opportunity", name: "Moonrock Flight Plan Status", dataType: "TEXT", fieldKey: "opportunity.moonrock_flight_plan_status" },
   { logicalKey: "opportunity.primaryBottleneck", model: "opportunity", name: "Moonrock Primary Bottleneck", dataType: "TEXT", fieldKey: "opportunity.moonrock_primary_bottleneck" },
   { logicalKey: "opportunity.bottleneckCount", model: "opportunity", name: "Moonrock Bottleneck Count", dataType: "NUMERICAL", fieldKey: "opportunity.moonrock_bottleneck_count" },

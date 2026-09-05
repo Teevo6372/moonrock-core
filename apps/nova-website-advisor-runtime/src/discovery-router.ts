@@ -148,7 +148,10 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const restored = restoreNovaDiscovery(current.state);
     if (!restored.result) return context.json({ code: "FLIGHT_PLAN_NOT_READY" }, 409);
     try {
-      const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
+      const ascension = typeof current.state.ascensionScore === "number"
+        ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
+        : undefined;
+      const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
       return context.json({ status: result.status, answer: result.status === "confirmed" ? "Your Flight Plan is saved with Moonrock." : "Your Flight Plan details are ready, but live CRM writes are currently disabled." });
     } catch (error) {
       return context.json({ code: "FLIGHT_PLAN_SAVE_FAILED", detail: error instanceof Error ? error.message : "Moonrock could not save the Flight Plan right now." }, 503);

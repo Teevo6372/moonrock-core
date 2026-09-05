@@ -1,5 +1,6 @@
 import type { ServiceTier } from "./ai-employee-catalog.js";
 import { composeCrossTierBundle, type AscensionBundle } from "./ascension-bundle.js";
+import { computeAscensionScore, type AscensionBand, type AscensionConversationalSignals, type AscensionLadderTier, type AscensionPurchaseRecord } from "./ascension-score.js";
 import type { BusinessPath, DiagnosticInput, DiagnosticResult, GhlSaasDiagnosticResult } from "./diagnostic-engine.js";
 import { classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas } from "./diagnostic-engine.js";
 import { buildFlightPlan, type FlightPlan } from "./flight-plan.js";
@@ -26,6 +27,15 @@ export interface DiscoverySessionState {
   continuity?: DiscoveryContinuity;
   conversationHistory?: DiscoveryConversationTurn[];
   tier?: ServiceTier;
+  // Ascension funnel (see ascension-score.ts). All computed exactly once by
+  // refreshAscensionState, below - nothing else in this file or elsewhere
+  // should set these fields directly.
+  ascensionScore?: number;
+  ascensionBand?: AscensionBand;
+  currentTier?: AscensionLadderTier;
+  lastOfferedTier?: AscensionLadderTier;
+  lastEngagementAt?: string;
+  purchaseHistory?: AscensionPurchaseRecord[];
 }
 
 export interface DiscoveryProgress {
@@ -41,6 +51,31 @@ export interface DiscoveryProgress {
 
 export const MAX_MEANINGFUL_TURNS_BEFORE_PRELIMINARY_PLAN = 4;
 export const MAX_CONVERSATION_HISTORY_TURNS = 12;
+
+/**
+ * The only place ascensionScore/ascensionBand/currentTier get set on session
+ * state - always via computeAscensionScore, never independently. Touches
+ * lastEngagementAt to now (a turn is engagement); purchaseHistory is left
+ * untouched here since no purchase-tracking call site exists yet - this only
+ * recomputes the score from whatever purchase history already exists plus
+ * fresh conversational signals.
+ */
+export function refreshAscensionState(state: DiscoverySessionState, signals: AscensionConversationalSignals = {}): DiscoverySessionState {
+  const now = new Date().toISOString();
+  const result = computeAscensionScore({
+    purchaseHistory: state.purchaseHistory ?? [],
+    conversationalSignals: signals,
+    ...(state.lastEngagementAt ? { lastEngagementAt: state.lastEngagementAt } : {}),
+    now,
+  });
+  return {
+    ...state,
+    ascensionScore: result.score,
+    ascensionBand: result.band,
+    ...(result.currentTier ? { currentTier: result.currentTier } : {}),
+    lastEngagementAt: now,
+  };
+}
 
 export function isFlightPlanRequest(text: string): boolean {
   return /\b(?:provide|show|give|build|create|generate|see|view|ready for|want)\b[\s\S]{0,40}\b(?:flight\s*plan|recommendation|recommended plan|starting plan)\b|\b(?:flight\s*plan|recommendation)\b[\s\S]{0,30}\b(?:now|please|ready)\b/i.test(text.trim());
@@ -82,7 +117,7 @@ export function appendConversationHistory(state: DiscoverySessionState, role: Di
 }
 
 export function appendConversationExchange(state: DiscoverySessionState, visitorText: string, novaText: string): DiscoverySessionState {
-  return appendConversationHistory(appendConversationHistory(state, "visitor", visitorText), "nova", novaText);
+  return refreshAscensionState(appendConversationHistory(appendConversationHistory(state, "visitor", visitorText), "nova", novaText));
 }
 
 export function forcePreliminaryFlightPlan(state: DiscoverySessionState): DiscoveryProgress {
@@ -97,7 +132,7 @@ export function applyDiscoveryAnswer(state: DiscoverySessionState, field: keyof 
 
   if (tierHasBespokeQuestionBank(tier)) {
     const completed = discoveryIsCompleteForTier(tier, state.path, answers);
-    const nextState: DiscoverySessionState = { ...state, answers, completed, meaningfulTurns, tier };
+    const nextState: DiscoverySessionState = refreshAscensionState({ ...state, answers, completed, meaningfulTurns, tier });
     if (!completed) {
       const nextQuestion = getNextDiscoveryQuestionForTier(tier, state.path, answers);
       return nextQuestion ? { state: nextState, nextQuestion } : { state: nextState };
@@ -109,7 +144,7 @@ export function applyDiscoveryAnswer(state: DiscoverySessionState, field: keyof 
   // no bespoke question set, so it follows the identical discovery flow
   // below; only completedProgress's tier dispatch changes the result shape.
   const completed = shouldProducePreliminaryPlan(state.path, answers, meaningfulTurns);
-  const nextState: DiscoverySessionState = { ...state, answers, completed, meaningfulTurns, tier };
+  const nextState: DiscoverySessionState = refreshAscensionState({ ...state, answers, completed, meaningfulTurns, tier });
 
   if (!completed) {
     const nextQuestion = getNextDiscoveryQuestion(state.path, answers);

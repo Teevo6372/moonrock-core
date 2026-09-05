@@ -75,6 +75,11 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     journey: journeyForProgress(progressPercent, state.completed), approvedEvidence: APPROVED_EVIDENCE,
     approvedServiceCatalog: approvedServiceCatalog(),
     returningVisitor: Boolean(state.continuity?.previousConversationSummary || state.conversationHistory?.length), previousConversationSummary: state.continuity?.previousConversationSummary,
+    // Read-only grounding from the single computed ascension state (see
+    // discovery-session.ts's refreshAscensionState / ascension-score.ts) -
+    // never recomputed here.
+    ascensionScore: state.ascensionScore, ascensionBand: state.ascensionBand,
+    currentTier: state.currentTier, lastOfferedTier: state.lastOfferedTier,
   };
   if (state.completed) {
     const diagnostic = diagnoseBusiness(answers as DiagnosticInput);

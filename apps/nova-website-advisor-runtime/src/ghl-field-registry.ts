@@ -7,6 +7,10 @@ export interface GhlFieldRegistry {
     industry: string;
     monthlyLeads: string;
     expectedVoiceMinutes: string;
+    ascensionScore: string;
+    currentTier: string;
+    lastOfferedTier: string;
+    lastEngagementAt: string;
   };
   opportunity: {
     flightPlanStatus: string;
@@ -31,6 +35,10 @@ export const DEFAULT_GHL_FIELD_REGISTRY: GhlFieldRegistry = {
     industry: "industry",
     monthlyLeads: "monthly_leads",
     expectedVoiceMinutes: "expected_voice_minutes",
+    ascensionScore: "moonrock_ascension_score",
+    currentTier: "moonrock_current_tier",
+    lastOfferedTier: "moonrock_last_offered_tier",
+    lastEngagementAt: "moonrock_last_engagement_at",
   },
   opportunity: {
     flightPlanStatus: "moonrock_flight_plan_status",

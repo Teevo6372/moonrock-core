@@ -1,7 +1,22 @@
+import type { AscensionLadderTier } from "./ascension-score.js";
 import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
 import type { FlightPlan } from "./flight-plan.js";
 import { mapDiscoveryToGhl, type GhlDiscoveryPayload } from "./ghl-discovery-mapping.js";
 import type { GhlFieldRegistry } from "./ghl-field-registry.js";
+
+/**
+ * Read-only carrier for the already-computed ascension state (see
+ * ascension-score.ts's computeAscensionScore, discovery-session.ts's
+ * refreshAscensionState). buildGhlFlightPlanSyncPlan only ever reads these
+ * values onto the outgoing contact fields - it never recomputes them, per
+ * the single-source-of-truth pattern that fixed the autonomousCloseAllowed
+ * incident.
+ */
+export interface GhlAscensionSyncFields {
+  ascensionScore: number;
+  currentTier: AscensionLadderTier | null;
+  lastEngagementAt?: string;
+}
 
 export type GhlFlightPlanOperation =
   | { kind: "upsert_contact"; fields: GhlDiscoveryPayload["contactFields"] }
@@ -36,6 +51,7 @@ export function buildGhlFlightPlanSyncPlan(input: {
   diagnostic: DiagnosticResult;
   flightPlan: FlightPlan;
   fieldRegistry: GhlFieldRegistry;
+  ascension?: GhlAscensionSyncFields;
 }): GhlFlightPlanSyncPlan {
   const payload = mapDiscoveryToGhl(
     input.diagnosticInput,
@@ -43,12 +59,20 @@ export function buildGhlFlightPlanSyncPlan(input: {
     input.flightPlan,
     input.fieldRegistry,
   );
+  const contactFields = { ...payload.contactFields };
+  if (input.ascension) {
+    contactFields[input.fieldRegistry.contact.ascensionScore] = input.ascension.ascensionScore;
+    contactFields[input.fieldRegistry.contact.currentTier] = input.ascension.currentTier ?? "none";
+    if (input.ascension.lastEngagementAt !== undefined) {
+      contactFields[input.fieldRegistry.contact.lastEngagementAt] = input.ascension.lastEngagementAt;
+    }
+  }
   return {
     sessionId: input.sessionId,
     idempotencyKey: `moonrock2:flight-plan:${input.sessionId}`,
     autonomousCloseAllowed: input.diagnostic.autonomousCloseAllowed,
     operations: [
-      { kind: "upsert_contact", fields: payload.contactFields },
+      { kind: "upsert_contact", fields: contactFields },
       { kind: "upsert_opportunity", fields: payload.opportunityFields },
       { kind: "add_tags", tags: payload.tags },
       { kind: "add_note", note: payload.note },
