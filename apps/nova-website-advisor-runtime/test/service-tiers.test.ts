@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
+import { ALA_CARTE_CATALOG } from "../src/ala-carte-catalog.js";
 import { chooseOfferWithinBudget, classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, extractStatedMonthlyBudgetUsd, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
@@ -205,7 +206,7 @@ describe("approvedServiceCatalog", () => {
     expect(names).toContain("Moonrock AI Front Office");
     expect(names).toContain("Growth Site");
     expect(names).toContain("SaaS Starter");
-    expect(names.length).toBe(Object.keys(AI_EMPLOYEE_CATALOG).length + Object.keys(WEBSITE_BUILD_CATALOG).length + Object.keys(GHL_SAAS_CATALOG).length);
+    expect(names.length).toBe(Object.keys(AI_EMPLOYEE_CATALOG).length + Object.keys(WEBSITE_BUILD_CATALOG).length + Object.keys(GHL_SAAS_CATALOG).length + Object.keys(ALA_CARTE_CATALOG).length);
   });
 
   it("never includes a hallucination-prone third-party platform name that isn't an actual offer", () => {

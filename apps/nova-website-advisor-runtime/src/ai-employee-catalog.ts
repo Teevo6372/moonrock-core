@@ -1,3 +1,5 @@
+import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
+
 export type AiEmployeeId =
   | "reputation_retention"
   | "lead_response"
@@ -172,10 +174,13 @@ export function priceOffer(
 // changes for the ai_employee tier. Digital Products is intentionally not
 // modeled yet (catalog inventory is unvetted); ServiceTier and the
 // classify/dispatch pattern in diagnostic-engine.ts are built so it can be
-// added as a fourth tier later without disruption.
+// added as a fourth tier later without disruption. The ala_carte tier
+// (Trust Builder / Ascension Add-On / Custom Build, see ala-carte-catalog.ts)
+// was added following this same extension pattern; Digital Products remains
+// the next and final extension point once its catalog inventory is vetted.
 // ---------------------------------------------------------------------------
 
-export type ServiceTier = "ai_employee" | "website_build" | "ghl_saas";
+export type ServiceTier = "ai_employee" | "website_build" | "ghl_saas" | "ala_carte";
 
 export type WebsiteBuildId = "starter_site" | "growth_site" | "custom_site";
 
@@ -276,5 +281,6 @@ export function approvedServiceCatalog(): ApprovedServiceSummary[] {
     ...Object.values(AI_EMPLOYEE_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
     ...Object.values(WEBSITE_BUILD_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.scopeDescription })),
     ...Object.values(GHL_SAAS_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
+    ...Object.values(ALA_CARTE_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
   ];
 }
