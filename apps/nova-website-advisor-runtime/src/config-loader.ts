@@ -1,5 +1,5 @@
 import { readFileSync, realpathSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 import {
   validateStagingConfig,
   type StagingRuntimeConfig,
@@ -18,7 +18,13 @@ export function loadStagingConfigFile(
 ): StagingRuntimeConfig {
   const allowedRoot = realpathSync(options.allowedRoot);
   const requested = realpathSync(resolve(path));
-  if (requested !== allowedRoot && !requested.startsWith(`${allowedRoot}/`)) {
+  // path.relative + a ".." / absolute-result check is the portable way to
+  // test containment - a hardcoded "/" separator (the previous approach)
+  // never matches on Windows, where realpathSync returns backslash-separated
+  // paths, so every legitimately-inside path was wrongly rejected there.
+  const relativePath = relative(allowedRoot, requested);
+  const isInsideAllowedRoot = requested === allowedRoot || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
+  if (!isInsideAllowedRoot) {
     throw new ConfigurationLoadError("Configuration path is outside the allowed root");
   }
   const size = statSync(requested).size;
