@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
 import { ALA_CARTE_CATALOG } from "../src/ala-carte-catalog.js";
-import { chooseOfferWithinBudget, classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, extractStatedMonthlyBudgetUsd, type DiagnosticInput } from "../src/diagnostic-engine.js";
+import { chooseGhlSaasOfferWithinBudget, chooseOfferWithinBudget, chooseWebsiteBuildOfferWithinBudget, classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, extractStatedMonthlyBudgetUsd, extractStatedSetupBudgetUsd, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
 
@@ -74,6 +74,50 @@ describe("diagnoseWebsiteBuild", () => {
   it("defaults to growth_site when scope is not yet known", () => {
     expect(diagnoseWebsiteBuild(input()).recommendedOfferId).toBe("growth_site");
   });
+
+  it("scores a website_scope_gap bottleneck when must-haves describe more than a landing page", () => {
+    const result = diagnoseWebsiteBuild(input({ websiteMustHaves: "We need online booking and an online store." }));
+    expect(result.bottlenecks.some((finding) => finding.id === "website_scope_gap")).toBe(true);
+  });
+
+  it("upgrades a landing_page scope to growth_site when must-haves reveal more scope", () => {
+    const result = diagnoseWebsiteBuild(input({ websiteScopeNeeded: "landing_page", websiteMustHaves: "We also want appointment booking on the site." }));
+    expect(result.recommendedOfferId).toBe("growth_site");
+  });
+
+  it("does not score a scope gap when no scope-expanding language is present", () => {
+    const result = diagnoseWebsiteBuild(input({ websiteScopeNeeded: "landing_page" }));
+    expect(result.bottlenecks).toHaveLength(0);
+  });
+});
+
+describe("diagnoseWebsiteBuild budget-aware revision", () => {
+  it("overrides the recommendation when it exceeds a stated one-time setup budget", () => {
+    const result = diagnoseWebsiteBuild(input({ websiteScopeNeeded: "ecommerce" }));
+    expect(result.recommendedOfferId).toBe("custom_site");
+
+    const budgeted = diagnoseWebsiteBuild(input({ websiteScopeNeeded: "ecommerce", setupBudgetCeilingUsd: 800 }));
+    expect(budgeted.recommendedOfferId).toBe("starter_site");
+    expect(budgeted.recommendationReason).toContain("$800 budget");
+  });
+
+  it("leaves the recommendation untouched when it already fits the stated budget", () => {
+    const result = diagnoseWebsiteBuild(input({ websiteScopeNeeded: "landing_page", setupBudgetCeilingUsd: 2000 }));
+    expect(result.recommendedOfferId).toBe("starter_site");
+    expect(result.recommendationReason).not.toContain("budget");
+  });
+
+  it("extractStatedSetupBudgetUsd reads a one-time amount gated behind a budget-objection cue", () => {
+    expect(extractStatedSetupBudgetUsd("We can only afford $800 total for this.")).toBe(800);
+    expect(extractStatedSetupBudgetUsd("Our site should be blue, like $800 blue.")).toBeUndefined();
+  });
+
+  it("chooseWebsiteBuildOfferWithinBudget is honest about the catalog floor rather than inventing a discount", () => {
+    const fit = chooseWebsiteBuildOfferWithinBudget(100);
+    expect(fit.fitsWithinBudget).toBe(false);
+    expect(fit.offerId).toBe("starter_site");
+    expect(fit.cheapestSetupFeeUsd).toBe(500);
+  });
 });
 
 describe("diagnoseGhlSaas", () => {
@@ -97,6 +141,45 @@ describe("diagnoseGhlSaas", () => {
 
   it("recommends saas_pro for a large client count", () => {
     expect(diagnoseGhlSaas(input({ numberOfClientsManaged: 30 })).recommendedOfferId).toBe("saas_pro");
+  });
+
+  it("scores an agency_client_load bottleneck from described manual reporting or client churn", () => {
+    const result = diagnoseGhlSaas(input({ businessChallenges: "Onboarding takes forever and clients keep switching away from us." }));
+    expect(result.bottlenecks.some((finding) => finding.id === "agency_client_load")).toBe(true);
+  });
+
+  it("upgrades saas_starter to saas_growth when client-load signals are present but client count is low", () => {
+    const result = diagnoseGhlSaas(input({ numberOfClientsManaged: 3, businessChallenges: "We spend hours on manual reporting for our clients." }));
+    expect(result.recommendedOfferId).toBe("saas_growth");
+  });
+
+  it("does not score a client-load signal when no such language is present", () => {
+    const result = diagnoseGhlSaas(input({ numberOfClientsManaged: 3 }));
+    expect(result.bottlenecks).toHaveLength(0);
+  });
+});
+
+describe("diagnoseGhlSaas budget-aware revision", () => {
+  it("overrides the recommendation when it exceeds a stated monthly budget ceiling", () => {
+    const result = diagnoseGhlSaas(input({ numberOfClientsManaged: 30 }));
+    expect(result.recommendedOfferId).toBe("saas_pro");
+
+    const budgeted = diagnoseGhlSaas(input({ numberOfClientsManaged: 30, budgetCeilingMonthlyUsd: 200 }));
+    expect(budgeted.recommendedOfferId).toBe("saas_growth");
+    expect(budgeted.recommendationReason).toContain("$200/month budget");
+  });
+
+  it("leaves the recommendation untouched when it already fits the stated budget", () => {
+    const result = diagnoseGhlSaas(input({ numberOfClientsManaged: 3, budgetCeilingMonthlyUsd: 500 }));
+    expect(result.recommendedOfferId).toBe("saas_starter");
+    expect(result.recommendationReason).not.toContain("budget");
+  });
+
+  it("chooseGhlSaasOfferWithinBudget is honest about the catalog floor rather than inventing a discount", () => {
+    const fit = chooseGhlSaasOfferWithinBudget(10);
+    expect(fit.fitsWithinBudget).toBe(false);
+    expect(fit.offerId).toBe("saas_starter");
+    expect(fit.cheapestMonthlyFeeUsd).toBe(97);
   });
 });
 

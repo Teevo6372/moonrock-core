@@ -12,6 +12,7 @@ export interface WebsiteBuildBrief {
   mustHaves: string | null;
   brandAssetsReady: boolean | null;
   recommendationReason: string;
+  primaryMotivations: Array<{ id: string; score: number; explanation: string }>;
   assumptionsToConfirm: string[];
   disclosures: string[];
 }
@@ -36,6 +37,7 @@ export function buildWebsiteBrief(input: DiagnosticInput): WebsiteBuildBrief {
     mustHaves: input.websiteMustHaves ?? null,
     brandAssetsReady: input.hasApprovedBrandAssets ?? null,
     recommendationReason: diagnosis.recommendationReason,
+    primaryMotivations: diagnosis.bottlenecks.slice(0, 3).map((finding) => ({ id: finding.id, score: finding.score, explanation: finding.reason })),
     assumptionsToConfirm,
     disclosures: [
       "This is a preliminary site brief based on the information provided so far. Scope, price, and delivery timing should be confirmed before build work begins.",

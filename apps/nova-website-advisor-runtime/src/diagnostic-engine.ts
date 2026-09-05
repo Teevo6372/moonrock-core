@@ -22,7 +22,9 @@ export type BottleneckId =
   | "retention"
   | "reactivation"
   | "founder_capacity"
-  | "multi_department";
+  | "multi_department"
+  | "website_scope_gap"
+  | "agency_client_load";
 
 export type RiskCategory =
   | "healthcare_phi"
@@ -71,9 +73,13 @@ export interface DiagnosticInput {
   isAgencyOrReseller?: boolean;
   numberOfClientsManaged?: number;
   // Stated post-recommendation budget ceiling (§ budget-aware revision).
-  // Optional and only consulted by diagnoseBusiness's offer selection below;
+  // Consulted by diagnoseBusiness's and diagnoseGhlSaas's offer selection;
   // scoreFindings/chooseOffer/bottleneck logic is unaffected when unset.
   budgetCeilingMonthlyUsd?: number;
+  // One-time-setup equivalent of budgetCeilingMonthlyUsd, consulted only by
+  // diagnoseWebsiteBuild (Website Build is a one-time setup fee, not a
+  // monthly subscription, so it needs its own budget-ceiling field).
+  setupBudgetCeilingUsd?: number;
 }
 
 export interface BottleneckFinding { id: BottleneckId; score: number; reason: string; }
@@ -171,6 +177,51 @@ export function extractStatedMonthlyBudgetUsd(text: string): number | undefined 
   return undefined;
 }
 
+const ONE_TIME_AMOUNT_PATTERN = /\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:total|one-?time|upfront|flat)/i;
+const AFFORD_ONE_TIME_AMOUNT_PATTERN = /(?:afford|budget(?:\s+is)?|spend|pay)\D{0,15}?\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)/i;
+
+/** Deterministic (non-LLM) extraction of a stated one-time setup budget from
+ *  free text, for Website Build objections (a one-time fee, not a monthly
+ *  price - so it needs its own amount pattern rather than reusing
+ *  extractStatedMonthlyBudgetUsd's monthly-shaped one). Gated behind the same
+ *  budget-objection cue. */
+export function extractStatedSetupBudgetUsd(text: string): number | undefined {
+  if (!BUDGET_OBJECTION_CUE.test(text)) return undefined;
+  const total = text.match(ONE_TIME_AMOUNT_PATTERN);
+  if (total) return Number(total[1]!.replace(/,/g, ""));
+  const afford = text.match(AFFORD_ONE_TIME_AMOUNT_PATTERN);
+  if (afford) return Number(afford[1]!.replace(/,/g, ""));
+  return undefined;
+}
+
+export interface WebsiteBudgetFitOffer { offerId: WebsiteBuildId; fitsWithinBudget: boolean; cheapestSetupFeeUsd: number; }
+
+/** Picks the highest-value Website Build catalog offer at or under a stated
+ *  one-time setup budget. Mirrors chooseOfferWithinBudget's honesty-over-
+ *  invented-discount behavior. */
+export function chooseWebsiteBuildOfferWithinBudget(setupBudgetUsd: number): WebsiteBudgetFitOffer {
+  const byPrice = Object.values(WEBSITE_BUILD_CATALOG).slice().sort((a, b) => a.setupFeeUsd - b.setupFeeUsd);
+  const cheapest = byPrice[0]!;
+  const withinBudget = byPrice.filter((offer) => offer.setupFeeUsd <= setupBudgetUsd);
+  if (withinBudget.length === 0) return { offerId: cheapest.id, fitsWithinBudget: false, cheapestSetupFeeUsd: cheapest.setupFeeUsd };
+  const best = withinBudget[withinBudget.length - 1]!;
+  return { offerId: best.id, fitsWithinBudget: true, cheapestSetupFeeUsd: cheapest.setupFeeUsd };
+}
+
+export interface GhlSaasBudgetFitOffer { offerId: GhlSaasId; fitsWithinBudget: boolean; cheapestMonthlyFeeUsd: number; }
+
+/** Picks the highest-value GHL SaaS catalog offer at or under a stated
+ *  monthly budget. Mirrors chooseOfferWithinBudget's honesty-over-invented-
+ *  discount behavior. */
+export function chooseGhlSaasOfferWithinBudget(budgetCeilingUsd: number): GhlSaasBudgetFitOffer {
+  const byPrice = Object.values(GHL_SAAS_CATALOG).slice().sort((a, b) => a.monthlyFeeUsd - b.monthlyFeeUsd);
+  const cheapest = byPrice[0]!;
+  const withinBudget = byPrice.filter((offer) => offer.monthlyFeeUsd <= budgetCeilingUsd);
+  if (withinBudget.length === 0) return { offerId: cheapest.id, fitsWithinBudget: false, cheapestMonthlyFeeUsd: cheapest.monthlyFeeUsd };
+  const best = withinBudget[withinBudget.length - 1]!;
+  return { offerId: best.id, fitsWithinBudget: true, cheapestMonthlyFeeUsd: cheapest.monthlyFeeUsd };
+}
+
 export function diagnoseBusiness(input: DiagnosticInput): DiagnosticResult {
   const bottlenecks = scoreFindings(input);
   const needBasedOfferId = chooseOffer(bottlenecks);
@@ -240,20 +291,59 @@ export function classifyServiceTier(input: DiagnosticInput): ServiceTierClassifi
   return { tier: "ai_employee", confidence: "inferred", reason: "No stronger signal for another tier was found; defaulting to the AI Employee bottleneck diagnosis." };
 }
 
+const WEBSITE_SCOPE_UPGRADE_PATTERN = /online store|e-?commerce|shopping cart|sell\s+(?:products?|things?|items?|stuff|goods)?\s*online|web store|booking|appointment|multiple pages|multi-page|several services|blog|portfolio/i;
+
+function scoreWebsiteBuildFindings(input: DiagnosticInput): BottleneckFinding[] {
+  const findings: BottleneckFinding[] = [];
+  const text = `${input.websiteMustHaves ?? ""} ${input.businessChallenges ?? ""}`.trim();
+  if (text && WEBSITE_SCOPE_UPGRADE_PATTERN.test(text)) {
+    addFinding(findings, "website_scope_gap", 70, "The described must-haves point to more scope than a single landing page covers.");
+  }
+  return findings.sort((a, b) => b.score - a.score);
+}
+
 export interface WebsiteBuildDiagnosticResult {
   tier: "website_build";
   recommendedOfferId: WebsiteBuildId;
   recommendationReason: string;
+  bottlenecks: BottleneckFinding[];
 }
 
 export function diagnoseWebsiteBuild(input: DiagnosticInput): WebsiteBuildDiagnosticResult {
+  const bottlenecks = scoreWebsiteBuildFindings(input);
+  const hasScopeGap = bottlenecks.some((finding) => finding.id === "website_scope_gap");
   const scope = input.websiteScopeNeeded;
-  const recommendedOfferId: WebsiteBuildId = scope === "landing_page" ? "starter_site" : scope === "ecommerce" ? "custom_site" : "growth_site";
+  let recommendedOfferId: WebsiteBuildId = scope === "landing_page" ? "starter_site" : scope === "ecommerce" ? "custom_site" : "growth_site";
+  if (hasScopeGap && recommendedOfferId === "starter_site") recommendedOfferId = "growth_site";
+
+  let budgetNote: string | undefined;
+  if (input.setupBudgetCeilingUsd !== undefined && WEBSITE_BUILD_CATALOG[recommendedOfferId].setupFeeUsd > input.setupBudgetCeilingUsd) {
+    const budgetFit = chooseWebsiteBuildOfferWithinBudget(input.setupBudgetCeilingUsd);
+    recommendedOfferId = budgetFit.offerId;
+    budgetNote = budgetFit.fitsWithinBudget
+      ? `That fits inside a stated $${input.setupBudgetCeilingUsd} budget.`
+      : `Even Moonrock's most affordable Website Build option runs $${budgetFit.cheapestSetupFeeUsd}; that is the published catalog floor, not a discount.`;
+  }
+
   const offer = WEBSITE_BUILD_CATALOG[recommendedOfferId];
-  const recommendationReason = scope
+  const baseReason = scope
     ? `The visitor described a ${scope.replaceAll("_", " ")} scope, which matches ${offer.name}.`
-    : `No specific scope was confirmed yet, so ${offer.name} is the starting recommendation pending the site brief.`;
-  return { tier: "website_build", recommendedOfferId, recommendationReason };
+    : hasScopeGap
+      ? `The described must-haves point to more than a single landing page, so ${offer.name} is the starting recommendation.`
+      : `No specific scope was confirmed yet, so ${offer.name} is the starting recommendation pending the site brief.`;
+  const recommendationReason = budgetNote ? `${baseReason} ${budgetNote}` : baseReason;
+  return { tier: "website_build", recommendedOfferId, recommendationReason, bottlenecks };
+}
+
+const AGENCY_CLIENT_LOAD_PATTERN = /manual(ly)? report|reporting takes|spend(ing)? hours? on reports?|onboarding takes (forever|too long)|slow to onboard|hard to onboard|clients? (keep )?switch(ing)?|losing clients|client churn/i;
+
+function scoreGhlSaasFindings(input: DiagnosticInput): BottleneckFinding[] {
+  const findings: BottleneckFinding[] = [];
+  const challenges = input.businessChallenges?.toLowerCase() ?? "";
+  if (challenges && AGENCY_CLIENT_LOAD_PATTERN.test(challenges)) {
+    addFinding(findings, "agency_client_load", 70, "The agency described manual reporting, slow onboarding, or client churn that a higher-seat white-label plan would ease.");
+  }
+  return findings.sort((a, b) => b.score - a.score);
 }
 
 export interface GhlSaasDiagnosticResult {
@@ -264,15 +354,32 @@ export interface GhlSaasDiagnosticResult {
   includedSeats: number;
   includedFeatures: readonly string[];
   recommendationReason: string;
+  bottlenecks: BottleneckFinding[];
 }
 
 export function diagnoseGhlSaas(input: DiagnosticInput): GhlSaasDiagnosticResult {
+  const bottlenecks = scoreGhlSaasFindings(input);
+  const hasClientLoadSignal = bottlenecks.some((finding) => finding.id === "agency_client_load");
   const clients = input.numberOfClientsManaged ?? 0;
-  const recommendedOfferId: GhlSaasId = clients > 20 ? "saas_pro" : clients > 5 ? "saas_growth" : "saas_starter";
+  let recommendedOfferId: GhlSaasId = clients > 20 ? "saas_pro" : clients > 5 ? "saas_growth" : "saas_starter";
+  if (hasClientLoadSignal && recommendedOfferId === "saas_starter") recommendedOfferId = "saas_growth";
+
+  let budgetNote: string | undefined;
+  if (input.budgetCeilingMonthlyUsd !== undefined && GHL_SAAS_CATALOG[recommendedOfferId].monthlyFeeUsd > input.budgetCeilingMonthlyUsd) {
+    const budgetFit = chooseGhlSaasOfferWithinBudget(input.budgetCeilingMonthlyUsd);
+    recommendedOfferId = budgetFit.offerId;
+    budgetNote = budgetFit.fitsWithinBudget
+      ? `That fits inside a stated $${input.budgetCeilingMonthlyUsd}/month budget.`
+      : `Even Moonrock's most affordable white-label plan runs $${budgetFit.cheapestMonthlyFeeUsd}/month; that is the published catalog floor, not a discount.`;
+  }
+
   const offer = GHL_SAAS_CATALOG[recommendedOfferId];
-  const recommendationReason = clients > 0
+  const baseReason = clients > 0
     ? `Managing roughly ${clients} clients points to ${offer.name}.`
-    : `No client count was confirmed yet, so ${offer.name} is the starting recommendation.`;
+    : hasClientLoadSignal
+      ? `The described client-servicing load points to ${offer.name} as a starting recommendation.`
+      : `No client count was confirmed yet, so ${offer.name} is the starting recommendation.`;
+  const recommendationReason = budgetNote ? `${baseReason} ${budgetNote}` : baseReason;
   return {
     tier: "ghl_saas",
     recommendedOfferId,
@@ -281,6 +388,7 @@ export function diagnoseGhlSaas(input: DiagnosticInput): GhlSaasDiagnosticResult
     includedSeats: offer.includedSeats,
     includedFeatures: offer.includedFeatures,
     recommendationReason,
+    bottlenecks,
   };
 }
 
