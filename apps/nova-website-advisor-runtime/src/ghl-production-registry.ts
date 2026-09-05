@@ -32,15 +32,13 @@ export const MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY: GhlFieldRegistry = {
     industry: "sawfd5G93MRMFjg96RfZ",
     monthlyLeads: "NwYVzpLhCTHUDFBU2bFF",
     expectedVoiceMinutes: "lZYqPQI9BMUXfLAD4xAe",
-    // PENDING: run `npm run provision:ghl-fields -- --apply` then
-    // `npm run inspect:ghl` against the live Moonrock GHL location, and
-    // paste the four resolved real field IDs here. Left as obviously-invalid
-    // placeholders (rather than empty strings) so a forgotten fill-in fails
-    // loudly against the real GHL API instead of silently upserting garbage.
-    ascensionScore: "PENDING_ascensionScore_field_id",
-    currentTier: "PENDING_currentTier_field_id",
-    lastOfferedTier: "PENDING_lastOfferedTier_field_id",
-    lastEngagementAt: "PENDING_lastEngagementAt_field_id",
+    // Provisioned 2026-09-05 via `npm run provision:ghl-fields -- --apply`
+    // against the live Moonrock GHL location, resolved with `npm run
+    // inspect:ghl` (verified: true, missing: []).
+    ascensionScore: "TBSwlYUMtTLCQrYhDyl8",
+    currentTier: "I7RQU591NNA5oNvSWC5s",
+    lastOfferedTier: "BjsOMzNMjmmAhiUDz8Ou",
+    lastEngagementAt: "zCwZq0Qzl9W0GlCkKI68",
   },
   opportunity: {
     flightPlanStatus: "cVaTeGYQsaGRgcUjRww9",
