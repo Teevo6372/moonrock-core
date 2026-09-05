@@ -84,3 +84,60 @@ describe("conversational clarification", () => {
     expect(normalized.interpreted).toBe(true);
   });
 });
+
+describe("ascension funnel grounding in businessContext", () => {
+  async function contextFromRespond(state: DiscoverySessionState, question = "Tell me more."): Promise<Record<string, unknown>> {
+    const generate = vi.fn<NovaConversationGenerator["generate"]>().mockResolvedValue("ok");
+    const engine = new SessionGroundedNovaConversationEngine({ generate });
+    await engine.respond(state, question);
+    return generate.mock.calls[0]![0].businessContext;
+  }
+
+  it("always grounds the LLM on the approved a-la-carte catalog", async () => {
+    const context = await contextFromRespond(completedState());
+    expect(Array.isArray(context.alaCarteCatalog)).toBe(true);
+    expect((context.alaCarteCatalog as Array<{ name: string }>).some((item) => item.name === "CRM & Pipeline Management")).toBe(true);
+  });
+
+  it("never leaks the internal GHL-native-component note into the LLM prompt context", async () => {
+    const context = await contextFromRespond(completedState());
+    const serialized = JSON.stringify(context.alaCarteCatalog);
+    expect(serialized).not.toContain("GHL");
+    expect(serialized).not.toContain("ghlNativeComponentNote");
+  });
+
+  it("includes activeBundle only when a cross-tier bundle actually applies", async () => {
+    const withoutSignal = await contextFromRespond(completedState());
+    expect(withoutSignal.activeBundle).toBeUndefined();
+
+    const websiteBuildState: DiscoverySessionState = {
+      path: "existing_business",
+      completed: false,
+      answers: { path: "existing_business", hasExistingWebsite: false, websiteMustHaves: "We need a quote form on the new site." },
+    };
+    const withSignal = await contextFromRespond(websiteBuildState);
+    expect(withSignal.activeBundle).toBeDefined();
+  });
+
+  it("includes fastTrack only when the visitor's signals are actually eligible", async () => {
+    const plainState: DiscoverySessionState = { path: "existing_business", completed: false, answers: { path: "existing_business", missedCallsPerMonth: 3 } };
+    const notEligible = await contextFromRespond(plainState);
+    expect(notEligible.fastTrack).toBeUndefined();
+
+    const eligibleState: DiscoverySessionState = {
+      path: "existing_business",
+      completed: false,
+      answers: { path: "existing_business", businessChallenges: "We operate across 5 locations." },
+    };
+    const eligible = await contextFromRespond(eligibleState);
+    expect(eligible.fastTrack).toBeDefined();
+    expect((eligible.fastTrack as { fastTrackEligible: boolean }).fastTrackEligible).toBe(true);
+  });
+
+  it("keeps the grounded fallback price-accurate even when an active bundle exists in context", async () => {
+    const engine = new SessionGroundedNovaConversationEngine();
+    const turn = await engine.respond(completedState(), "What would this cost me?");
+    expect(turn.mode).toBe("grounded_fallback");
+    expect(turn.answer).toContain("$749/month");
+  });
+});

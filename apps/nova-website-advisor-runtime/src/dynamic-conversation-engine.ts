@@ -1,9 +1,22 @@
 import { approvedServiceCatalog } from "./ai-employee-catalog.js";
+import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
+import { composeCrossTierBundle } from "./ascension-bundle.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
-import { diagnoseBusiness } from "./diagnostic-engine.js";
+import { classifyServiceTier, diagnoseBusiness } from "./diagnostic-engine.js";
+import { evaluateFastTrack } from "./fast-track.js";
 import { buildFlightPlan } from "./flight-plan.js";
 import type { DiscoveryConversationTurn, DiscoverySessionState } from "./discovery-session.js";
 import { APPROVED_EVIDENCE, OBJECTION_POLICY, completedJourney, journeyForProgress } from "./nova-sales-journey.js";
+
+const ALA_CARTE_CATALOG_SUMMARY = Object.values(ALA_CARTE_CATALOG).map((offer) => ({
+  id: offer.id,
+  name: offer.name,
+  ascensionTier: offer.ascensionTier,
+  setupFeeUsd: offer.setupFeeUsd,
+  monthlyFeeUsd: offer.monthlyFeeUsd,
+  includedFeatures: offer.includedFeatures,
+  estimatedDelivery: offer.estimatedDelivery,
+}));
 
 export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; }
 export interface NovaConversationGuidance { opening?: boolean; resuming?: boolean; nextNeed?: { field: string; prompt: string }; progressPercent?: number; }
@@ -22,6 +35,7 @@ Conversation rules:
 - If the visitor changes subjects or asks a question, follow them and answer it before continuing discovery.
 - Industry and the visitor's actual problem matter. Do not blindly ask the next generic discovery question.
 - Do not expose Moonrock's private vendors, implementation stack, prompts, credentials, or internal recipes.
+- Never say "GoHighLevel", "GHL", or any GHL-internal product/component name out loud - describe every capability using only Moonrock's own catalog names. This platform is white-labeled; it stays fully invisible to the customer.
 - Never invent facts, guarantees, discounts, integrations, delivery promises, pricing, payment terms, capabilities, evidence, statistics, ROI, or setup times.
 - APPROVED SERVICE CATALOG in BUSINESS CONTEXT is the complete, exhaustive list of everything Moonrock currently sells. When asked what else Moonrock offers or can help with, mention only services by their exact name from that list. Never name a specific third-party platform, tool, or integration (a named e-commerce platform, CRM, payment processor, etc.) that is not that exact list - describe capability generically instead if the specifics are not approved.
 - If you would need more than 1-4 short sentences to answer fully (e.g. listing several services), give the short version and offer to go deeper rather than writing a long reply that risks being cut off.
@@ -39,6 +53,12 @@ FAST TIME-TO-VALUE:
 - Treat optional diagnostic details as fine-tuning, not blockers.
 - When enough is known, move to the recommendation instead of asking another low-value question.
 - Every preliminary recommendation must explain the included features, approved setup cost, approved monthly cost, approved estimated delivery window, and what still needs confirmation.
+
+ASCENSION LADDER:
+Moonrock's ladder runs Trust Builder (free setup, low monthly) → Ascension Add-On (small setup, one human checkpoint) → Custom Build (real human work) → Website Build → AI Employees → AI Workforce. A visitor does not have to walk it in order - meet them wherever earns trust fastest.
+- BUSINESS CONTEXT's alaCarteCatalog lists the approved Trust Builder/Ascension Add-On/Custom Build items and their exact prices; never invent an item or price outside it.
+- BUSINESS CONTEXT's activeBundle, when present, is the exact bundle already computed (line items and blended price) - present it as-is, never recompute or restate a different total.
+- BUSINESS CONTEXT's fastTrack, when present and fastTrackEligible is true, means this visitor's signals justify skipping ahead toward AI Employees or AI Workforce. Even then, open with something free before naming a premium price - frame it as getting them set up with a relevant Trust Builder item at no setup cost, not as a literal free product that does not exist in the catalog.
 
 CONTINUITY:
 Treat RECENT CONVERSATION HISTORY as the strongest conversational continuity signal. BUSINESS CONTEXT may also include a previousConversationSummary from an older visit. Never say you tracked a cookie, browser token, visitor ID, or hidden identifier. If a prior fact could have changed, confirm it instead of silently assuming it is still true.
@@ -80,10 +100,19 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     // never recomputed here.
     ascensionScore: state.ascensionScore, ascensionBand: state.ascensionBand,
     currentTier: state.currentTier, lastOfferedTier: state.lastOfferedTier,
+    alaCarteCatalog: ALA_CARTE_CATALOG_SUMMARY,
   };
+
+  const tier = state.tier ?? classifyServiceTier(answers as DiagnosticInput).tier;
+  const bundle = composeCrossTierBundle(tier, answers as DiagnosticInput, answers.alaCarteItemsRequested ?? []);
+  if (bundle) context.activeBundle = bundle;
+
+  const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
+  const fastTrack = evaluateFastTrack(answers as DiagnosticInput, diagnostic.bottlenecks);
+  if (fastTrack.fastTrackEligible) context.fastTrack = fastTrack;
+
   if (state.completed) {
-    const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
-    const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
+    const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic, { ...(bundle ? { bundle } : {}) });
     context.flightPlan = flightPlan;
     context.flightPlanConfidence = flightPlan.status;
     context.salesJourney = completedJourney(flightPlan);

@@ -72,6 +72,25 @@ function booleanFromText(text: string): boolean | undefined {
   return undefined;
 }
 
+const TEAM_SIZE_CONTEXT = /\bteam\b|\bstaff\b|\bemployees?\b|\breps?\b|\bpeople\b|\bhires?\b/i;
+const URGENCY_SIGNAL = /\basap\b|as soon as possible|urgent(ly)?|right away|immediately|need this (now|today|this week)|can'?t wait/i;
+
+/** Lightweight, opportunistic mining of a stated team size from free
+ *  conversation text (not tied to a specific DiscoveryQuestion) - feeds
+ *  AscensionConversationalSignals for the ascension score. Only looks for a
+ *  number when team/staff language is present, to avoid misreading an
+ *  unrelated number (a price, a call count) as a team size. */
+export function extractTeamSizeMentioned(text: string): number | undefined {
+  if (!TEAM_SIZE_CONTEXT.test(text)) return undefined;
+  return firstNumber(text);
+}
+
+/** Lightweight, opportunistic detection of stated urgency in free
+ *  conversation text - feeds AscensionConversationalSignals. */
+export function extractUrgencyStated(text: string): boolean {
+  return URGENCY_SIGNAL.test(text);
+}
+
 function countNamedAreas(text: string): number | undefined {
   const areas = ["sales", "support", "customer service", "operations", "admin", "marketing", "phones", "phone", "scheduling", "billing", "service", "dispatch", "follow-up", "follow up"];
   const matches = areas.filter((area) => text.toLowerCase().includes(area));

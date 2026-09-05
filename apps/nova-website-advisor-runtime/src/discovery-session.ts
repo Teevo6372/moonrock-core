@@ -1,6 +1,7 @@
 import type { ServiceTier } from "./ai-employee-catalog.js";
 import { composeCrossTierBundle, type AscensionBundle } from "./ascension-bundle.js";
 import { computeAscensionScore, type AscensionBand, type AscensionConversationalSignals, type AscensionLadderTier, type AscensionPurchaseRecord } from "./ascension-score.js";
+import { extractTeamSizeMentioned, extractUrgencyStated } from "./conversation-normalizer.js";
 import type { BusinessPath, DiagnosticInput, DiagnosticResult, GhlSaasDiagnosticResult } from "./diagnostic-engine.js";
 import { classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas } from "./diagnostic-engine.js";
 import { buildFlightPlan, type FlightPlan } from "./flight-plan.js";
@@ -117,7 +118,13 @@ export function appendConversationHistory(state: DiscoverySessionState, role: Di
 }
 
 export function appendConversationExchange(state: DiscoverySessionState, visitorText: string, novaText: string): DiscoverySessionState {
-  return refreshAscensionState(appendConversationHistory(appendConversationHistory(state, "visitor", visitorText), "nova", novaText));
+  const teamSizeMentioned = extractTeamSizeMentioned(visitorText);
+  const urgencyStated = extractUrgencyStated(visitorText);
+  const signals: AscensionConversationalSignals = {
+    ...(teamSizeMentioned !== undefined ? { teamSizeMentioned } : {}),
+    ...(urgencyStated ? { urgencyStated } : {}),
+  };
+  return refreshAscensionState(appendConversationHistory(appendConversationHistory(state, "visitor", visitorText), "nova", novaText), signals);
 }
 
 export function forcePreliminaryFlightPlan(state: DiscoverySessionState): DiscoveryProgress {
