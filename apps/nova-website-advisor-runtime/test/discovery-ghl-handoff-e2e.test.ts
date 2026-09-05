@@ -87,4 +87,64 @@ describe("discovery to GHL handoff (dry run)", () => {
     const kinds = plan.operations.map((operation) => operation.kind);
     expect(kinds).toEqual(expect.arrayContaining(["upsert_contact", "upsert_opportunity", "add_tags", "add_note"]));
   });
+
+  it("carries a full low-commitment conversation through the new ala_carte tier to a priced bundle", async () => {
+    const { app } = createMoonrock2App({
+      productionGhl: {
+        enabled: true,
+        fieldsVerified: true,
+        writesEnabled: false,
+        locationId: "dry-run-location",
+        accessToken: "dry-run-token",
+        fieldRegistry: MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY,
+      },
+    });
+    const sessionId = "e2e-ala-carte-dry-run-001";
+
+    async function post(path: string, body: unknown) {
+      const response = await app.request(`http://localhost${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, json: (await response.json()) as any };
+    }
+
+    const start = await post(`/v1/discovery/${sessionId}/start`, { path: "existing_business" });
+    expect(start.status).toBe(201);
+
+    const industry = await post(`/v1/discovery/${sessionId}/answers`, { field: "industry", value: "Small retail shop" });
+    expect(industry.status).toBe(200);
+    expect(industry.json.tier).toBe("ai_employee");
+
+    const challenge = await post(`/v1/discovery/${sessionId}/answers`, {
+      field: "businessChallenges",
+      value: "I just want something simple, not ready for a full website.",
+    });
+    expect(challenge.status).toBe(200);
+    expect(challenge.json.tier).toBe("ala_carte");
+    expect(challenge.json.completed).toBe(false);
+    expect(challenge.json.nextQuestion?.field).toBe("alaCarteItemsRequested");
+
+    const items = await post(`/v1/discovery/${sessionId}/answers`, {
+      field: "alaCarteItemsRequested",
+      value: ["crm_pipeline", "booking_appointments"],
+    });
+    expect(items.status).toBe(200);
+    expect(items.json.completed).toBe(true);
+    expect(items.json.alaCarteResult).toBeDefined();
+    expect(items.json.alaCarteResult.crmAutoAttached).toBe(false);
+    expect(items.json.alaCarteResult.blendedMonthlyFeeUsd).toBe(49 + 29);
+    expect(items.json.alaCarteResult.lineItems).toHaveLength(2);
+
+    // The ala_carte tier's own GHL sync path is Step 4's job (ascension
+    // score + GHL sync), not Step 3's - save-flight-plan today only serves
+    // the ai_employee-shaped result, so it correctly reports not-ready here
+    // rather than silently fabricating one.
+    const save = await post(`/v1/discovery/${sessionId}/save-flight-plan`, {
+      identity: { email: "ala-carte-dry-run@example.com" },
+    });
+    expect(save.status).toBe(409);
+    expect(save.json.code).toBe("FLIGHT_PLAN_NOT_READY");
+  });
 });

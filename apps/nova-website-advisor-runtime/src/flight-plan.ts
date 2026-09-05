@@ -1,4 +1,5 @@
 import { AI_EMPLOYEE_CATALOG, priceOffer, type AiEmployeeId } from "./ai-employee-catalog.js";
+import type { AscensionBundle } from "./ascension-bundle.js";
 import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
 
 export interface FlightPlanCommercialOption {
@@ -27,6 +28,7 @@ export interface FlightPlan {
   nextAction: "purchase" | "human_review" | "continue_discovery";
   assumptionsToConfirm: string[];
   disclosures: string[];
+  bundle?: AscensionBundle;
 }
 
 function commercialOption(id: AiEmployeeId, reason: string, foundingCustomer = false): FlightPlanCommercialOption {
@@ -56,7 +58,7 @@ function evidenceBackedSecondaryOffers(diagnosis: DiagnosticResult): AiEmployeeI
   return [...new Set(candidates)].filter((id) => id !== diagnosis.recommendedOfferId);
 }
 
-export function buildFlightPlan(input: DiagnosticInput, diagnosis: DiagnosticResult, options: { foundingCustomer?: boolean; confirmed?: boolean } = {}): FlightPlan {
+export function buildFlightPlan(input: DiagnosticInput, diagnosis: DiagnosticResult, options: { foundingCustomer?: boolean; confirmed?: boolean; bundle?: AscensionBundle } = {}): FlightPlan {
   const catalogOffer = AI_EMPLOYEE_CATALOG[diagnosis.recommendedOfferId];
   const hasMeaningfulDiagnosis = diagnosis.bottlenecks.length > 0;
   const nextAction = !hasMeaningfulDiagnosis ? "continue_discovery" : diagnosis.autonomousCloseAllowed ? "purchase" : "human_review";
@@ -93,5 +95,6 @@ export function buildFlightPlan(input: DiagnosticInput, diagnosis: DiagnosticRes
       "Opportunity estimates are based on information provided by the visitor and are not guarantees of revenue or ROI.",
       ...(diagnosis.escalationReasons.length > 0 ? diagnosis.escalationReasons : []),
     ],
+    ...(options.bundle ? { bundle: options.bundle } : {}),
   };
 }

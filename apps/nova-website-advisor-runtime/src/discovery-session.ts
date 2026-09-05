@@ -1,8 +1,9 @@
 import type { ServiceTier } from "./ai-employee-catalog.js";
+import { composeCrossTierBundle, type AscensionBundle } from "./ascension-bundle.js";
 import type { BusinessPath, DiagnosticInput, DiagnosticResult, GhlSaasDiagnosticResult } from "./diagnostic-engine.js";
 import { classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas } from "./diagnostic-engine.js";
 import { buildFlightPlan, type FlightPlan } from "./flight-plan.js";
-import { discoveryIsComplete, discoveryIsCompleteForTier, getNextDiscoveryQuestion, getNextDiscoveryQuestionForTier, type DiscoveryQuestion } from "./discovery-graph.js";
+import { discoveryIsComplete, discoveryIsCompleteForTier, getNextDiscoveryQuestion, getNextDiscoveryQuestionForTier, tierHasBespokeQuestionBank, type DiscoveryQuestion } from "./discovery-graph.js";
 import { buildWebsiteBrief, type WebsiteBuildBrief } from "./website-build.js";
 
 export interface DiscoveryContinuity {
@@ -34,6 +35,8 @@ export interface DiscoveryProgress {
   flightPlan?: FlightPlan;
   websiteBuildBrief?: WebsiteBuildBrief;
   ghlSaasResult?: GhlSaasDiagnosticResult;
+  alaCarteResult?: AscensionBundle;
+  bundle?: AscensionBundle;
 }
 
 export const MAX_MEANINGFUL_TURNS_BEFORE_PRELIMINARY_PLAN = 4;
@@ -51,14 +54,20 @@ export function shouldProducePreliminaryPlan(path: BusinessPath, answers: Partia
 
 function completedProgress(state: DiscoverySessionState): DiscoveryProgress {
   const tier = state.tier ?? classifyServiceTier(state.answers as DiagnosticInput).tier;
+  const answers = state.answers as DiagnosticInput;
+  const bundle = composeCrossTierBundle(tier, answers, answers.alaCarteItemsRequested ?? []);
+  const bundleField = bundle ? { bundle } : {};
   if (tier === "website_build") {
-    return { state, websiteBuildBrief: buildWebsiteBrief(state.answers as DiagnosticInput) };
+    return { state, websiteBuildBrief: buildWebsiteBrief(answers), ...bundleField };
   }
   if (tier === "ghl_saas") {
-    return { state, ghlSaasResult: diagnoseGhlSaas(state.answers as DiagnosticInput) };
+    return { state, ghlSaasResult: diagnoseGhlSaas(answers), ...bundleField };
   }
-  const diagnostic = diagnoseBusiness(state.answers as DiagnosticInput);
-  return { state, diagnostic, flightPlan: buildFlightPlan(state.answers as DiagnosticInput, diagnostic) };
+  if (tier === "ala_carte") {
+    return { state, ...(bundle ? { alaCarteResult: bundle } : {}) };
+  }
+  const diagnostic = diagnoseBusiness(answers);
+  return { state, diagnostic, flightPlan: buildFlightPlan(answers, diagnostic, { ...bundleField }), ...bundleField };
 }
 
 export function createDiscoverySession(path: BusinessPath, continuity?: DiscoveryContinuity): DiscoverySessionState {
@@ -86,7 +95,7 @@ export function applyDiscoveryAnswer(state: DiscoverySessionState, field: keyof 
   const meaningfulTurns = (state.meaningfulTurns ?? 0) + 1;
   const tier = classifyServiceTier(answers as DiagnosticInput).tier;
 
-  if (tier === "website_build") {
+  if (tierHasBespokeQuestionBank(tier)) {
     const completed = discoveryIsCompleteForTier(tier, state.path, answers);
     const nextState: DiscoverySessionState = { ...state, answers, completed, meaningfulTurns, tier };
     if (!completed) {
@@ -112,7 +121,7 @@ export function applyDiscoveryAnswer(state: DiscoverySessionState, field: keyof 
 export function resumeDiscovery(state: DiscoverySessionState): DiscoveryProgress {
   const tier = state.tier ?? classifyServiceTier(state.answers as DiagnosticInput).tier;
 
-  if (tier === "website_build") {
+  if (tierHasBespokeQuestionBank(tier)) {
     const completed = discoveryIsCompleteForTier(tier, state.path, state.answers);
     const resumedState = completed === state.completed && tier === state.tier ? state : { ...state, completed, tier };
     if (completed) return completedProgress(resumedState);

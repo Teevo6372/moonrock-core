@@ -34,6 +34,13 @@ describe("Nova Flight Plan", () => {
     expect(plan.recommendedAddOns.length).toBeLessThanOrEqual(2);
   });
 
+  it("leaves bundle undefined for a plain diagnosis with no a-la-carte bundle passed in", () => {
+    const input = { path: "existing_business" as const, missedCallsPerMonth: 10, medianLeadResponseMinutes: 20 };
+    const diagnosis = diagnoseBusiness(input);
+    const plan = buildFlightPlan(input, diagnosis);
+    expect(plan.bundle).toBeUndefined();
+  });
+
   it("routes regulated work to human review", () => {
     const input = { path: "existing_business" as const, missedCallsPerMonth: 5, riskCategories: ["legal_advice"] as const };
     const diagnosis = diagnoseBusiness(input);

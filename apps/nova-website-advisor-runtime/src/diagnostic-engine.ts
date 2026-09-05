@@ -7,6 +7,7 @@ import {
   type ServiceTier,
   type WebsiteBuildId,
 } from "./ai-employee-catalog.js";
+import type { AlaCarteItemId } from "./ala-carte-catalog.js";
 
 export type BusinessPath = "startup" | "existing_business";
 
@@ -80,6 +81,11 @@ export interface DiagnosticInput {
   // diagnoseWebsiteBuild (Website Build is a one-time setup fee, not a
   // monthly subscription, so it needs its own budget-ceiling field).
   setupBudgetCeilingUsd?: number;
+  // Ascension funnel (ala_carte tier + cross-tier bundling, see
+  // ascension-bundle.ts). Additive and unread by diagnoseBusiness/
+  // scoreFindings/chooseOffer/diagnoseWebsiteBuild/diagnoseGhlSaas above.
+  alaCarteItemsRequested?: readonly AlaCarteItemId[];
+  hasExistingCrm?: boolean;
 }
 
 export interface BottleneckFinding { id: BottleneckId; score: number; reason: string; }
@@ -266,6 +272,11 @@ const AGENCY_CHALLENGE_PATTERN = /my clients|resell|white.?label|agency/i;
 const AGENCY_INDUSTRY_PATTERN = /agency|marketing|consult/i;
 const NO_WEBSITE_CHALLENGE_PATTERN = /don'?t have a (website|site)|need a (new )?website|no website/i;
 const WANTS_ONLINE_STORE_PATTERN = /online store|e-?commerce|sell\s+(?:products?|things?|items?|stuff|goods)?\s*online|shopping cart|web store|start selling online/i;
+// Placeholder low-commitment signal for the ala_carte tier - an initial
+// assumption to retune once real conversation data exists, per the
+// ascension-funnel spec's "use my defaults" resolution. Checked last (lowest
+// priority) in classifyServiceTier so it never steals a stronger signal.
+const ALA_CARTE_LOW_COMMITMENT_PATTERN = /just (need|want) (a |some )?(crm|booking|reviews?|forms?|texting|email)|something (cheap|simple|small)|not ready for (an?|a full) (ai employee|website)/i;
 
 export function classifyServiceTier(input: DiagnosticInput): ServiceTierClassification {
   const challenges = input.businessChallenges ?? "";
@@ -286,6 +297,10 @@ export function classifyServiceTier(input: DiagnosticInput): ServiceTierClassifi
   }
   if (WANTS_ONLINE_STORE_PATTERN.test(challenges)) {
     return { tier: "website_build", confidence: "inferred", reason: "The stated challenge describes wanting to sell online or set up an online store, which is a website/e-commerce build rather than an AI Employee subscription." };
+  }
+
+  if (ALA_CARTE_LOW_COMMITMENT_PATTERN.test(challenges)) {
+    return { tier: "ala_carte", confidence: "inferred", reason: "The stated challenge describes a single low-commitment need rather than a full website build or AI Employee subscription." };
   }
 
   return { tier: "ai_employee", confidence: "inferred", reason: "No stronger signal for another tier was found; defaulting to the AI Employee bottleneck diagnosis." };
@@ -395,11 +410,18 @@ export function diagnoseGhlSaas(input: DiagnosticInput): GhlSaasDiagnosticResult
 export type TieredDiagnosticResult =
   | (DiagnosticResult & { tier: "ai_employee" })
   | WebsiteBuildDiagnosticResult
-  | GhlSaasDiagnosticResult;
+  | GhlSaasDiagnosticResult
+  | { tier: "ala_carte" };
 
 export function classifyAndDiagnose(input: DiagnosticInput): TieredDiagnosticResult {
   const { tier } = classifyServiceTier(input);
   if (tier === "website_build") return diagnoseWebsiteBuild(input);
   if (tier === "ghl_saas") return diagnoseGhlSaas(input);
+  // ala_carte's actual bundle composition lives in ascension-bundle.ts
+  // (composeAlaCarteBundle), which needs alaCarteItemsRequested/
+  // hasExistingCrm - not diagnostic-engine.ts's concern. classifyAndDiagnose
+  // has no other callers today; this branch exists so the tier is reported
+  // honestly rather than silently mislabeled as ai_employee.
+  if (tier === "ala_carte") return { tier: "ala_carte" };
   return { tier: "ai_employee", ...diagnoseBusiness(input) };
 }

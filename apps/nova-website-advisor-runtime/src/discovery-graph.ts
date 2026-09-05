@@ -1,4 +1,5 @@
 import type { ServiceTier } from "./ai-employee-catalog.js";
+import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
 import type { BusinessPath, DiagnosticInput } from "./diagnostic-engine.js";
 
 export type DiscoveryField = keyof DiagnosticInput;
@@ -77,12 +78,29 @@ const websiteBuildQuestions: DiscoveryQuestion[] = [
   { id: "website-brand-assets", path: "shared", field: "hasApprovedBrandAssets", prompt: "Do you already have a logo and brand colors ready, or would Higgsfield need to help create some?", answerType: "boolean", required: false },
 ];
 
+const alaCarteQuestions: DiscoveryQuestion[] = [
+  { id: "ala-carte-items", path: "shared", field: "alaCarteItemsRequested", prompt: "Which of these would help most right now?", helpText: "Pick one or a few - we can add more later.", answerType: "multi_select", required: true, options: Object.keys(ALA_CARTE_CATALOG) },
+  { id: "has-existing-crm", path: "shared", field: "hasExistingCrm", prompt: "Do you already have a CRM or contact/pipeline system in place?", answerType: "boolean", required: false },
+];
+
+// Tier -> bespoke question bank. A tier absent from this map has no bespoke
+// bank and falls back to getDiscoveryQuestions's shared/path-based questions
+// (this is how ghl_saas and ai_employee both work today). Adding a future
+// tier's own question set means adding one entry here, not another branch.
+const TIER_QUESTION_BANKS: Partial<Record<ServiceTier, DiscoveryQuestion[]>> = {
+  website_build: [...identityQuestions, ...websiteBuildQuestions],
+  ala_carte: [...identityQuestions, ...alaCarteQuestions],
+};
+
+export function tierHasBespokeQuestionBank(tier: ServiceTier): boolean {
+  return tier in TIER_QUESTION_BANKS;
+}
+
 export function getDiscoveryQuestionsForTier(tier: ServiceTier, path: BusinessPath, answers: Partial<DiagnosticInput> = {}): DiscoveryQuestion[] {
-  if (tier === "website_build") {
-    const withPath = { ...answers, path } as Partial<DiagnosticInput>;
-    return [...identityQuestions, ...websiteBuildQuestions].filter((question) => !question.askWhen || question.askWhen(withPath));
-  }
-  return getDiscoveryQuestions(path, answers);
+  const bank = TIER_QUESTION_BANKS[tier];
+  if (!bank) return getDiscoveryQuestions(path, answers);
+  const withPath = { ...answers, path } as Partial<DiagnosticInput>;
+  return bank.filter((question) => !question.askWhen || question.askWhen(withPath));
 }
 
 export function getNextDiscoveryQuestionForTier(tier: ServiceTier, path: BusinessPath, answers: Partial<DiagnosticInput>): DiscoveryQuestion | undefined {

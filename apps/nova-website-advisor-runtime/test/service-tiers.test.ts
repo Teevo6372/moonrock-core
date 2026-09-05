@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
 import { ALA_CARTE_CATALOG } from "../src/ala-carte-catalog.js";
+import { composeCrossTierBundle } from "../src/ascension-bundle.js";
 import { chooseGhlSaasOfferWithinBudget, chooseOfferWithinBudget, chooseWebsiteBuildOfferWithinBudget, classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, extractStatedMonthlyBudgetUsd, extractStatedSetupBudgetUsd, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
@@ -55,6 +56,20 @@ describe("classifyServiceTier", () => {
   it("prioritizes ghl_saas over website_build when both signals are present", () => {
     const result = classifyServiceTier(input({ isAgencyOrReseller: true, hasExistingWebsite: false }));
     expect(result.tier).toBe("ghl_saas");
+  });
+
+  it("classifies ala_carte only as a last resort, lowest priority behind every other tier signal", () => {
+    const result = classifyServiceTier(input({ businessChallenges: "I just want something simple, not ready for a full website." }));
+    expect(result.tier).toBe("ala_carte");
+  });
+
+  it("stays a single winning tier (website_build) even when the answers also carry a cross-tier bundling signal, since bundling is a separate enrichment layer, not a reclassification", () => {
+    const classification = classifyServiceTier(input({ hasExistingWebsite: false, websiteMustHaves: "We need a quote form on the new site." }));
+    expect(classification.tier).toBe("website_build");
+
+    const bundle = composeCrossTierBundle(classification.tier, input({ hasExistingWebsite: false, websiteMustHaves: "We need a quote form on the new site." }));
+    expect(bundle).toBeDefined();
+    expect(bundle!.lineItems.some((item) => item.itemId === "crm_pipeline")).toBe(true);
   });
 });
 
