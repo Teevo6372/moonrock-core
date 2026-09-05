@@ -56,7 +56,7 @@ export interface ProductionGhlHandoffResult {
   pipelineStageId?: string;
   tagsApplied?: string[];
   noteCreated?: boolean;
-  autonomousCloseAllowed: false;
+  autonomousCloseAllowed: boolean;
   followUpEnabled: false;
   deferredOperations: readonly [];
 }
@@ -116,7 +116,7 @@ export async function handoffHumanRequestToGhl(
 export async function handoffFlightPlanToGhl(input: ProductionGhlHandoffInput, config: ProductionGhlHandoffConfig, options: { apply?: boolean; fetchImpl?: typeof fetch } = {}): Promise<ProductionGhlHandoffResult> {
   assertProductionHandoffReady(input, config, Boolean(options.apply));
   const plan = buildGhlFlightPlanSyncPlan({ sessionId: input.sessionId, diagnosticInput: input.diagnosticInput, diagnostic: input.diagnostic, flightPlan: input.flightPlan, fieldRegistry: config.fieldRegistry });
-  if (!options.apply) return { status: "dry_run", autonomousCloseAllowed: false, followUpEnabled: false, deferredOperations: [] };
+  if (!options.apply) return { status: "dry_run", autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled: false, deferredOperations: [] };
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = (config.baseUrl ?? "https://services.leadconnectorhq.com").replace(/\/$/, "");
   const headers = { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${config.accessToken}`, Version: "v3" };
@@ -136,7 +136,7 @@ export async function handoffFlightPlanToGhl(input: ProductionGhlHandoffInput, c
   if (!opportunityId) throw new Error("HighLevel opportunity upsert succeeded without returning an opportunity ID");
   if (tagsOperation.tags.length > 0) await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/tags`, headers, { tags: tagsOperation.tags }, "contact tag write");
   await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/notes`, headers, { body: noteOperation.note }, "Flight Plan note write");
-  return { status: "confirmed", contactId, opportunityId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, tagsApplied: [...tagsOperation.tags], noteCreated: true, autonomousCloseAllowed: false, followUpEnabled: false, deferredOperations: [] };
+  return { status: "confirmed", contactId, opportunityId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, tagsApplied: [...tagsOperation.tags], noteCreated: true, autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled: false, deferredOperations: [] };
 }
 
 async function resolveNovaFlightPlanStage(fetchImpl: typeof fetch, baseUrl: string, headers: Record<string, string>, locationId: string): Promise<string> {
@@ -170,7 +170,7 @@ function assertProductionHandoffReady(input: ProductionGhlHandoffInput, config: 
 }
 
 function normalizeContactFieldValue(id: string, value: string | number | boolean, registry: GhlFieldRegistry): string | number | boolean {
-  if (id === registry.contact.autonomousCloseAllowed) return "false";
+  if (id === registry.contact.autonomousCloseAllowed) return String(value);
   if (id === registry.contact.recommendedOffer && typeof value === "string" && value in AI_EMPLOYEE_CATALOG) return AI_EMPLOYEE_CATALOG[value as keyof typeof AI_EMPLOYEE_CATALOG].name;
   if (id !== registry.contact.path) return value;
   if (value === "startup") return "I'm starting something";
