@@ -20,3 +20,19 @@ export function stripMarkdownArtifacts(text: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+
+/**
+ * Safety net for when the model hits the completion token budget mid-sentence.
+ * Rather than showing a visitor a reply that stops in the middle of a word or
+ * clause, drop back to the last complete sentence. If the whole answer is one
+ * incomplete sentence, return it unchanged - a truncated-but-present answer
+ * beats an empty one.
+ */
+export function truncateToLastCompleteSentence(text: string): string {
+  const trimmed = text.trim();
+  if (/[.!?]["')\]]?$/.test(trimmed)) return trimmed;
+  const lastBoundary = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "), trimmed.lastIndexOf(".\n"), trimmed.lastIndexOf("!\n"), trimmed.lastIndexOf("?\n"));
+  if (lastBoundary === -1) return trimmed;
+  const complete = trimmed.slice(0, lastBoundary + 1).trim();
+  return complete || trimmed;
+}

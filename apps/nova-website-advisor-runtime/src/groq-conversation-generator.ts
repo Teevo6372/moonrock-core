@@ -1,6 +1,6 @@
 import type { DiscoveryConversationTurn } from "./discovery-session.js";
 import type { NovaConversationGenerator } from "./dynamic-conversation-engine.js";
-import { stripMarkdownArtifacts } from "./text-sanitizer.js";
+import { stripMarkdownArtifacts, truncateToLastCompleteSentence } from "./text-sanitizer.js";
 
 export interface GroqConversationGeneratorOptions {
   apiKey: string;
@@ -34,7 +34,7 @@ export class GroqConversationGenerator implements NovaConversationGenerator {
         body: JSON.stringify({
           model: this.model,
           temperature: 0.45,
-          max_completion_tokens: 700,
+          max_completion_tokens: 1024,
           messages: [
             { role: "system", content: input.system },
             { role: "system", content: `BUSINESS CONTEXT\n${JSON.stringify(input.businessContext)}` },
@@ -45,9 +45,11 @@ export class GroqConversationGenerator implements NovaConversationGenerator {
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`Groq request failed with ${response.status}`);
-      const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null } }> };
-      const answer = payload.choices?.[0]?.message?.content?.trim();
-      if (!answer) throw new Error("Groq returned an empty response");
+      const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null }; finish_reason?: string | null }> };
+      const choice = payload.choices?.[0];
+      const rawAnswer = choice?.message?.content?.trim();
+      if (!rawAnswer) throw new Error("Groq returned an empty response");
+      const answer = choice?.finish_reason === "length" ? truncateToLastCompleteSentence(rawAnswer) : rawAnswer;
       return stripMarkdownArtifacts(answer);
     } finally {
       clearTimeout(timeout);
