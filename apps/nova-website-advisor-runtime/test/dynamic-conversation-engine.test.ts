@@ -141,3 +141,33 @@ describe("ascension funnel grounding in businessContext", () => {
     expect(turn.answer).toContain("$749/month");
   });
 });
+
+describe("tool-calling path (usesToolCalling) vs. context-stuffing path (Groq)", () => {
+  it("a plain (Groq-shaped) generator with no usesToolCalling marker still receives the full pre-computed context and no addendum/toolContext dependency - proving the Groq fallback path is unaffected by this migration", async () => {
+    const generate = vi.fn<NovaConversationGenerator["generate"]>().mockResolvedValue("ok");
+    const engine = new SessionGroundedNovaConversationEngine({ generate });
+    await engine.respond(completedState(), "Tell me more.");
+    const call = generate.mock.calls[0]![0];
+    expect(call.system).not.toContain("TOOL-CALLING RULE");
+    expect(call.volatileSystemSuffix).toBeUndefined();
+    expect(call.businessContext.flightPlan).toBeDefined();
+    expect(call.businessContext.alaCarteCatalog).toBeDefined();
+  });
+
+  it("a generator marked usesToolCalling receives the addendum, a stripped context, and toolContext, with turn guidance carried separately for caching", async () => {
+    const generate = vi.fn<NovaConversationGenerator["generate"]>().mockResolvedValue("ok");
+    const generator: NovaConversationGenerator = { generate, usesToolCalling: true };
+    const engine = new SessionGroundedNovaConversationEngine(generator);
+    await engine.respond(completedState(), "Tell me more.", { opening: true });
+    const call = generate.mock.calls[0]![0];
+    expect(call.system).toContain("TOOL-CALLING RULE");
+    expect(call.volatileSystemSuffix).toContain("TURN GUIDANCE");
+    expect(call.system).not.toContain("TURN GUIDANCE");
+    expect(call.toolContext).toBeDefined();
+    expect(call.toolContext?.answers.businessName).toBe("Prairie Service Co");
+    expect(call.toolContext?.state.completed).toBe(true);
+    for (const commercialKey of ["activeBundle", "flightPlan", "flightPlanConfidence", "fastTrack", "alaCarteCatalog", "approvedServiceCatalog", "salesJourney"]) {
+      expect(call.businessContext[commercialKey]).toBeUndefined();
+    }
+  });
+});
