@@ -37,13 +37,15 @@ Rules:
 - Never guess when the answer could plausibly mean the opposite of your first read - use "confidence":"low" for anything that is not clearly and directly responsive, and "confidence":"high" only when you are confident.
 - Do not include any text outside the JSON object.`;
 
-function describeExpectedKind(expectedKind: ExpectedAnswerKind): string {
+/** Exported for reuse by AnthropicAnswerInterpreter - pure, no behavior change here. */
+export function describeExpectedKind(expectedKind: ExpectedAnswerKind): string {
   if (expectedKind.type === "boolean") return "ANSWER TYPE: boolean (true or false)";
   if (expectedKind.type === "number") return "ANSWER TYPE: number";
   return `ANSWER TYPE: select\nOPTIONS: ${expectedKind.options.join(", ")}`;
 }
 
-function isValidValue(expectedKind: ExpectedAnswerKind, value: unknown): boolean {
+/** Exported for reuse by AnthropicAnswerInterpreter - pure, no behavior change here. */
+export function isValidValue(expectedKind: ExpectedAnswerKind, value: unknown): boolean {
   if (expectedKind.type === "boolean") return typeof value === "boolean";
   if (expectedKind.type === "number") return typeof value === "number" && Number.isFinite(value);
   return typeof value === "string" && expectedKind.options.includes(value);
