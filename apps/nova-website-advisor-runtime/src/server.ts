@@ -1,9 +1,11 @@
 import { serve } from "@hono/node-server";
 import { resolve } from "node:path";
 import { Pool } from "pg";
-import { GroqAnswerInterpreter } from "./answer-interpreter.js";
+import { AnthropicAnswerInterpreter } from "./anthropic-answer-interpreter.js";
+import { AnthropicConversationGenerator } from "./anthropic-conversation-generator.js";
+import { GroqAnswerInterpreter, type AnswerInterpreter } from "./answer-interpreter.js";
 import { corsHeaders, isOriginAllowed, parseAllowedOrigins } from "./cors-policy.js";
-import { SessionGroundedNovaConversationEngine } from "./dynamic-conversation-engine.js";
+import { SessionGroundedNovaConversationEngine, type NovaConversationGenerator } from "./dynamic-conversation-engine.js";
 import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "./ghl-production-registry.js";
 import { loadGhlRuntimeConfig } from "./ghl-runtime-config.js";
 import { GroqConversationGenerator } from "./groq-conversation-generator.js";
@@ -37,22 +39,44 @@ async function start(): Promise<void> {
     return { enabled: true, fieldsVerified: ghlFieldsVerified, writesEnabled: ghlWritesEnabled, locationId: runtime.locationId, accessToken: runtime.privateIntegrationToken, baseUrl: runtime.baseUrl, fieldRegistry: MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY };
   })() : undefined;
 
+  // NOVA_LLM_PROVIDER: "anthropic" (default) or "groq". Groq stays wired as an
+  // instant rollback lever for this live sales bot - see
+  // anthropic-conversation-generator.ts / groq-conversation-generator.ts.
+  const llmProvider = (process.env.NOVA_LLM_PROVIDER ?? "anthropic").trim().toLowerCase();
   const groqApiKey = process.env.GROQ_API_KEY?.trim();
-  const llmEnabled = process.env.NOVA_LLM_ENABLED === "true" && Boolean(groqApiKey);
-  const conversationEngine = new SessionGroundedNovaConversationEngine(llmEnabled ? new GroqConversationGenerator({
-    apiKey: groqApiKey!,
-    model: process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b",
-    baseUrl: process.env.NOVA_LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
-    timeoutMs: boundedInteger(process.env.NOVA_LLM_TIMEOUT_MS, 12000, 1000, 30000),
-  }) : undefined);
-  process.stdout.write(`Nova conversation provider: ${llmEnabled ? `Groq/${process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b"}` : "grounded fallback"}\n`);
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const llmEnabled = process.env.NOVA_LLM_ENABLED === "true" && (
+    (llmProvider === "groq" && Boolean(groqApiKey)) || (llmProvider === "anthropic" && Boolean(anthropicApiKey))
+  );
+  const conversationGenerator: NovaConversationGenerator | undefined = !llmEnabled ? undefined
+    : llmProvider === "anthropic"
+      ? new AnthropicConversationGenerator({
+          apiKey: anthropicApiKey!,
+          model: process.env.NOVA_LLM_MODEL ?? "claude-sonnet-5",
+          timeoutMs: boundedInteger(process.env.NOVA_LLM_TIMEOUT_MS, 20000, 1000, 60000),
+        })
+      : new GroqConversationGenerator({
+          apiKey: groqApiKey!,
+          model: process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b",
+          baseUrl: process.env.NOVA_LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
+          timeoutMs: boundedInteger(process.env.NOVA_LLM_TIMEOUT_MS, 12000, 1000, 30000),
+        });
+  const conversationEngine = new SessionGroundedNovaConversationEngine(conversationGenerator);
+  process.stdout.write(`Nova conversation provider: ${llmEnabled ? `${llmProvider}/${process.env.NOVA_LLM_MODEL ?? "default"}` : "grounded fallback"}\n`);
 
-  const answerInterpreter = llmEnabled ? new GroqAnswerInterpreter({
-    apiKey: groqApiKey!,
-    model: process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b",
-    baseUrl: process.env.NOVA_LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
-    timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
-  }) : undefined;
+  const answerInterpreter: AnswerInterpreter | undefined = !llmEnabled ? undefined
+    : llmProvider === "anthropic"
+      ? new AnthropicAnswerInterpreter({
+          apiKey: anthropicApiKey!,
+          model: process.env.NOVA_LLM_MODEL ?? "claude-sonnet-5",
+          timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
+        })
+      : new GroqAnswerInterpreter({
+          apiKey: groqApiKey!,
+          model: process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b",
+          baseUrl: process.env.NOVA_LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
+          timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
+        });
 
   const { app } = createMoonrock2App({ allowedOrigins, ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}), ...(productionGhl ? { productionGhl } : {}), conversationEngine, ...(answerInterpreter ? { answerInterpreter } : {}) });
   const fetch = async (request: Request): Promise<Response> => {

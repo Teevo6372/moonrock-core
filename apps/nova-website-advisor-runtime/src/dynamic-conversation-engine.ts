@@ -1,6 +1,7 @@
 import { approvedServiceCatalog } from "./ai-employee-catalog.js";
 import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
 import { composeCrossTierBundle } from "./ascension-bundle.js";
+import type { NovaToolContext } from "./anthropic-tools.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { classifyServiceTier, diagnoseBusiness } from "./diagnostic-engine.js";
 import { evaluateFastTrack } from "./fast-track.js";
@@ -20,7 +21,26 @@ const ALA_CARTE_CATALOG_SUMMARY = Object.values(ALA_CARTE_CATALOG).map((offer) =
 
 export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; }
 export interface NovaConversationGuidance { opening?: boolean; resuming?: boolean; nextNeed?: { field: string; prompt: string }; progressPercent?: number; }
-export interface NovaConversationGenerator { generate(input: { system: string; businessContext: Record<string, unknown>; question: string; history: DiscoveryConversationTurn[] }): Promise<string>; }
+export interface NovaConversationGenerator {
+  generate(input: {
+    system: string;
+    businessContext: Record<string, unknown>;
+    question: string;
+    history: DiscoveryConversationTurn[];
+    toolContext?: NovaToolContext;
+    /** Turn-varying system text (see guidancePrompt) kept separate from
+     *  `system` specifically so a caching generator (AnthropicConversationGenerator)
+     *  can cache the stable `system` block while this suffix rides uncached
+     *  outside the cached prefix. Only ever set when usesToolCalling is true -
+     *  for other generators the guidance text stays folded into `system` as
+     *  before, so this field can be safely ignored. */
+    volatileSystemSuffix?: string;
+  }): Promise<string>;
+  /** Present only on generators that resolve pricing/tier/offer data via live
+   *  tool calls rather than pre-computed context (see AnthropicConversationGenerator).
+   *  Governs which system prompt/context shape respond() builds below. */
+  usesToolCalling?: true;
+}
 export interface NovaConversationEngine { respond(state: DiscoverySessionState, question: string, guidance?: NovaConversationGuidance): Promise<NovaConversationTurn>; }
 
 const SYSTEM_PROMPT = `You are Nova, Moonrock Marketing's Virtual Growth Advisor in Lawrence, Kansas.
@@ -77,6 +97,20 @@ ${OBJECTION_POLICY}
 
 If they ask for a real/live/human person, stop the discovery sequence and honor the handoff behavior.`;
 
+// Claude-path-only addendum (see NovaConversationGenerator.usesToolCalling).
+// BUSINESS CONTEXT on this path deliberately omits activeBundle/flightPlan/
+// fastTrack/alaCarteCatalog/approvedServiceCatalog (see
+// contextForToolCallingState below) - this text is what makes that omission
+// legible to Claude instead of just producing confused, undergrounded replies.
+const CLAUDE_TOOL_CALLING_ADDENDUM = `
+
+TOOL-CALLING RULE (this path only):
+You have tools for every diagnosis, catalog lookup, bundle composition, Flight Plan, fast-track check, and ascension-state read. BUSINESS CONTEXT here does NOT include prices, offer names, bundles, or Flight Plan data - those live behind tools now.
+- Never state a dollar amount, offer name, tier name, or bundle composition unless it came from a tool result you received in THIS turn.
+- If you already know an answer from an earlier tool call in this conversation but did not call the tool again this turn, call it again rather than restating a remembered number - tool results are the only trustworthy source, not your own prior turn's text.
+- Call get_catalog before naming any specific offer or price. Call build_flight_plan before presenting a Flight Plan. Call compose_bundle before quoting a bundled total. Call get_ascension_state before referencing the visitor's tier or score.
+- If a tool call fails or returns unclear data, say so plainly rather than guessing a number.`;
+
 function contextForState(state: DiscoverySessionState, progressPercent = 0): Record<string, unknown> {
   const answers = state.answers as Partial<DiagnosticInput>;
   const answeredCount = Object.keys(answers).filter((key) => key !== "path").length;
@@ -118,6 +152,26 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     context.salesJourney = completedJourney(flightPlan);
   }
   return Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined));
+}
+
+/**
+ * Non-commercial grounding context for the Claude tool-calling path.
+ * Deliberately omits activeBundle/flightPlan/flightPlanConfidence/fastTrack/
+ * alaCarteCatalog/approvedServiceCatalog/salesJourney (salesJourney embeds
+ * flightPlan's offerName/setupFeeUsd/monthlyFeeUsd - see nova-sales-journey.ts's
+ * completedJourney) - those are now live tool calls (get_catalog,
+ * build_flight_plan, check_fast_track_eligibility, compose_bundle,
+ * get_ascension_state), so leaving them in context would let Claude quote a
+ * price with no traceable tool_result, defeating the guardrail architecture.
+ * Implemented in terms of contextForState so there is one place that decides
+ * what counts as "commercial" data: if a new commercial field is ever added
+ * there, it must be explicitly stripped here too or it leaks unverified into
+ * the Claude path.
+ */
+function contextForToolCallingState(state: DiscoverySessionState, progressPercent = 0): Record<string, unknown> {
+  const full = contextForState(state, progressPercent);
+  const { activeBundle, flightPlan, flightPlanConfidence, fastTrack, alaCarteCatalog, approvedServiceCatalog, salesJourney, ...safe } = full as Record<string, unknown>;
+  return safe;
 }
 
 export function isHumanHandoffRequest(question: string): boolean { return /\b(live|real|human)\s+(person|agent|rep|representative|someone)\b|\b(talk|speak|connect|transfer)\s+(me\s+)?(to|with)\s+(a\s+)?(live|real|human|person|someone)\b/i.test(question); }
@@ -174,10 +228,20 @@ export class SessionGroundedNovaConversationEngine implements NovaConversationEn
     if (!trimmed) throw new Error("Nova needs a question to respond to.");
     if (isHumanHandoffRequest(trimmed)) return groundedFallback(state, trimmed, guidance);
     if (this.generator) {
+      const useToolCalling = Boolean(this.generator.usesToolCalling);
+      // For the tool-calling path, the stable persona/rules/addendum text stays
+      // separate from the turn-varying guidance suffix so the generator can
+      // cache the former without the cache invalidating every turn. Non-
+      // tool-calling generators (Groq) keep receiving it all folded into
+      // `system`, unchanged from before this migration.
+      const system = useToolCalling ? `${SYSTEM_PROMPT}${CLAUDE_TOOL_CALLING_ADDENDUM}` : `${SYSTEM_PROMPT}${guidancePrompt(guidance)}`;
+      const volatileSystemSuffix = useToolCalling ? guidancePrompt(guidance) : undefined;
+      const businessContext = useToolCalling ? contextForToolCallingState(state, guidance?.progressPercent ?? 0) : contextForState(state, guidance?.progressPercent ?? 0);
+      const toolContext: NovaToolContext = { answers: state.answers, state };
       const attempts = 2;
       for (let attempt = 1; attempt <= attempts; attempt += 1) {
         try {
-          const answer = (await this.generator.generate({ system: `${SYSTEM_PROMPT}${guidancePrompt(guidance)}`, businessContext: contextForState(state, guidance?.progressPercent ?? 0), question: trimmed, history: state.conversationHistory ?? [] })).trim();
+          const answer = (await this.generator.generate({ system, businessContext, question: trimmed, history: state.conversationHistory ?? [], toolContext, ...(volatileSystemSuffix ? { volatileSystemSuffix } : {}) })).trim();
           if (answer) return { answer, mode: "generated", intent: "pause_discovery" };
           console.warn(`[nova-conversation] generator returned an empty answer (attempt ${attempt}/${attempts})`);
         } catch (error) {
