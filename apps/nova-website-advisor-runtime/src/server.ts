@@ -42,9 +42,20 @@ async function start(): Promise<void> {
   // NOVA_LLM_PROVIDER: "anthropic" (default) or "groq". Groq stays wired as an
   // instant rollback lever for this live sales bot - see
   // anthropic-conversation-generator.ts / groq-conversation-generator.ts.
+  //
+  // Model id is intentionally a SEPARATE env var per provider
+  // (NOVA_ANTHROPIC_MODEL / NOVA_GROQ_MODEL), not a single shared
+  // NOVA_LLM_MODEL. A shared var previously caused a real production
+  // incident: a Groq model id ("openai/gpt-oss-120b") left over from before
+  // this migration got fed straight into the Anthropic client after flipping
+  // NOVA_LLM_PROVIDER, silently breaking every Claude call until caught.
+  // Splitting the var makes that failure mode structurally impossible -
+  // flipping the provider can never smuggle in the other provider's model id.
   const llmProvider = (process.env.NOVA_LLM_PROVIDER ?? "anthropic").trim().toLowerCase();
   const groqApiKey = process.env.GROQ_API_KEY?.trim();
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const anthropicModel = process.env.NOVA_ANTHROPIC_MODEL ?? "claude-sonnet-5";
+  const groqModel = process.env.NOVA_GROQ_MODEL ?? "openai/gpt-oss-120b";
   const llmEnabled = process.env.NOVA_LLM_ENABLED === "true" && (
     (llmProvider === "groq" && Boolean(groqApiKey)) || (llmProvider === "anthropic" && Boolean(anthropicApiKey))
   );
@@ -52,28 +63,28 @@ async function start(): Promise<void> {
     : llmProvider === "anthropic"
       ? new AnthropicConversationGenerator({
           apiKey: anthropicApiKey!,
-          model: process.env.NOVA_LLM_MODEL ?? "claude-sonnet-5",
+          model: anthropicModel,
           timeoutMs: boundedInteger(process.env.NOVA_LLM_TIMEOUT_MS, 20000, 1000, 60000),
         })
       : new GroqConversationGenerator({
           apiKey: groqApiKey!,
-          model: process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b",
+          model: groqModel,
           baseUrl: process.env.NOVA_LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
           timeoutMs: boundedInteger(process.env.NOVA_LLM_TIMEOUT_MS, 12000, 1000, 30000),
         });
   const conversationEngine = new SessionGroundedNovaConversationEngine(conversationGenerator);
-  process.stdout.write(`Nova conversation provider: ${llmEnabled ? `${llmProvider}/${process.env.NOVA_LLM_MODEL ?? "default"}` : "grounded fallback"}\n`);
+  process.stdout.write(`Nova conversation provider: ${llmEnabled ? `${llmProvider}/${llmProvider === "anthropic" ? anthropicModel : groqModel}` : "grounded fallback"}\n`);
 
   const answerInterpreter: AnswerInterpreter | undefined = !llmEnabled ? undefined
     : llmProvider === "anthropic"
       ? new AnthropicAnswerInterpreter({
           apiKey: anthropicApiKey!,
-          model: process.env.NOVA_LLM_MODEL ?? "claude-sonnet-5",
+          model: anthropicModel,
           timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
         })
       : new GroqAnswerInterpreter({
           apiKey: groqApiKey!,
-          model: process.env.NOVA_LLM_MODEL ?? "openai/gpt-oss-120b",
+          model: groqModel,
           baseUrl: process.env.NOVA_LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
           timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
         });
