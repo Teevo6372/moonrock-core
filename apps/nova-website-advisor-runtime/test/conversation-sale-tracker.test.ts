@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   CUMULATIVE_MONTHLY_REVIEW_THRESHOLD_USD,
+  CUMULATIVE_ONE_TIME_REVIEW_THRESHOLD_USD,
   getConversationSaleTotal,
   requiresCumulativeValueReview,
+  requiresOneTimeValueReview,
   type ConversationSaleRecord,
 } from "../src/conversation-sale-tracker.js";
 
@@ -52,5 +54,26 @@ describe("requiresCumulativeValueReview", () => {
   it("checks the recurring monthly figure only, not one-time setup value", () => {
     const total = getConversationSaleTotal([sale({ monthlyFeeUsd: 0, setupFeeUsd: 5000 })]);
     expect(requiresCumulativeValueReview(total)).toBe(false);
+  });
+});
+
+describe("requiresOneTimeValueReview - Section 9.8's amendment to Section 9.2", () => {
+  it("does not require review under the $999 one-time threshold", () => {
+    expect(requiresOneTimeValueReview(getConversationSaleTotal([sale({ setupFeeUsd: 500, monthlyFeeUsd: 0 })]))).toBe(false);
+  });
+
+  it("does not require review when the total lands exactly on the threshold", () => {
+    expect(requiresOneTimeValueReview(getConversationSaleTotal([sale({ setupFeeUsd: CUMULATIVE_ONE_TIME_REVIEW_THRESHOLD_USD, monthlyFeeUsd: 0 })]))).toBe(false);
+  });
+
+  it("requires review once combined one-time value closed this conversation exceeds $999", () => {
+    const total = getConversationSaleTotal([sale({ setupFeeUsd: 500, monthlyFeeUsd: 0 }), sale({ setupFeeUsd: 600, monthlyFeeUsd: 0 })]);
+    expect(total.oneTimeValueUsd).toBe(1100);
+    expect(requiresOneTimeValueReview(total)).toBe(true);
+  });
+
+  it("checks the one-time figure only, not recurring monthly commitment", () => {
+    const total = getConversationSaleTotal([sale({ setupFeeUsd: 0, monthlyFeeUsd: 5000 })]);
+    expect(requiresOneTimeValueReview(total)).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { WEBSITE_BUILD_CATALOG, type WebsiteBuildId } from "./ai-employee-catalog.js";
+import { CUMULATIVE_ONE_TIME_REVIEW_THRESHOLD_USD } from "./conversation-sale-tracker.js";
 import { diagnoseWebsiteBuild, type DiagnosticInput } from "./diagnostic-engine.js";
 
 export interface WebsiteBuildBrief {
@@ -85,12 +86,40 @@ export interface WebsiteBuildRequest {
 }
 
 /**
+ * Section 9.8's tier-gated autonomy split: Starter is fully autonomous
+ * (unless the negotiated one-time value crosses the review threshold below),
+ * Growth gets one lightweight staging checkpoint, Custom always routes to
+ * Stephen - "beyond the standard library" is by definition not something a
+ * negotiation script can fully scope. Keyed on the Website Build tier
+ * actually recommended (brief.offerId), never on hasExistingWebsite - that
+ * field describes the visitor's starting point, not which tier's autonomy
+ * rules apply, and conflating the two previously let a brand-new custom_site
+ * (e.g. an ecommerce build) slip through as risk "low"/mode "auto" even
+ * though Custom must always route to Stephen.
+ */
+function autonomyForWebsiteBuildTier(offerId: WebsiteBuildId, projectedOneTimeValueUsd: number): { risk: WebsiteBuildRequestRisk; mode: WebsiteBuildRequestMode } {
+  if (offerId === "custom_site") return { risk: "high", mode: "operator_review" };
+  if (offerId === "growth_site") return { risk: "moderate", mode: "preview_required" };
+  // starter_site: autonomous only while the running one-time total (this
+  // build plus anything else already closed this conversation) stays at or
+  // under the threshold - Starter's "starting at $99" is negotiable upward
+  // with no fixed ceiling (Section 5.4), so a negotiation that climbs high
+  // enough must stop closing autonomously same as it would for Growth.
+  if (projectedOneTimeValueUsd > CUMULATIVE_ONE_TIME_REVIEW_THRESHOLD_USD) return { risk: "high", mode: "operator_review" };
+  return { risk: "low", mode: "auto" };
+}
+
+/**
  * Produces the typed build request without invoking anything. Matches
  * ADR-0005's non-production status: a later approved pipeline decides
  * whether/how to execute this, consistent with that ADR's Claude Code
  * adapter boundary.
  */
-export function toWebsiteBuildRequest(brief: WebsiteBuildBrief, sessionId: string): WebsiteBuildRequest {
+export function toWebsiteBuildRequest(
+  brief: WebsiteBuildBrief,
+  sessionId: string,
+  options: { conversationOneTimeValueClosedUsd?: number } = {},
+): WebsiteBuildRequest {
   const requestedChanges: WebsiteBuildRequestedChange[] = [
     { target: "site", operation: brief.hasExistingWebsite ? "update" : "add", value: { offerId: brief.offerId, scopeDescription: brief.scopeDescription } },
   ];
@@ -98,14 +127,17 @@ export function toWebsiteBuildRequest(brief: WebsiteBuildBrief, sessionId: strin
     ? [{ purpose: "brand_assets", description: "Visitor does not have approved brand assets yet; Higgsfield asset generation is needed before/alongside the build." }]
     : [];
 
+  const projectedOneTimeValueUsd = (options.conversationOneTimeValueClosedUsd ?? 0) + brief.setupFeeUsd;
+  const { risk, mode } = autonomyForWebsiteBuildTier(brief.offerId, projectedOneTimeValueUsd);
+
   return {
     id: `website-build:${sessionId}`,
     siteId: sessionId,
     requestedBy: "nova",
     customerMessage: brief.mustHaves ?? `${brief.offerName} for ${brief.businessName ?? "the visitor's business"}.`,
     intent: `Build a ${brief.offerName.toLowerCase()} (${brief.offerId}).`,
-    risk: brief.hasExistingWebsite ? "moderate" : "low",
-    mode: brief.hasExistingWebsite ? "preview_required" : "auto",
+    risk,
+    mode,
     requestedChanges,
     ...(assetRequests.length ? { assetRequests } : {}),
     createdAt: new Date().toISOString(),
