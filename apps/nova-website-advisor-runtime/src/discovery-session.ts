@@ -37,6 +37,8 @@ export interface DiscoverySessionState {
   lastOfferedTier?: AscensionLadderTier;
   lastEngagementAt?: string;
   purchaseHistory?: AscensionPurchaseRecord[];
+  /** Count of Tier 0 digital products downloaded (soft engagement signal - see ascension-score.ts). Set only via recordTier0Download, below. */
+  tier0DownloadsCount?: number;
 }
 
 export interface DiscoveryProgress {
@@ -66,6 +68,7 @@ export function refreshAscensionState(state: DiscoverySessionState, signals: Asc
   const result = computeAscensionScore({
     purchaseHistory: state.purchaseHistory ?? [],
     conversationalSignals: signals,
+    tier0DownloadsCount: state.tier0DownloadsCount ?? 0,
     ...(state.lastEngagementAt ? { lastEngagementAt: state.lastEngagementAt } : {}),
     now,
   });
@@ -76,6 +79,18 @@ export function refreshAscensionState(state: DiscoverySessionState, signals: Asc
     ...(result.currentTier ? { currentTier: result.currentTier } : {}),
     lastEngagementAt: now,
   };
+}
+
+/**
+ * The only place tier0DownloadsCount is incremented. Callable once a Tier 0
+ * download event reaches this app (e.g. a future GHL workflow webhook) -
+ * that trigger doesn't exist yet (Tier 0 delivery is GHL-native file-manager
+ * work per Section 9.1/9.3, not orchestrated here), so this has no caller
+ * today. Mirrors purchaseHistory's own not-yet-populated state field: the
+ * scoring plumbing is ready ahead of the event source that will feed it.
+ */
+export function recordTier0Download(state: DiscoverySessionState): DiscoverySessionState {
+  return refreshAscensionState({ ...state, tier0DownloadsCount: (state.tier0DownloadsCount ?? 0) + 1 });
 }
 
 export function isFlightPlanRequest(text: string): boolean {

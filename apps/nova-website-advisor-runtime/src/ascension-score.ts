@@ -20,6 +20,15 @@ export interface AscensionConversationalSignals {
 export interface AscensionScoreInput {
   purchaseHistory: readonly AscensionPurchaseRecord[];
   conversationalSignals: AscensionConversationalSignals;
+  /**
+   * How many Tier 0 digital products (Playbook Section 5.0) this contact has
+   * downloaded. A soft engagement signal (Section 4) - real action, but
+   * weighted well below a completed paid-tier purchase, since Tier 0 items
+   * are free-to-$27 downloads, not a service-tier commitment. Not folded
+   * into purchaseHistory: that field's AscensionLadderTier type is the
+   * strict paid-tier ladder, and Tier 0 deliberately isn't a rung on it.
+   */
+  tier0DownloadsCount?: number;
   lastEngagementAt?: string;
   /** Injectable for deterministic tests; defaults to the real current time. */
   now?: string;
@@ -40,6 +49,11 @@ export interface AscensionScoreResult {
 const POINTS_PER_COMPLETED_TIER = 40;
 const CONVERSATIONAL_SIGNAL_POINTS = 10;
 const MAX_CONVERSATIONAL_SIGNAL_POINTS = 30;
+// Deliberately softer than a completed-tier purchase (40 pts): capped well
+// under even a single paid-tier rung, so Tier 0 downloads alone can never
+// simulate having bought into the ladder.
+const POINTS_PER_TIER0_DOWNLOAD = 8;
+const MAX_TIER0_DOWNLOAD_POINTS = 24;
 const DECAY_GRACE_PERIOD_DAYS = 14;
 const DECAY_RATE_PER_DAY = 2;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -95,6 +109,12 @@ export function computeAscensionScore(input: AscensionScoreInput): AscensionScor
   if (signals.statedPainPoints && signals.statedPainPoints.length > 0) { signalCount += 1; contributingFactors.push("Visitor stated specific pain points."); }
   const signalPoints = Math.min(signalCount * CONVERSATIONAL_SIGNAL_POINTS, MAX_CONVERSATIONAL_SIGNAL_POINTS);
 
+  const tier0Downloads = input.tier0DownloadsCount ?? 0;
+  const tier0Points = Math.min(tier0Downloads * POINTS_PER_TIER0_DOWNLOAD, MAX_TIER0_DOWNLOAD_POINTS);
+  if (tier0Downloads > 0) {
+    contributingFactors.push(`${tier0Downloads} Tier 0 digital product download(s) contribute ${tier0Points} points (soft engagement signal).`);
+  }
+
   const now = new Date(input.now ?? new Date().toISOString()).getTime();
   let decayAmount = 0;
   let decayApplied = false;
@@ -107,7 +127,7 @@ export function computeAscensionScore(input: AscensionScoreInput): AscensionScor
     }
   }
 
-  const score = Math.max(0, Math.min(100, Math.round(purchasePoints + signalPoints - decayAmount)));
+  const score = Math.max(0, Math.min(100, Math.round(purchasePoints + signalPoints + tier0Points - decayAmount)));
   const currentTier = highestLadderTier(input.purchaseHistory);
   const ladderIndex = currentTier ? TIER_LADDER.indexOf(currentTier) : -1;
   const eligibleNextTier = ladderIndex + 1 < TIER_LADDER.length ? TIER_LADDER[ladderIndex + 1]! : null;
