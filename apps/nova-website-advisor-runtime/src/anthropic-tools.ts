@@ -6,6 +6,7 @@ import { classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsite
 import type { DiscoverySessionState } from "./discovery-session.js";
 import { evaluateFastTrack } from "./fast-track.js";
 import { buildFlightPlan } from "./flight-plan.js";
+import { getTier0Catalog, TIER0_CATEGORIES, type Tier0Category, type Tier0SubTier } from "./tier0-catalog.js";
 
 /**
  * Every tool this generator declares to Claude is a thin wrapper around an
@@ -106,6 +107,28 @@ export const NOVA_TOOL_DEFINITIONS: Anthropic.Tool[] = [
     input_schema: EMPTY_OBJECT_SCHEMA,
     strict: true,
   },
+  {
+    name: "get_tier0_catalog",
+    description: "Get Moonrock's Tier 0 digital product library: 50 paid one-time products ($7-$22, sub-tier 0a) and 20 free Retention Gift items (sub-tier 0b, never sold - offered to build trust/re-engage, not through checkout). Each item includes its exact name, price, category, and direct download link. Call before naming any Tier 0 product, price, or download link - never state one from memory. Omit both filters to return the full 70-item catalog.",
+    input_schema: {
+      type: "object",
+      properties: {
+        subTier: {
+          type: "string",
+          enum: ["0a", "0b"],
+          description: "Restrict to paid items (0a) or free Retention Gifts (0b). Omit for both.",
+        },
+        category: {
+          type: "string",
+          enum: [...TIER0_CATEGORIES],
+          description: "Restrict to one category. Omit for all categories.",
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
 ];
 
 function primaryTierFor(ctx: NovaToolContext): ServiceTier {
@@ -167,6 +190,10 @@ export function executeNovaTool(name: string, rawInput: unknown, ctx: NovaToolCo
         currentTier: ctx.state.currentTier,
         lastOfferedTier: ctx.state.lastOfferedTier,
       };
+    case "get_tier0_catalog": {
+      const { subTier, category } = rawInput as { subTier?: Tier0SubTier; category?: Tier0Category };
+      return getTier0Catalog({ ...(subTier ? { subTier } : {}), ...(category ? { category } : {}) });
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
