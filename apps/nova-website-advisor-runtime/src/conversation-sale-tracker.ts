@@ -26,6 +26,18 @@ export interface ConversationSaleTotal {
 export const CUMULATIVE_MONTHLY_REVIEW_THRESHOLD_USD = 700;
 
 /**
+ * One-time-value sibling of the $700/mo threshold above (Section 9.8
+ * amending Section 9.2), added specifically because Website Build Starter's
+ * "starting at $99" price is negotiable upward with no fixed ceiling.
+ * Grounded just under Growth's $1,200 starting price: if an autonomous
+ * Starter negotiation (alone, or combined with other one-time value already
+ * closed this conversation) climbs high enough to approach Growth-tier
+ * pricing, that is the point it stops closing autonomously and routes to
+ * Stephen instead.
+ */
+export const CUMULATIVE_ONE_TIME_REVIEW_THRESHOLD_USD = 999;
+
+/**
  * Sums every sale closed autonomously so far THIS conversation/session -
  * never a lifetime/cross-session total (that's purchaseHistory's job,
  * feeding computeAscensionScore instead). Deliberately a pure summation
@@ -53,4 +65,15 @@ export function getConversationSaleTotal(sales: readonly ConversationSaleRecord[
  */
 export function requiresCumulativeValueReview(total: ConversationSaleTotal): boolean {
   return total.monthlyCommitmentUsd > CUMULATIVE_MONTHLY_REVIEW_THRESHOLD_USD;
+}
+
+/**
+ * One-time-value sibling of requiresCumulativeValueReview, above. Checked
+ * independently of the monthly figure - a Website Build sale updates only
+ * this side of the running total, an AI Employee sale updates only the
+ * monthly side, and either crossing its own threshold triggers review
+ * (Section 6).
+ */
+export function requiresOneTimeValueReview(total: ConversationSaleTotal): boolean {
+  return total.oneTimeValueUsd > CUMULATIVE_ONE_TIME_REVIEW_THRESHOLD_USD;
 }

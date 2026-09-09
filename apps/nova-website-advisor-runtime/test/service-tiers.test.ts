@@ -231,20 +231,59 @@ describe("buildWebsiteBrief", () => {
   });
 });
 
-describe("toWebsiteBuildRequest", () => {
-  it("marks a brand-new site as low risk and auto-eligible", () => {
+describe("toWebsiteBuildRequest - Section 9.8 tier-gated autonomy split", () => {
+  it("marks a Starter build as low risk and auto-eligible", () => {
     const brief = buildWebsiteBrief(input({ hasExistingWebsite: false, websiteScopeNeeded: "landing_page" }));
+    expect(brief.offerId).toBe("starter_site");
     const request = toWebsiteBuildRequest(brief, "session-123");
     expect(request.risk).toBe("low");
     expect(request.mode).toBe("auto");
     expect(request.siteId).toBe("session-123");
   });
 
-  it("marks an existing-site rebuild as moderate risk requiring preview", () => {
+  it("marks a Growth build as moderate risk requiring a preview checkpoint, regardless of hasExistingWebsite", () => {
     const brief = buildWebsiteBrief(input({ hasExistingWebsite: true, websiteScopeNeeded: "multi_page" }));
+    expect(brief.offerId).toBe("growth_site");
     const request = toWebsiteBuildRequest(brief, "session-456");
     expect(request.risk).toBe("moderate");
     expect(request.mode).toBe("preview_required");
+  });
+
+  it("always routes a Custom build to Stephen, even for a brand-new site with no other value closed this conversation", () => {
+    // Regression: this used to key risk/mode off hasExistingWebsite alone, so a
+    // brand-new (hasExistingWebsite: false) Custom Site build was incorrectly
+    // marked risk "low" / mode "auto" - Custom must ALWAYS route to Stephen,
+    // per Section 9.8, regardless of whether the visitor already had a site.
+    const brief = buildWebsiteBrief(input({ hasExistingWebsite: false, websiteScopeNeeded: "ecommerce" }));
+    expect(brief.offerId).toBe("custom_site");
+    const request = toWebsiteBuildRequest(brief, "session-999");
+    expect(request.risk).toBe("high");
+    expect(request.mode).toBe("operator_review");
+  });
+
+  it("marks a Growth build as moderate/preview_required even for a brand-new site (tier drives autonomy, not hasExistingWebsite)", () => {
+    const brief = buildWebsiteBrief(input({ hasExistingWebsite: false, websiteScopeNeeded: "multi_page" }));
+    expect(brief.offerId).toBe("growth_site");
+    const request = toWebsiteBuildRequest(brief, "session-321");
+    expect(request.risk).toBe("moderate");
+    expect(request.mode).toBe("preview_required");
+  });
+
+  it("keeps a Starter build autonomous when nothing else has closed this conversation", () => {
+    const brief = buildWebsiteBrief(input({ websiteScopeNeeded: "landing_page" }));
+    const request = toWebsiteBuildRequest(brief, "session-starter-solo");
+    expect(request.mode).toBe("auto");
+  });
+
+  it("routes a Starter build to Stephen once the running one-time total this conversation exceeds the $999 threshold", () => {
+    const brief = buildWebsiteBrief(input({ websiteScopeNeeded: "landing_page" }));
+    // Starter's own setupFeeUsd alone (500) stays under threshold; combined with
+    // $600 already closed elsewhere this conversation, the running total (1100)
+    // crosses it - same cumulative-running-total philosophy as Section 9.2's
+    // $700/mo check, extended to one-time value per Section 9.8's amendment.
+    const request = toWebsiteBuildRequest(brief, "session-starter-stacked", { conversationOneTimeValueClosedUsd: 600 });
+    expect(request.risk).toBe("high");
+    expect(request.mode).toBe("operator_review");
   });
 
   it("requests brand assets when the visitor does not have approved ones", () => {
