@@ -1,6 +1,19 @@
 export type AscensionTier = "trust_builder" | "ascension_addon" | "custom_build";
 
+/**
+ * Per-item execution-automation tag (Playbook Section 0 point 3 / Section 2's
+ * 🟢/🟡/🔴 key) - independent of `ascensionTier`. `ascensionTier` reflects
+ * the SALE'S checkpoint requirement (tier-level: e.g. every ascension_addon
+ * item gets one setup checkpoint per Section 5.2's tier description); this
+ * field reflects the item's own ONGOING delivery automation, which varies
+ * item-by-item within a tier (Document Signing is zero_touch despite being
+ * ascension_addon; Gray-Labeled Mobile App is async_human despite being
+ * trust_builder) - see the per-row Automation column in Sections 5.1-5.3.
+ */
+export type AutomationTier = "zero_touch" | "async_human" | "delivery_human";
+
 export type AlaCarteItemId =
+  | "missed_call_textback"
   | "crm_pipeline"
   | "booking_appointments"
   | "call_tracking"
@@ -8,6 +21,10 @@ export type AlaCarteItemId =
   | "surveys_forms"
   | "mobile_app"
   | "tracking_analytics"
+  | "review_request_automation"
+  | "quote_followup_sequences"
+  | "appointment_reminders"
+  | "seasonal_campaign_automation"
   | "workflow_automations"
   | "email_marketing"
   | "ai_content_chat"
@@ -24,6 +41,7 @@ export interface AlaCarteOffer {
   id: AlaCarteItemId;
   name: string;
   ascensionTier: AscensionTier;
+  automationTier: AutomationTier;
   setupFeeUsd: number;
   monthlyFeeUsd: number;
   marketAlternative: string;
@@ -42,10 +60,24 @@ export interface AlaCarteOffer {
 }
 
 export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> = {
+  missed_call_textback: {
+    id: "missed_call_textback",
+    name: "Missed-Call Text-Back",
+    ascensionTier: "trust_builder",
+    automationTier: "zero_touch",
+    setupFeeUsd: 0,
+    monthlyFeeUsd: 49,
+    marketAlternative: "No direct one-to-one market equivalent",
+    requiresCrm: true,
+    humanCheckpointRequired: false,
+    includedFeatures: ["Instant auto-text to any missed caller", "Catches the message - not a full call-handling replacement"],
+    estimatedDelivery: "Same-day, self-serve setup",
+  },
   crm_pipeline: {
     id: "crm_pipeline",
     name: "CRM & Pipeline Management",
     ascensionTier: "trust_builder",
+    automationTier: "zero_touch",
     setupFeeUsd: 0,
     monthlyFeeUsd: 49,
     marketAlternative: "$99/mo (HubSpot/Salesforce)",
@@ -61,6 +93,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "booking_appointments",
     name: "Booking & Appointments",
     ascensionTier: "trust_builder",
+    automationTier: "zero_touch",
     setupFeeUsd: 0,
     monthlyFeeUsd: 29,
     marketAlternative: "$29/mo (Calendly)",
@@ -73,6 +106,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "call_tracking",
     name: "Call Tracking",
     ascensionTier: "trust_builder",
+    automationTier: "zero_touch",
     setupFeeUsd: 0,
     monthlyFeeUsd: 29,
     marketAlternative: "$49/mo (CallRail)",
@@ -85,6 +119,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "reputation_management",
     name: "Reputation Management",
     ascensionTier: "trust_builder",
+    automationTier: "zero_touch",
     setupFeeUsd: 0,
     monthlyFeeUsd: 79,
     marketAlternative: "$159/mo (Birdeye/Podium)",
@@ -98,6 +133,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "surveys_forms",
     name: "Surveys & Forms",
     ascensionTier: "trust_builder",
+    automationTier: "zero_touch",
     setupFeeUsd: 0,
     monthlyFeeUsd: 39,
     marketAlternative: "$79/mo (Jotform/Typeform)",
@@ -110,6 +146,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "mobile_app",
     name: "Gray-Labeled Mobile App",
     ascensionTier: "trust_builder",
+    automationTier: "async_human",
     setupFeeUsd: 0,
     monthlyFeeUsd: 19,
     marketAlternative: "$49/mo",
@@ -122,6 +159,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "tracking_analytics",
     name: "Tracking & Analytics",
     ascensionTier: "trust_builder",
+    automationTier: "zero_touch",
     setupFeeUsd: 0,
     monthlyFeeUsd: 19,
     marketAlternative: "$49/mo (Agency Analytics)",
@@ -130,10 +168,63 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     includedFeatures: ["Marketing and funnel performance dashboards"],
     estimatedDelivery: "Same-day, self-serve setup",
   },
+  review_request_automation: {
+    id: "review_request_automation",
+    name: "Review Request Automation",
+    ascensionTier: "ascension_addon",
+    automationTier: "zero_touch",
+    setupFeeUsd: 99,
+    monthlyFeeUsd: 49,
+    marketAlternative: "No direct one-to-one market equivalent",
+    requiresCrm: true,
+    humanCheckpointRequired: true,
+    includedFeatures: ["Automated post-job review request sequence, reviewed once at setup"],
+    estimatedDelivery: "3-5 business days, one setup checkpoint with a Moonrock human",
+  },
+  quote_followup_sequences: {
+    id: "quote_followup_sequences",
+    name: "Quote/Estimate Follow-Up Sequences",
+    ascensionTier: "ascension_addon",
+    automationTier: "zero_touch",
+    setupFeeUsd: 99,
+    monthlyFeeUsd: 49,
+    marketAlternative: "No direct one-to-one market equivalent",
+    requiresCrm: true,
+    humanCheckpointRequired: true,
+    includedFeatures: ["Automated follow-up sequence for outstanding quotes/estimates, reviewed once at setup"],
+    estimatedDelivery: "3-5 business days, one setup checkpoint with a Moonrock human",
+  },
+  appointment_reminders: {
+    id: "appointment_reminders",
+    name: "Appointment Reminders / No-Show Reduction",
+    ascensionTier: "ascension_addon",
+    automationTier: "zero_touch",
+    setupFeeUsd: 49,
+    monthlyFeeUsd: 29,
+    marketAlternative: "No direct one-to-one market equivalent",
+    requiresCrm: true,
+    humanCheckpointRequired: true,
+    includedFeatures: ["Automated appointment reminder sequence tuned to reduce no-shows, reviewed once at setup"],
+    estimatedDelivery: "3-5 business days, one setup checkpoint with a Moonrock human",
+  },
+  seasonal_campaign_automation: {
+    id: "seasonal_campaign_automation",
+    name: "Seasonal Campaign Automation",
+    ascensionTier: "ascension_addon",
+    automationTier: "zero_touch",
+    setupFeeUsd: 149,
+    monthlyFeeUsd: 79,
+    marketAlternative: "No direct one-to-one market equivalent",
+    requiresCrm: true,
+    humanCheckpointRequired: true,
+    includedFeatures: ["Recurring seasonal promotion campaigns, reviewed once at setup"],
+    estimatedDelivery: "3-5 business days, one setup checkpoint with a Moonrock human",
+  },
   workflow_automations: {
     id: "workflow_automations",
     name: "Workflow Automations",
     ascensionTier: "ascension_addon",
+    automationTier: "async_human",
     setupFeeUsd: 149,
     monthlyFeeUsd: 69,
     marketAlternative: "$169/mo (Keap/ActiveCampaign)",
@@ -146,6 +237,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "email_marketing",
     name: "Email Marketing",
     ascensionTier: "ascension_addon",
+    automationTier: "zero_touch",
     setupFeeUsd: 99,
     monthlyFeeUsd: 49,
     marketAlternative: "$99/mo (Mailchimp)",
@@ -158,6 +250,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "ai_content_chat",
     name: "Content & Chat Assistant",
     ascensionTier: "ascension_addon",
+    automationTier: "zero_touch",
     setupFeeUsd: 149,
     monthlyFeeUsd: 79,
     marketAlternative: "$99/mo (Jasper/Drift)",
@@ -171,6 +264,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "document_signing",
     name: "Document Signing",
     ascensionTier: "ascension_addon",
+    automationTier: "zero_touch",
     setupFeeUsd: 49,
     monthlyFeeUsd: 29,
     marketAlternative: "$47/mo (DocuSign)",
@@ -183,6 +277,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "seo_local_listings",
     name: "SEO & Local Listings",
     ascensionTier: "ascension_addon",
+    automationTier: "async_human",
     setupFeeUsd: 99,
     monthlyFeeUsd: 59,
     marketAlternative: "$99/mo (Yext/BrightLocal)",
@@ -195,6 +290,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "unlimited_sales_funnels",
     name: "Unlimited Sales Funnels",
     ascensionTier: "custom_build",
+    automationTier: "delivery_human",
     setupFeeUsd: 299,
     monthlyFeeUsd: 99,
     marketAlternative: "$297/mo (ClickFunnels)",
@@ -207,6 +303,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "ecommerce_addon",
     name: "Ecommerce",
     ascensionTier: "custom_build",
+    automationTier: "delivery_human",
     setupFeeUsd: 499,
     monthlyFeeUsd: 49,
     marketAlternative: "$39/mo",
@@ -219,6 +316,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "two_way_sms_marketing",
     name: "2-Way SMS Marketing",
     ascensionTier: "custom_build",
+    automationTier: "async_human",
     setupFeeUsd: 199,
     monthlyFeeUsd: 69,
     marketAlternative: "$99/mo (Skipio/Podium)",
@@ -231,6 +329,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "ad_management",
     name: "Ad Management",
     ascensionTier: "custom_build",
+    automationTier: "delivery_human",
     setupFeeUsd: 399,
     monthlyFeeUsd: 149,
     marketAlternative: "$49/mo (priced for ongoing strategy, not tool access)",
@@ -243,6 +342,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "courses_products",
     name: "Courses & Products",
     ascensionTier: "custom_build",
+    automationTier: "delivery_human",
     setupFeeUsd: 299,
     monthlyFeeUsd: 39,
     marketAlternative: "$99/mo (Kajabi/Teachable)",
@@ -255,6 +355,7 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
     id: "communities",
     name: "Communities",
     ascensionTier: "custom_build",
+    automationTier: "delivery_human",
     setupFeeUsd: 249,
     monthlyFeeUsd: 39,
     marketAlternative: "$89/mo (Skool/Circle)",
