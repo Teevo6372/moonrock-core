@@ -24,6 +24,7 @@ describe("NOVA_TOOL_DEFINITIONS", () => {
       "build_flight_plan",
       "check_fast_track_eligibility",
       "get_ascension_state",
+      "get_conversation_sale_total",
       "get_tier0_catalog",
     ]);
     for (const tool of NOVA_TOOL_DEFINITIONS) expect(tool.strict).toBe(true);
@@ -110,6 +111,22 @@ describe("executeNovaTool", () => {
       ctx({ path: "existing_business" }, { ascensionScore: 42, ascensionBand: "warm", currentTier: "trust_builder", lastOfferedTier: "ascension_addon" }),
     );
     expect(result).toEqual({ ascensionScore: 42, ascensionBand: "warm", currentTier: "trust_builder", lastOfferedTier: "ascension_addon" });
+  });
+
+  it("get_conversation_sale_total returns a zero total with no cumulative-value review needed for a fresh session", () => {
+    const result = executeNovaTool("get_conversation_sale_total", {}, ctx({ path: "existing_business" }));
+    expect(result).toEqual({ monthlyCommitmentUsd: 0, oneTimeValueUsd: 0, saleCount: 0, requiresCumulativeValueReview: false });
+  });
+
+  it("get_conversation_sale_total sums conversationSalesClosed off session state and flags the $700/mo cumulative threshold", () => {
+    const state = ctx({ path: "existing_business" }, {
+      conversationSalesClosed: [
+        { offerId: "sales_follow_up", offerName: "AI Sales & Follow-Up Agent", ladderTier: "ai_employee", setupFeeUsd: 250, monthlyFeeUsd: 499, closedAt: "2026-01-01T00:00:00.000Z" },
+        { offerId: "customer_care", offerName: "AI Customer Care Agent", ladderTier: "ai_employee", setupFeeUsd: 150, monthlyFeeUsd: 299, closedAt: "2026-01-01T00:05:00.000Z" },
+      ],
+    });
+    const result = executeNovaTool("get_conversation_sale_total", {}, state);
+    expect(result).toEqual({ monthlyCommitmentUsd: 798, oneTimeValueUsd: 400, saleCount: 2, requiresCumulativeValueReview: true });
   });
 
   it("get_tier0_catalog returns the full catalog with no filters", () => {

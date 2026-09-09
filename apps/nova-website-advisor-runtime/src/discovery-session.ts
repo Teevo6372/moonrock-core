@@ -2,6 +2,7 @@ import type { ServiceTier } from "./ai-employee-catalog.js";
 import { composeCrossTierBundle, type AscensionBundle } from "./ascension-bundle.js";
 import { computeAscensionScore, type AscensionBand, type AscensionConversationalSignals, type AscensionLadderTier, type AscensionPurchaseRecord } from "./ascension-score.js";
 import { extractTeamSizeMentioned, extractUrgencyStated } from "./conversation-normalizer.js";
+import type { ConversationSaleRecord } from "./conversation-sale-tracker.js";
 import type { BusinessPath, DiagnosticInput, DiagnosticResult, GhlSaasDiagnosticResult } from "./diagnostic-engine.js";
 import { classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas } from "./diagnostic-engine.js";
 import { buildFlightPlan, type FlightPlan } from "./flight-plan.js";
@@ -39,6 +40,8 @@ export interface DiscoverySessionState {
   purchaseHistory?: AscensionPurchaseRecord[];
   /** Count of Tier 0 digital products downloaded (soft engagement signal - see ascension-score.ts). Set only via recordTier0Download, below. */
   tier0DownloadsCount?: number;
+  /** Every sale closed autonomously THIS conversation/session (see conversation-sale-tracker.ts). Set only via recordConversationSale, below - distinct from purchaseHistory's lifetime ladder-tier record. */
+  conversationSalesClosed?: ConversationSaleRecord[];
 }
 
 export interface DiscoveryProgress {
@@ -91,6 +94,26 @@ export function refreshAscensionState(state: DiscoverySessionState, signals: Asc
  */
 export function recordTier0Download(state: DiscoverySessionState): DiscoverySessionState {
   return refreshAscensionState({ ...state, tier0DownloadsCount: (state.tier0DownloadsCount ?? 0) + 1 });
+}
+
+/**
+ * The only place a closed autonomous sale is recorded. No live caller exists
+ * yet - like recordTier0Download and purchaseHistory itself, this has no
+ * payment-webhook event source in this app today (checkout happens
+ * GHL-side, per Section 9.1) - but a closed sale is both a
+ * conversation-sale-total event (conversation-sale-tracker.ts's $700/mo
+ * threshold) AND a purchase-history event (ascension-score.ts's score), so
+ * this single function feeds both rather than leaving two call sites that
+ * could drift out of sync.
+ */
+export function recordConversationSale(state: DiscoverySessionState, sale: Omit<ConversationSaleRecord, "closedAt">): DiscoverySessionState {
+  const closedAt = new Date().toISOString();
+  const record: ConversationSaleRecord = { ...sale, closedAt };
+  return refreshAscensionState({
+    ...state,
+    conversationSalesClosed: [...(state.conversationSalesClosed ?? []), record],
+    purchaseHistory: [...(state.purchaseHistory ?? []), { tier: sale.ladderTier, purchasedAt: closedAt }],
+  });
 }
 
 export function isFlightPlanRequest(text: string): boolean {
