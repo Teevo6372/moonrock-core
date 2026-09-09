@@ -234,7 +234,17 @@ export interface GhlSaasOffer {
   monthlyFeeUsd: number;
   includedSeats: number;
   includedFeatures: readonly string[];
+  /**
+   * Section 9.6: selling any GHL SaaS plan triggers a first-time agency
+   * account upgrade (Agency Unlimited/Pro), provisioned from scratch at the
+   * moment of first sale rather than pre-built - unlike every other offer in
+   * the funnel, which is designed for immediate delivery. Same on all three
+   * tiers since the upgrade-on-first-sale trigger doesn't vary by plan.
+   */
+  estimatedDelivery: string;
 }
+
+const GHL_SAAS_FIRST_SALE_PROVISIONING_DELIVERY = "1–2 business days (first sale triggers a one-time agency account upgrade and provisioning - every other Moonrock offer delivers immediately, this one does not)";
 
 export const GHL_SAAS_CATALOG: Readonly<Record<GhlSaasId, GhlSaasOffer>> = {
   saas_starter: {
@@ -246,6 +256,7 @@ export const GHL_SAAS_CATALOG: Readonly<Record<GhlSaasId, GhlSaasOffer>> = {
       "White-labeled GHL sub-account provisioned under your brand",
       "Core CRM and pipeline features for your own client base",
     ],
+    estimatedDelivery: GHL_SAAS_FIRST_SALE_PROVISIONING_DELIVERY,
   },
   saas_growth: {
     id: "saas_growth",
@@ -257,6 +268,7 @@ export const GHL_SAAS_CATALOG: Readonly<Record<GhlSaasId, GhlSaasOffer>> = {
       "Automation and workflow templates",
       "Additional user seats",
     ],
+    estimatedDelivery: GHL_SAAS_FIRST_SALE_PROVISIONING_DELIVERY,
   },
   saas_pro: {
     id: "saas_pro",
@@ -268,6 +280,7 @@ export const GHL_SAAS_CATALOG: Readonly<Record<GhlSaasId, GhlSaasOffer>> = {
       "Full white-label branding",
       "Highest usage limits and priority provisioning",
     ],
+    estimatedDelivery: GHL_SAAS_FIRST_SALE_PROVISIONING_DELIVERY,
   },
 };
 
