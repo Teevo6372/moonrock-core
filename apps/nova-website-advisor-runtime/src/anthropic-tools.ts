@@ -6,6 +6,7 @@ import { classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsite
 import type { DiscoverySessionState } from "./discovery-session.js";
 import { evaluateFastTrack } from "./fast-track.js";
 import { buildFlightPlan } from "./flight-plan.js";
+import { getConversationSaleTotal, requiresCumulativeValueReview } from "./conversation-sale-tracker.js";
 import { getTier0Catalog, TIER0_CATEGORIES, type Tier0Category, type Tier0SubTier } from "./tier0-catalog.js";
 
 /**
@@ -108,6 +109,12 @@ export const NOVA_TOOL_DEFINITIONS: Anthropic.Tool[] = [
     strict: true,
   },
   {
+    name: "get_conversation_sale_total",
+    description: "Get the running total of every sale closed autonomously so far THIS conversation - combined monthly commitment and one-time value - and whether it now requires human review (Section 9.2's $700/mo threshold). Call before closing any additional autonomous sale in a conversation that already closed at least one item this sitting: several sequential closes are held to the same running total as one packaged bundle would be, so an item that would be fine sold alone can still require review once combined with what already closed.",
+    input_schema: EMPTY_OBJECT_SCHEMA,
+    strict: true,
+  },
+  {
     name: "get_tier0_catalog",
     description: "Get Moonrock's Tier 0 digital product library: 50 paid one-time products ($7-$22, sub-tier 0a) and 20 free Retention Gift items (sub-tier 0b, never sold - offered to build trust/re-engage, not through checkout). Each item includes its exact name, price, category, and direct download link. Call before naming any Tier 0 product, price, or download link - never state one from memory. Omit both filters to return the full 70-item catalog.",
     input_schema: {
@@ -190,6 +197,10 @@ export function executeNovaTool(name: string, rawInput: unknown, ctx: NovaToolCo
         currentTier: ctx.state.currentTier,
         lastOfferedTier: ctx.state.lastOfferedTier,
       };
+    case "get_conversation_sale_total": {
+      const total = getConversationSaleTotal(ctx.state.conversationSalesClosed ?? []);
+      return { ...total, requiresCumulativeValueReview: requiresCumulativeValueReview(total) };
+    }
     case "get_tier0_catalog": {
       const { subTier, category } = rawInput as { subTier?: Tier0SubTier; category?: Tier0Category };
       return getTier0Catalog({ ...(subTier ? { subTier } : {}), ...(category ? { category } : {}) });

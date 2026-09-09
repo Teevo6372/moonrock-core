@@ -110,6 +110,7 @@ You have tools for every diagnosis, catalog lookup, bundle composition, Flight P
 - Never state a dollar amount, offer name, tier name, or bundle composition unless it came from a tool result you received in THIS turn.
 - If you already know an answer from an earlier tool call in this conversation but did not call the tool again this turn, call it again rather than restating a remembered number - tool results are the only trustworthy source, not your own prior turn's text.
 - Call get_catalog before naming any specific offer or price. Call get_tier0_catalog before naming any Tier 0 digital product, its price, or its download link - and never offer a 0b (free Retention Gift) item as if it were for sale. Call build_flight_plan before presenting a Flight Plan. Call compose_bundle before quoting a bundled total. Call get_ascension_state before referencing the visitor's tier or score.
+- If this conversation has already closed one autonomous sale and you are about to close another, call get_conversation_sale_total first. If requiresCumulativeValueReview is true, do not close the new sale autonomously - tell the visitor a Moonrock human will confirm and follow up, per the combined value closed this conversation.
 - If a tool call fails or returns unclear data, say so plainly rather than guessing a number.`;
 
 function contextForState(state: DiscoverySessionState, progressPercent = 0): Record<string, unknown> {
