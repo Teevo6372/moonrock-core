@@ -5,6 +5,7 @@ import { executeNovaTool, NOVA_TOOL_DEFINITIONS, type NovaToolContext } from "..
 import { diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { evaluateFastTrack } from "../src/fast-track.js";
 import type { DiscoverySessionState } from "../src/discovery-session.js";
+import { TIER0_CATALOG } from "../src/tier0-catalog.js";
 
 function ctx(answers: Partial<DiagnosticInput>, stateOverrides: Partial<DiscoverySessionState> = {}): NovaToolContext {
   const state: DiscoverySessionState = { path: "existing_business", completed: false, answers, ...stateOverrides };
@@ -23,6 +24,7 @@ describe("NOVA_TOOL_DEFINITIONS", () => {
       "build_flight_plan",
       "check_fast_track_eligibility",
       "get_ascension_state",
+      "get_tier0_catalog",
     ]);
     for (const tool of NOVA_TOOL_DEFINITIONS) expect(tool.strict).toBe(true);
   });
@@ -108,6 +110,17 @@ describe("executeNovaTool", () => {
       ctx({ path: "existing_business" }, { ascensionScore: 42, ascensionBand: "warm", currentTier: "trust_builder", lastOfferedTier: "ascension_addon" }),
     );
     expect(result).toEqual({ ascensionScore: 42, ascensionBand: "warm", currentTier: "trust_builder", lastOfferedTier: "ascension_addon" });
+  });
+
+  it("get_tier0_catalog returns the full catalog with no filters", () => {
+    const result = executeNovaTool("get_tier0_catalog", {}, ctx({ path: "existing_business" }));
+    expect(result).toEqual(TIER0_CATALOG);
+  });
+
+  it("get_tier0_catalog filters by subTier and category", () => {
+    const result = executeNovaTool("get_tier0_catalog", { subTier: "0b" }, ctx({ path: "existing_business" })) as Array<{ subTier: string }>;
+    expect(result).toHaveLength(20);
+    expect(result.every((product) => product.subTier === "0b")).toBe(true);
   });
 
   it("throws on an unknown tool name", () => {
