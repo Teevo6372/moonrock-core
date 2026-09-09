@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { composeAlaCarteBundle, composeCrossTierBundle, downsellBundle, requiresCrmAttachment } from "../src/ascension-bundle.js";
-import type { DiagnosticInput } from "../src/diagnostic-engine.js";
+import { classifyServiceTier, diagnoseWebsiteBuild, type DiagnosticInput } from "../src/diagnostic-engine.js";
 
 function input(overrides: Partial<DiagnosticInput> = {}): DiagnosticInput {
   return { path: "existing_business", ...overrides };
@@ -98,5 +98,30 @@ describe("composeCrossTierBundle", () => {
   it("returns undefined for ai_employee and ghl_saas (no cross-tier heuristic defined for them)", () => {
     expect(composeCrossTierBundle("ai_employee", input())).toBeUndefined();
     expect(composeCrossTierBundle("ghl_saas", input())).toBeUndefined();
+  });
+});
+
+describe("the original worked example (startup founder -> CRM + site + forms bundle)", () => {
+  it("classifies to website_build, then composes a CRM + Surveys & Forms cross-tier bundle for the quote/contact form", () => {
+    const startupFounder = input({
+      path: "startup",
+      hasExistingWebsite: false,
+      websiteMustHaves: "A quote form so people can request pricing, plus a few other forms for general intake.",
+    });
+
+    const classification = classifyServiceTier(startupFounder);
+    expect(classification.tier).toBe("website_build");
+
+    const websiteDiagnosis = diagnoseWebsiteBuild(startupFounder);
+    expect(websiteDiagnosis.recommendedOfferId).toBe("growth_site");
+
+    const bundle = composeCrossTierBundle(classification.tier, startupFounder);
+    expect(bundle).toBeDefined();
+    expect(bundle!.crmAutoAttached).toBe(true);
+    expect(bundle!.lineItems.map((item) => item.itemId).sort()).toEqual(["crm_pipeline", "surveys_forms"]);
+    expect(bundle!.lineItems.every((item) => item.source === "cross_tier_suggestion")).toBe(true);
+    // Straight sum of catalog prices, no discount (CRM $49/mo + Surveys & Forms $39/mo, no setup fee on either).
+    expect(bundle!.blendedMonthlyFeeUsd).toBe(49 + 39);
+    expect(bundle!.blendedSetupFeeUsd).toBe(0);
   });
 });
