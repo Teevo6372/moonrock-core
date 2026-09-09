@@ -38,4 +38,25 @@ describe("verifyPriceProvenance", () => {
     const violations = verifyPriceProvenance("Moonrock AI Workforce runs $749/month.", []);
     expect(violations.length).toBe(2);
   });
+
+  it("reports no violation when a Tier 0 product name/price is present in a get_tier0_catalog tool result", () => {
+    const violations = verifyPriceProvenance(
+      "The Missed-Call Money Leak Calculator is $17.",
+      [{ id: "01", name: "The Missed-Call Money Leak Calculator", priceUsd: 17 }],
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("flags a Tier 0 product name mentioned but absent from any tool result this turn", () => {
+    const violations = verifyPriceProvenance("Check out the SOP Starter Templates (10-Pack).", []);
+    expect(violations.some((violation) => violation.includes("SOP Starter Templates (10-Pack)"))).toBe(true);
+  });
+
+  it("matches a name ending in a non-word character even mid-sentence, not just at a bare word boundary", () => {
+    // Regression case: a plain \b...\b regex never matches a phrase ending in
+    // ")" because \b requires a word/non-word transition, and ")" followed by
+    // punctuation or whitespace is non-word on both sides.
+    const violations = verifyPriceProvenance("Grab the Estimate/Quote Template Pack (5 Designs), it's great.", []);
+    expect(violations.some((violation) => violation.includes("Estimate/Quote Template Pack (5 Designs)"))).toBe(true);
+  });
 });

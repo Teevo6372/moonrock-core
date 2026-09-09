@@ -1,11 +1,13 @@
 import { AI_EMPLOYEE_CATALOG, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "./ai-employee-catalog.js";
 import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
+import { TIER0_CATALOG } from "./tier0-catalog.js";
 
 const ALL_CATALOG_OFFER_NAMES: readonly string[] = [
   ...Object.values(AI_EMPLOYEE_CATALOG).map((offer) => offer.name),
   ...Object.values(WEBSITE_BUILD_CATALOG).map((offer) => offer.name),
   ...Object.values(GHL_SAAS_CATALOG).map((offer) => offer.name),
   ...Object.values(ALA_CARTE_CATALOG).map((offer) => offer.name),
+  ...TIER0_CATALOG.map((product) => product.name),
 ];
 
 const DOLLAR_AMOUNT_PATTERN = /\$\s*\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?/g;
@@ -22,9 +24,18 @@ function bareNumeral(amount: string): string {
   return String(Number(digits));
 }
 
+/**
+ * `\b` boundaries fail whenever `phrase` starts or ends on a non-word
+ * character - and several real catalog names do (e.g. Tier 0's "SOP Starter
+ * Templates (10-Pack)" ends in ")"), so a plain \b...\b regex silently never
+ * matches those and lets an untraceable mention through undetected. Negative
+ * lookaround instead only requires the character immediately outside the
+ * match (if any) not be alphanumeric - true at whitespace, punctuation, or
+ * a string edge, regardless of what character the phrase itself starts/ends with.
+ */
 function containsWholeWordOrPhrase(text: string, phrase: string): boolean {
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`\\b${escaped}\\b`, "i").test(text);
+  return new RegExp(`(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])`, "i").test(text);
 }
 
 /**
