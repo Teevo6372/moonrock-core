@@ -154,6 +154,13 @@ describe("diagnoseGhlSaas", () => {
     expect(result.includedFeatures.length).toBeGreaterThan(0);
   });
 
+  it("sets the Section 9.6 first-sale provisioning window on every tier, unlike the rest of the funnel's immediate delivery", () => {
+    for (const clients of [3, 12, 30]) {
+      const result = diagnoseGhlSaas(input({ numberOfClientsManaged: clients }));
+      expect(result.estimatedDelivery).toContain("1–2 business days");
+    }
+  });
+
   it("recommends saas_pro for a large client count", () => {
     expect(diagnoseGhlSaas(input({ numberOfClientsManaged: 30 })).recommendedOfferId).toBe("saas_pro");
   });

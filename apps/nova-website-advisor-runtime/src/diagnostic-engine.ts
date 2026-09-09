@@ -383,6 +383,8 @@ export interface GhlSaasDiagnosticResult {
   monthlyFeeUsd: number;
   includedSeats: number;
   includedFeatures: readonly string[];
+  /** Section 9.6 - always the first-sale provisioning window, never immediate like the rest of the funnel. */
+  estimatedDelivery: string;
   recommendationReason: string;
   bottlenecks: BottleneckFinding[];
 }
@@ -417,6 +419,7 @@ export function diagnoseGhlSaas(input: DiagnosticInput): GhlSaasDiagnosticResult
     monthlyFeeUsd: offer.monthlyFeeUsd,
     includedSeats: offer.includedSeats,
     includedFeatures: offer.includedFeatures,
+    estimatedDelivery: offer.estimatedDelivery,
     recommendationReason,
     bottlenecks,
   };
