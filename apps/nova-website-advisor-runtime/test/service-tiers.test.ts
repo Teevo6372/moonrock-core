@@ -128,10 +128,10 @@ describe("diagnoseWebsiteBuild budget-aware revision", () => {
   });
 
   it("chooseWebsiteBuildOfferWithinBudget is honest about the catalog floor rather than inventing a discount", () => {
-    const fit = chooseWebsiteBuildOfferWithinBudget(100);
+    const fit = chooseWebsiteBuildOfferWithinBudget(50);
     expect(fit.fitsWithinBudget).toBe(false);
     expect(fit.offerId).toBe("starter_site");
-    expect(fit.cheapestSetupFeeUsd).toBe(500);
+    expect(fit.cheapestSetupFeeUsd).toBe(99);
   });
 });
 
@@ -199,11 +199,15 @@ describe("diagnoseGhlSaas budget-aware revision", () => {
 });
 
 describe("website build catalog pricing", () => {
-  it("stays within the approved $500-$2,500 setup band", () => {
+  it("stays within the approved $99-$2,500 setup band", () => {
     for (const offer of Object.values(WEBSITE_BUILD_CATALOG)) {
-      expect(offer.setupFeeUsd).toBeGreaterThanOrEqual(500);
+      expect(offer.setupFeeUsd).toBeGreaterThanOrEqual(99);
       expect(offer.setupFeeUsd).toBeLessThanOrEqual(2500);
     }
+  });
+
+  it("prices Starter Site at its confirmed $99 floor (Sections 5.4/9.8) - a floor, not a flat rate", () => {
+    expect(WEBSITE_BUILD_CATALOG.starter_site.setupFeeUsd).toBe(99);
   });
 });
 
@@ -277,11 +281,25 @@ describe("toWebsiteBuildRequest - Section 9.8 tier-gated autonomy split", () => 
 
   it("routes a Starter build to Stephen once the running one-time total this conversation exceeds the $999 threshold", () => {
     const brief = buildWebsiteBrief(input({ websiteScopeNeeded: "landing_page" }));
-    // Starter's own setupFeeUsd alone (500) stays under threshold; combined with
-    // $600 already closed elsewhere this conversation, the running total (1100)
+    // Starter's own setupFeeUsd alone (99) stays under threshold; combined with
+    // $950 already closed elsewhere this conversation, the running total (1049)
     // crosses it - same cumulative-running-total philosophy as Section 9.2's
     // $700/mo check, extended to one-time value per Section 9.8's amendment.
-    const request = toWebsiteBuildRequest(brief, "session-starter-stacked", { conversationOneTimeValueClosedUsd: 600 });
+    const request = toWebsiteBuildRequest(brief, "session-starter-stacked", { conversationOneTimeValueClosedUsd: 950 });
+    expect(request.risk).toBe("high");
+    expect(request.mode).toBe("operator_review");
+  });
+
+  it("also lets a heavily-negotiated Starter build alone cross the $999 threshold, not just when stacked with other sales", () => {
+    // Starter's price is a floor, not a flat rate (Section 5.4/9.8) - Nova can
+    // negotiate upward for add-ons at their own listed prices. This models a
+    // negotiated Starter build whose OWN setupFeeUsd already exceeds $999
+    // (nothing else closed this conversation), confirming the review gate
+    // fires on the build's own negotiated price alone, not only when combined
+    // with unrelated prior sales.
+    const brief = buildWebsiteBrief(input({ websiteScopeNeeded: "landing_page" }));
+    const negotiatedBrief = { ...brief, setupFeeUsd: 1050 };
+    const request = toWebsiteBuildRequest(negotiatedBrief, "session-starter-negotiated");
     expect(request.risk).toBe("high");
     expect(request.mode).toBe("operator_review");
   });

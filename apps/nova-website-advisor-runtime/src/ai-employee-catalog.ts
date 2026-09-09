@@ -197,7 +197,13 @@ export const WEBSITE_BUILD_CATALOG: Readonly<Record<WebsiteBuildId, WebsiteBuild
   starter_site: {
     id: "starter_site",
     name: "Starter Site",
-    setupFeeUsd: 500,
+    // A floor, not a flat rate (Section 5.4/9.8, confirmed by Stephen): Nova
+    // may negotiate upward from here for add-ons at their own listed prices,
+    // capped so the negotiated total never reaches Growth's $1,200 starting
+    // price - enforced by conversation-sale-tracker.ts's $999
+    // CUMULATIVE_ONE_TIME_REVIEW_THRESHOLD_USD, which routes to Stephen
+    // before a negotiation could cross into Growth territory.
+    setupFeeUsd: 99,
     scopeDescription: "Single-page/brochure site, up to 5 sections, built from Moonrock's standard component library.",
     estimatedDelivery: "About 5–7 business days after the brief is confirmed",
     componentLibraryTier: "standard",
