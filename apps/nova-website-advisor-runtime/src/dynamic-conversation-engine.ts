@@ -13,6 +13,7 @@ const ALA_CARTE_CATALOG_SUMMARY = Object.values(ALA_CARTE_CATALOG).map((offer) =
   id: offer.id,
   name: offer.name,
   ascensionTier: offer.ascensionTier,
+  automationTier: offer.automationTier,
   setupFeeUsd: offer.setupFeeUsd,
   monthlyFeeUsd: offer.monthlyFeeUsd,
   includedFeatures: offer.includedFeatures,
