@@ -27,6 +27,7 @@ function cardMarkup(config: SaveCardConfig): string {
         </div>
         <label class="consent-row"><input name="consent" type="checkbox" required><span>${escapeHtml(config.consentLabel)}</span></label>
         <label class="consent-row"><input name="followUpConsent" type="checkbox"><span>Moonrock may follow up with me about this. Optional.</span></label>
+        <label class="consent-row"><input name="smsOptIn" type="checkbox"><span>Text me at the phone number above about this, appointment reminders, and offers from Moonrock Marketing Company. Msg frequency varies, msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. Consent isn't required to receive services.</span></label>
         <div class="save-card-actions"><button type="submit" class="save-card-submit">${escapeHtml(config.submitLabel)}</button><p data-save-card-confirmation class="save-card-confirmation" hidden></p></div>
       </form>
       <p class="save-card-note">Optional — minimize or close this and keep talking with Nova.</p>
@@ -71,12 +72,15 @@ async function submitSave(event: SubmitEvent, card: HTMLElement, config: SaveCar
   if (!form.reportValidity()) return;
   const data = new FormData(form);
   if (!data.get("consent")) { setStatus("Please confirm permission to save this."); return; }
+  const phone = String(data.get("phone") ?? "").trim();
+  if (data.get("smsOptIn") && !phone) { setStatus("Please add a phone number to opt in to text messages."); return; }
   const identity: ContactIdentity = {
     firstName: String(data.get("firstName") ?? "").trim(),
     lastName: String(data.get("lastName") ?? "").trim(),
     email: String(data.get("email") ?? "").trim(),
-    ...(String(data.get("phone") ?? "").trim() ? { phone: String(data.get("phone") ?? "").trim() } : {}),
+    ...(phone ? { phone } : {}),
     followUpConsent: Boolean(data.get("followUpConsent")),
+    smsOptInConsent: Boolean(data.get("smsOptIn")),
   };
   form.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input,button").forEach((element) => { element.disabled = true; });
   setStatus("Saving this with Moonrock…");

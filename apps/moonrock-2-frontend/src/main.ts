@@ -1,7 +1,7 @@
 import "./styles.css";
 import { answerDiscovery, startDiscovery } from "./api.js";
 import { createNovaVisualStage } from "./visual-stage.js";
-import type { BusinessPath, ContactIdentity, DiscoveryQuestion, DiscoveryResponse, GhlSaasResult, WebsiteBuildResult } from "./types.js";
+import type { BusinessPath, DiscoveryQuestion, DiscoveryResponse, GhlSaasResult, WebsiteBuildResult } from "./types.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Moonrock frontend root not found");
@@ -241,23 +241,22 @@ function conversationalInput(question: DiscoveryQuestion, compact = false): stri
 
 function renderQuestion(question: DiscoveryQuestion): void {
   const help = question.helpText ? `<p class="help">${escapeHtml(question.helpText)}</p>` : "";
-  const identity = question.isFinalRequired ? identityFieldsHtml() : "";
 
   if (question.answerType === "boolean") {
-    controls.innerHTML = `${help}${identity}<div class="choice-grid"><button data-answer="true">Yes, mostly</button><button data-answer="false">No, not really</button></div><div class="or-divider"><span>or answer naturally</span></div>${conversationalInput(question, true)}`;
+    controls.innerHTML = `${help}<div class="choice-grid"><button data-answer="true">Yes, mostly</button><button data-answer="false">No, not really</button></div><div class="or-divider"><span>or answer naturally</span></div>${conversationalInput(question, true)}`;
     controls.querySelectorAll<HTMLButtonElement>("[data-answer]").forEach((button) => button.addEventListener("click", () => void submit(question, button.dataset.answer === "true")));
     bindConversationForm(question);
     return;
   }
 
   if (question.answerType === "single_select") {
-    controls.innerHTML = `${help}${identity}<div class="choice-grid">${(question.options ?? []).map((option) => `<button data-choice="${escapeHtml(option)}">${escapeHtml(labelOption(option))}</button>`).join("")}</div><div class="or-divider"><span>or answer naturally</span></div>${conversationalInput(question, true)}`;
+    controls.innerHTML = `${help}<div class="choice-grid">${(question.options ?? []).map((option) => `<button data-choice="${escapeHtml(option)}">${escapeHtml(labelOption(option))}</button>`).join("")}</div><div class="or-divider"><span>or answer naturally</span></div>${conversationalInput(question, true)}`;
     controls.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((button) => button.addEventListener("click", () => void submit(question, button.dataset.choice ?? "")));
     bindConversationForm(question);
     return;
   }
 
-  controls.innerHTML = `${help}${identity}${conversationalInput(question)}`;
+  controls.innerHTML = `${help}${conversationalInput(question)}`;
   bindConversationForm(question);
 }
 
@@ -273,43 +272,8 @@ function bindConversationForm(question: DiscoveryQuestion): void {
   if (question.answerType === "text") input.focus();
 }
 
-function identityFieldsHtml(): string {
-  return `
-    <section class="identity-card" aria-labelledby="identity-title">
-      <p class="identity-kicker">KEEP YOUR FLIGHT PLAN</p>
-      <h3 id="identity-title">Want me to save this and send you a copy?</h3>
-      <p>I can attach the recommendation to your Moonrock inquiry so you don’t have to remember everything we covered. If you’d like, Moonrock can also follow up to answer questions or help you work through next steps. No pressure either way.</p>
-      <div class="identity-grid">
-        <label>First name<input id="identity-first-name" autocomplete="given-name" required></label>
-        <label>Last name<input id="identity-last-name" autocomplete="family-name" required></label>
-        <label>Email<input id="identity-email" type="email" autocomplete="email" required></label>
-        <label>Phone <span class="optional">optional</span><input id="identity-phone" type="tel" autocomplete="tel"></label>
-      </div>
-      <label class="consent-row"><input id="identity-consent" type="checkbox" required><span>Yes, save my Flight Plan and Moonrock inquiry and use my email to provide the requested copy.</span></label>
-      <label class="consent-row"><input id="identity-followup" type="checkbox"><span>Moonrock may also follow up with me about this Flight Plan and questions I may have. Optional.</span></label>
-    </section>
-  `;
-}
-
-function readIdentity(): ContactIdentity | undefined {
-  const firstName = controls.querySelector<HTMLInputElement>("#identity-first-name")?.value.trim() ?? "";
-  const lastName = controls.querySelector<HTMLInputElement>("#identity-last-name")?.value.trim() ?? "";
-  const emailInput = controls.querySelector<HTMLInputElement>("#identity-email");
-  const email = emailInput?.value.trim() ?? "";
-  const phone = controls.querySelector<HTMLInputElement>("#identity-phone")?.value.trim() ?? "";
-  const consent = controls.querySelector<HTMLInputElement>("#identity-consent")?.checked ?? false;
-  const followUpConsent = controls.querySelector<HTMLInputElement>("#identity-followup")?.checked ?? false;
-  if (!firstName || !lastName || !email || !emailInput?.validity.valid || !consent) {
-    status.textContent = "I just need your name, a valid email, and permission to save the Flight Plan before I build the final copy.";
-    return undefined;
-  }
-  return { firstName, lastName, email, ...(phone ? { phone } : {}), followUpConsent, ...(businessName ? { companyName: businessName } : {}) };
-}
-
 async function submit(question: DiscoveryQuestion, value: string | number | boolean): Promise<void> {
   if (busy || !sessionId) return;
-  const identity = question.isFinalRequired ? readIdentity() : undefined;
-  if (question.isFinalRequired && !identity) return;
   if (question.field === "businessName" && typeof value === "string") businessName = value;
   lastTurn = { field: question.field, raw: value };
   setBusy(true, question.isFinalRequired ? "diagnosis" : "thinking");
@@ -319,7 +283,7 @@ async function submit(question: DiscoveryQuestion, value: string | number | bool
     : "Give me a second…";
   status.textContent = question.isFinalRequired ? "Nova is building your Flight Plan…" : "Nova is thinking…";
   try {
-    const response = await answerDiscovery(sessionId, question.field, value, identity);
+    const response = await answerDiscovery(sessionId, question.field, value);
     setBusy(false);
     renderResponse(response);
     if (response.completed) {

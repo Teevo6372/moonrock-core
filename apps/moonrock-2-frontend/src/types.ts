@@ -17,7 +17,7 @@ export interface DiscoveryView {
 }
 
 export interface DiscoveryQuestion { id: string; field: string; prompt: string; answerType: AnswerType; required: boolean; isFinalRequired: boolean; helpText?: string; options?: string[]; }
-export interface ContactIdentity { email: string; firstName: string; lastName: string; phone?: string; companyName?: string; followUpConsent?: boolean; }
+export interface ContactIdentity { email: string; firstName: string; lastName: string; phone?: string; companyName?: string; followUpConsent?: boolean; smsOptInConsent?: boolean; }
 export interface GhlHandoffResult { status: string; contactId?: string; opportunityId?: string; pipelineId?: string; pipelineStageId?: string; tagsApplied?: string[]; noteCreated?: boolean; autonomousCloseAllowed?: boolean; followUpEnabled?: boolean; deferredOperations?: string[]; }
 export interface HumanHandoffPrompt { status: "contact_required"; requestText: string; message: string; }
 export interface HumanHandoffResult { status: "dry_run" | "confirmed"; contactId?: string; tagsApplied: string[]; noteCreated: boolean; notificationSignal: string; deferredOperations: string[]; }
