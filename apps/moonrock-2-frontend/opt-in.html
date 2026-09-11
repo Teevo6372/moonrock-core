@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#070712" />
+    <meta name="description" content="Opt in or out of SMS text messages from Moonrock Marketing Company." />
+    <meta name="robots" content="index, follow" />
+    <title>SMS Opt-In &amp; Opt-Out | Moonrock Marketing</title>
+    <style>
+      :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #f8f7ff; background: #070712; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 20% 10%, #2a1245 0, transparent 38%), radial-gradient(circle at 80% 20%, #102b52 0, transparent 35%), #070712; }
+      .shell { width: min(720px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0 100px; }
+      a { color: #9be7ff; }
+      .eyebrow { margin: 0 0 8px; letter-spacing: .18em; font-size: .78rem; font-weight: 800; color: #ff4fd8; text-transform: uppercase; }
+      h1 { margin: 0 0 6px; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; }
+      .updated { color: #8f8a9f; font-size: .92rem; margin: 0 0 34px; }
+      h2 { font-size: clamp(1.2rem, 3vw, 1.4rem); margin: 36px 0 12px; }
+      p, li { color: #c8c4d7; font-size: 1rem; line-height: 1.7; }
+      ul { padding-left: 22px; }
+      .back-link { display: inline-block; margin-bottom: 30px; color: #a8a3b8; text-decoration: none; font-size: .92rem; }
+      .back-link:hover { color: #ff4fd8; }
+      .disclosure-card { margin: 22px 0; padding: 22px; border: 1px solid rgba(255,79,216,.28); border-radius: 20px; background: rgba(255,79,216,.06); }
+      .disclosure-card p { margin: 0; color: #f3d8ff; }
+      form { margin-top: 34px; padding: clamp(20px, 4vw, 32px); border: 1px solid rgba(255,255,255,.14); border-radius: 24px; background: rgba(9,9,25,.7); }
+      .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+      label.field { display: grid; gap: 7px; color: #c8c4d7; font-size: .88rem; }
+      label.field input { border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 14px 16px; color: #fff; background: rgba(255,255,255,.06); outline: none; font: inherit; }
+      label.field input:focus { border-color: #46c8ff; box-shadow: 0 0 0 3px rgba(70,200,255,.12); }
+      .optional { color: #777185; font-size: .78rem; font-weight: 500; }
+      .consent-row { display: flex; gap: 12px; align-items: flex-start; margin: 20px 0; color: #c8c4d7; font-size: .92rem; line-height: 1.6; }
+      .consent-row input { margin-top: 4px; width: 18px; height: 18px; accent-color: #ff4fd8; flex-shrink: 0; }
+      button[type="submit"] { border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 15px 26px; color: #fff; background: rgba(255,255,255,.07); cursor: pointer; font: inherit; font-weight: 700; }
+      button[type="submit"]:hover, button[type="submit"]:focus-visible { border-color: #ff4fd8; box-shadow: 0 0 30px rgba(255,79,216,.2); outline: none; }
+      button[type="submit"]:disabled { cursor: wait; opacity: .55; }
+      .status { min-height: 1.5em; margin-top: 14px; color: #9be7ff; font-size: .92rem; }
+      .opt-out-note { margin-top: 30px; padding: 18px 20px; border-left: 3px solid #46c8ff; border-radius: 0 14px 14px 0; background: rgba(70,200,255,.05); }
+      .opt-out-note p { margin: 0; color: #c9eefa; }
+      footer.site-footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1); color: #777185; font-size: .82rem; }
+      footer.site-footer p { margin: 4px 0; }
+      footer.site-footer a { color: #9be7ff; text-decoration: none; }
+      footer.site-footer a:hover { text-decoration: underline; }
+      @media (max-width: 560px) { .field-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <a class="back-link" href="/">&larr; Back to Moonrock Marketing</a>
+      <p class="eyebrow">Moonrock Marketing Company</p>
+      <h1>SMS Opt-In &amp; Opt-Out</h1>
+      <p class="updated">Manage text message preferences with Moonrock Marketing Company.</p>
+
+      <p>Moonrock Marketing Company would like your permission to text you. Use the form below at any time to opt in or opt out of SMS text messages — you can change your preference whenever you like.</p>
+
+      <div class="disclosure-card">
+        <p>If you provide contact information, Moonrock may contact you by email, phone, or SMS text message regarding lead follow-up, appointment reminders, and marketing offers. Message and data rates may apply, and you may opt out of SMS at any time by replying STOP.</p>
+      </div>
+
+      <ul>
+        <li><strong>Message types:</strong> lead follow-up, appointment reminders, and marketing offers.</li>
+        <li><strong>Message frequency:</strong> varies, based on your interactions with Moonrock.</li>
+        <li><strong>Message and data rates may apply.</strong></li>
+        <li><strong>Opt out any time</strong> by replying <strong>STOP</strong> to any text message, or by submitting this form with the checkbox unchecked.</li>
+        <li>Reply <strong>HELP</strong> for assistance, or contact us using the information in the footer below.</li>
+        <li>Consent to receive text messages is not a condition of purchasing any goods or services.</li>
+      </ul>
+
+      <form id="opt-in-form" novalidate>
+        <div class="field-grid">
+          <label class="field">First name <span class="optional">optional</span><input name="firstName" autocomplete="given-name" /></label>
+          <label class="field">Last name <span class="optional">optional</span><input name="lastName" autocomplete="family-name" /></label>
+        </div>
+        <div class="field-grid">
+          <label class="field">Phone number<input name="phone" type="tel" autocomplete="tel" required placeholder="(555) 123-4567" /></label>
+          <label class="field">Email <span class="optional">optional</span><input name="email" type="email" autocomplete="email" /></label>
+        </div>
+        <label class="consent-row">
+          <input name="smsOptIn" type="checkbox" />
+          <span>Yes, text me at the phone number above. I understand Moonrock Marketing Company may contact me by email, phone, or SMS text message regarding lead follow-up, appointment reminders, and marketing offers; message and data rates may apply; message frequency varies; and I can opt out at any time by replying STOP. Consent isn't required to receive services.</span>
+        </label>
+        <button type="submit">Save My Preference</button>
+        <p class="status" id="opt-in-status" role="status"></p>
+      </form>
+
+      <div class="opt-out-note">
+        <p>Already receiving texts and just want to stop? Reply <strong>STOP</strong> to any message from Moonrock, or submit the form above with the phone number checkbox left unchecked to record an opt-out.</p>
+      </div>
+
+      <p style="margin-top:30px;">See our <a href="/privacy-policy.html">Privacy Policy</a> and <a href="/terms-of-service.html">Terms of Service</a> for more on how we handle your information.</p>
+
+      <footer class="site-footer">
+        <p><strong>Moonrock Marketing Company</strong></p>
+        <p>416 Perry St, Lawrence, KS 66044 &middot; <a href="tel:+17852188962">(785) 218-8962</a> &middot; <a href="mailto:stephen@moonrockmarketing.com">stephen@moonrockmarketing.com</a></p>
+        <p>&copy; 2026 Moonrock Marketing Company. <a href="/">Home</a> &middot; <a href="/privacy-policy.html">Privacy Policy</a> &middot; <a href="/terms-of-service.html">Terms of Service</a></p>
+      </footer>
+    </main>
+    <script type="module" src="/src/opt-in.ts"></script>
+  </body>
+</html>

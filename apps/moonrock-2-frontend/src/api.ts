@@ -150,6 +150,23 @@ export function completeHumanHandoff(identity: ContactIdentity, requestText: str
   return post<HumanHandoffResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/handoff`, { identity, requestText, visitorId: getOrCreateVisitorId() });
 }
 
+export interface OptInSubmission {
+  phone: string;
+  optedIn: boolean;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+export interface OptInSubmissionResponse {
+  status: "dry_run" | "confirmed";
+  message: string;
+}
+
+export function submitOptIn(input: OptInSubmission): Promise<OptInSubmissionResponse> {
+  return post<OptInSubmissionResponse>("/v1/opt-in", input);
+}
+
 document.addEventListener("nova:complete-human-handoff", (event) => {
   const detail = (event as CustomEvent<{ identity: ContactIdentity; requestText: string }>).detail;
   if (!detail?.identity?.email || !detail.requestText) return;

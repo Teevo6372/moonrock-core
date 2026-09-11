@@ -10,6 +10,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         privacyPolicy: resolve(__dirname, "privacy-policy.html"),
         termsOfService: resolve(__dirname, "terms-of-service.html"),
+        optIn: resolve(__dirname, "opt-in.html"),
       },
     },
   },

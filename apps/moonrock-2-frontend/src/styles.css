@@ -82,6 +82,11 @@ button:disabled { cursor: wait; opacity: .55; }
   .nova-dialogue { padding: 18px; border-radius: 20px; }
 }
 
+.site-header { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 0; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+.site-header-brand { color: #f8f7ff; font-weight: 800; text-decoration: none; letter-spacing: .01em; }
+.site-header-nav a { color: #9be7ff; text-decoration: none; font-size: .92rem; font-weight: 600; }
+.site-header-nav a:hover { text-decoration: underline; }
+
 .site-footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 40px; border-top: 1px solid rgba(255,255,255,.1); color: #777185; font-size: .82rem; line-height: 1.6; }
 .site-footer p { margin: 4px 0; }
 .site-footer-brand { color: #a8a3b8; font-weight: 700; }
