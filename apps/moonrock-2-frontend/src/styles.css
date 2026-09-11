@@ -81,3 +81,9 @@ button:disabled { cursor: wait; opacity: .55; }
   .answer-form, .identity-grid { display: grid; grid-template-columns: 1fr; }
   .nova-dialogue { padding: 18px; border-radius: 20px; }
 }
+
+.site-footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 40px; border-top: 1px solid rgba(255,255,255,.1); color: #777185; font-size: .82rem; line-height: 1.6; }
+.site-footer p { margin: 4px 0; }
+.site-footer-brand { color: #a8a3b8; font-weight: 700; }
+.site-footer a { color: #9be7ff; text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
