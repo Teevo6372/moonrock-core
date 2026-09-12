@@ -21,6 +21,11 @@
 .nova-focus-mode .nova-controls .or-divider { display:none !important; }
 body.nova-conversation-focused #progressive-flight-plan,
 body.nova-conversation-focused .progressive-flight-plan { display:none !important; }
+/* Once the conversation is live the marketing hero above it is just noise - the headline, lede and path buttons have all already been acted on. The status line stays: it is the "Nova is with you." affordance sitting directly above the chat. dockAvatar() moves .nova-visual-stage into the panel, which leaves .hero-copy alone in the narrow orb column with the wide column empty, so collapse the grid and drop the fold-height minimum instead of leaving a tall empty column behind. */
+body.nova-conversation-focused .hero-copy h1,
+body.nova-conversation-focused .hero-copy .lede,
+body.nova-conversation-focused .hero-copy .paths { display:none !important; }
+body.nova-conversation-focused .hero { min-height:0; padding-top:0; grid-template-columns:minmax(0,1fr); }
 
 .nova-live-chat { display:grid; gap:12px; max-height:460px; margin-top:12px; padding:18px; overflow-y:auto; scroll-behavior:smooth; border:1px solid rgba(255,255,255,.08); border-radius:24px; background:linear-gradient(180deg,rgba(7,7,18,.72),rgba(14,11,29,.66)); box-shadow:inset 0 0 50px rgba(141,92,255,.025); }
 .nova-chat-message { display:none; width:min(90%,760px); padding:14px 17px; border:1px solid rgba(255,255,255,.09); border-radius:20px; backdrop-filter:blur(12px); }
