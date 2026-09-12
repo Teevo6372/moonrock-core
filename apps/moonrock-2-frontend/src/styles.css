@@ -13,7 +13,7 @@ button, input, select { font: inherit; }
 .hero { min-height: 72vh; display: grid; align-content: center; gap: 22px; }
 .eyebrow, .result-kicker, .identity-kicker { margin: 0; letter-spacing: .18em; font-size: .78rem; font-weight: 800; color: #ff4fd8; }
 h1, h2, h3, h4 { margin: 0; line-height: 1.02; text-wrap: balance; }
-h1 { max-width: 900px; font-size: clamp(2.7rem, 8vw, 6.5rem); }
+h1 { max-width: 900px; font-size: clamp(2.7rem, 8vw, 4.5rem); }
 h2 { font-size: clamp(2rem, 5vw, 4rem); }
 h3 { margin-top: 10px; font-size: clamp(2rem, 4vw, 3.5rem); }
 h4 { font-size: 1rem; color: #c8c4d7; }
