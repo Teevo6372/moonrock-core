@@ -76,6 +76,22 @@ export class PostgresAccountRepository {
       throw mapPostgresConflict(error, "An account with that email already exists");
     }
   }
+
+  /**
+   * Rotate an account's password hash. Session tokens are stateless HMAC
+   * signatures (see auth.ts), so this cannot revoke tokens already issued -
+   * it only changes what future logins accept. Callers that care about the
+   * current session staying usable should re-issue its cookie.
+   */
+  async updatePasswordHash(accountId: string, passwordHash: string): Promise<void> {
+    const result = await this.pool.query(
+      "UPDATE nova_accounts SET password_hash = $1, updated_at = NOW() WHERE account_id = $2",
+      [passwordHash, accountId],
+    );
+    if (!result.rowCount) {
+      throw new Error(`No account exists for id ${accountId}`);
+    }
+  }
 }
 
 function hydrate(row: AccountRow): Account {
