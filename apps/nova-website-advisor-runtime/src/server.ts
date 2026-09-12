@@ -11,6 +11,7 @@ import { loadGhlRuntimeConfig } from "./ghl-runtime-config.js";
 import { GroqConversationGenerator } from "./groq-conversation-generator.js";
 import { createMoonrock2App } from "./http/moonrock2-app.js";
 import { runMigrations } from "./migrations.js";
+import { PostgresAccountRepository } from "./postgres-account-repository.js";
 import { PostgresDiscoveryStateRepository } from "./postgres-discovery-state.js";
 import { PostgresDurableStateRepository } from "./postgres-durable-state.js";
 
@@ -21,11 +22,13 @@ async function start(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   let repository: PostgresDurableStateRepository | undefined;
   let pool: Pool | undefined;
+  let accountRepository: PostgresAccountRepository | undefined;
   if (databaseUrl) {
     pool = new Pool({ connectionString: databaseUrl, max: boundedInteger(process.env.NOVA_DATABASE_POOL_MAX, 4, 1, 10), ssl: process.env.NOVA_DATABASE_SSL_MODE === "require" ? { rejectUnauthorized: true } : undefined });
     if (process.env.NOVA_RUN_MIGRATIONS !== "true") { await pool.end(); throw new Error("DATABASE_URL requires NOVA_RUN_MIGRATIONS=true until the schema is verified"); }
     await runMigrations(pool, resolve(process.cwd(), process.env.NOVA_MIGRATIONS_DIRECTORY ?? "migrations"));
     repository = new PostgresDurableStateRepository(pool);
+    accountRepository = new PostgresAccountRepository(pool);
     await repository.verifyConnection();
     process.stdout.write("Nova PostgreSQL adapters verified\n");
   }
@@ -89,7 +92,16 @@ async function start(): Promise<void> {
           timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
         });
 
-  const { app } = createMoonrock2App({ allowedOrigins, ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}), ...(productionGhl ? { productionGhl } : {}), conversationEngine, ...(answerInterpreter ? { answerInterpreter } : {}) });
+  const sessionSecret = process.env.NOVA_SESSION_SECRET;
+  const { app } = createMoonrock2App({
+    allowedOrigins,
+    ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}),
+    ...(productionGhl ? { productionGhl } : {}),
+    conversationEngine,
+    ...(answerInterpreter ? { answerInterpreter } : {}),
+    ...(accountRepository ? { accountRepository } : {}),
+    ...(sessionSecret ? { sessionSecret } : {}),
+  });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
     const originAllowed = isOriginAllowed(origin, allowedOrigins);
