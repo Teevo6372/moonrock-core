@@ -13,7 +13,7 @@ button, input, select { font: inherit; }
 .hero { min-height: 72vh; display: grid; align-content: center; gap: 22px; }
 .eyebrow, .result-kicker, .identity-kicker { margin: 0; letter-spacing: .18em; font-size: .78rem; font-weight: 800; color: #ff4fd8; }
 h1, h2, h3, h4 { margin: 0; line-height: 1.02; text-wrap: balance; }
-h1 { max-width: 900px; font-size: clamp(2.7rem, 8vw, 6.5rem); }
+h1 { max-width: 900px; font-size: clamp(2.7rem, 8vw, 4.5rem); }
 h2 { font-size: clamp(2rem, 5vw, 4rem); }
 h3 { margin-top: 10px; font-size: clamp(2rem, 4vw, 3.5rem); }
 h4 { font-size: 1rem; color: #c8c4d7; }
@@ -82,13 +82,9 @@ button:disabled { cursor: wait; opacity: .55; }
   .nova-dialogue { padding: 18px; border-radius: 20px; }
 }
 
-.site-header { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 0; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
-.site-header-brand { color: #f8f7ff; font-weight: 800; text-decoration: none; letter-spacing: .01em; }
-.site-header-nav a { color: #9be7ff; text-decoration: none; font-size: .92rem; font-weight: 600; }
-.site-header-nav a:hover { text-decoration: underline; }
-
 .site-footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 40px; border-top: 1px solid rgba(255,255,255,.1); color: #777185; font-size: .82rem; line-height: 1.6; }
 .site-footer p { margin: 4px 0; }
+.site-footer-logo { display: block; margin: 0 0 14px; border-radius: 50%; }
 .site-footer-brand { color: #a8a3b8; font-weight: 700; }
 .site-footer a { color: #9be7ff; text-decoration: none; }
 .site-footer a:hover { text-decoration: underline; }

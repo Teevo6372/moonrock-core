@@ -1,18 +1,18 @@
-.hero { position: relative; grid-template-columns: minmax(0, 1.08fr) minmax(300px, .92fr); gap: clamp(32px, 7vw, 88px); align-items: center; overflow: visible; }
+.hero { position: relative; grid-template-columns: minmax(220px, .58fr) minmax(0, 1.42fr); gap: clamp(28px, 6vw, 72px); align-items: start; overflow: visible; padding-top: clamp(24px, 5vw, 56px); }
 .hero-copy { position: relative; z-index: 3; display: grid; gap: 22px; }
 
 .nova-visual-stage {
   position: relative;
   z-index: 2;
-  min-height: min(70vh, 720px);
+  min-height: min(38vh, 340px);
   display: grid;
-  place-items: center;
+  place-items: start center;
   isolation: isolate;
 }
 
 .nova-media-shell {
   position: relative;
-  width: min(100%, 520px);
+  width: min(100%, 300px);
   aspect-ratio: .82;
   border-radius: 46% 46% 38% 38% / 36% 36% 50% 50%;
   overflow: hidden;
