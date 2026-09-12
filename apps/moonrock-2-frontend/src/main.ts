@@ -10,9 +10,8 @@ app.innerHTML = `
   <main class="shell">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">MOONROCK 2.0</p>
-        <h1>AI Employees built around the way your business actually works.</h1>
-        <p class="lede">Meet Nova, Moonrock's Virtual Growth Advisor. She'll learn how your business works, spot practical opportunities, and build a Flight Plan around what you actually need.</p>
+        <h1>Stop guessing what's broken in your business&hellip; Nova finds it in 60 seconds.</h1>
+        <p class="lede">Tell Nova what's going on with your business. She'll ask a few sharp questions and hand you a practical Flight Plan built around real opportunities — no pitch, no obligation.</p>
         <div class="paths" role="group" aria-label="Choose your business path">
           <button data-path="startup">I'm starting something</button>
           <button data-path="existing_business">My business needs to grow</button>
