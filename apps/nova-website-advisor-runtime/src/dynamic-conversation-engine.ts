@@ -61,6 +61,12 @@ Conversation rules:
 - APPROVED SERVICE CATALOG in BUSINESS CONTEXT is the complete, exhaustive list of everything Moonrock currently sells. When asked what else Moonrock offers or can help with, mention only services by their exact name from that list. Never name a specific third-party platform, tool, or integration (a named e-commerce platform, CRM, payment processor, etc.) that is not that exact list - describe capability generically instead if the specifics are not approved.
 - If you would need more than 1-4 short sentences to answer fully (e.g. listing several services), give the short version and offer to go deeper rather than writing a long reply that risks being cut off.
 
+NEVER CLAIM AN ACTION YOU CANNOT PERFORM:
+- You cannot send an email, process a payment, save a Flight Plan, create an account, or trigger any system action yourself. You can only talk.
+- The ONLY real way a visitor saves their Flight Plan or moves to next steps is the Save Flight Plan form already visible on the page.
+- When a visitor says they are ready, want to proceed, or want to "lock it in": tell them plainly to use the Save Flight Plan form on the page (enter their name and email there) - do not say you will email them, confirm anything, or handle it yourself.
+- Never say "I'll send you an email," "I'll get that set up," "I've saved that," or any other claim that something is happening or will happen outside this chat message.
+
 FORMATTING:
 This is a plain-text chat bubble, not a document. Write in plain conversational prose only.
 - Never use Markdown: no **bold**, no *italics*, no # headers, no horizontal-rule dividers (---, ***, ___), no numbered or bulleted lists.
@@ -92,7 +98,7 @@ During Preliminary Recommend, use only the Flight Plan values in BUSINESS CONTEX
 During Fine-Tune and Explain, gather secondary details only when they materially improve configuration, pricing accuracy, risk review, or an opportunity estimate.
 During Handle Concerns, answer questions before trying to close. Use the visitor's own facts and conservative estimates first. Use only APPROVED EVIDENCE from BUSINESS CONTEXT for external evidence.
 During Decide, offer a low-pressure choice: build/start the Flight Plan, fine-tune it, ask questions, talk to a person, or not right now. Respect a genuine no.
-During Confirm/Onboard, confirm identity/contact and consent, approved package/pricing, approved terms/payment, onboarding details and implementation requirements. Never invent an agreement, checkout URL, payment option, or timeline that is not actually connected.
+During Confirm/Onboard, confirm identity/contact and consent, approved package/pricing, approved terms/payment, onboarding details and implementation requirements. Never invent an agreement, checkout URL, payment option, or timeline that is not actually connected. When they are ready to proceed, direct them to the Save Flight Plan form on the page - that is the only real next step that exists.
 
 ${OBJECTION_POLICY}
 
@@ -212,7 +218,7 @@ function groundedFallback(state: DiscoverySessionState, question: string, guidan
     const answersForPlan = answers as DiagnosticInput;
     const diagnostic = diagnoseBusiness(answersForPlan);
     const plan = buildFlightPlan(answersForPlan, diagnostic);
-    return { mode: "grounded_fallback", intent: "pause_discovery", answer: `I've still got your Flight Plan on ${plan.recommendation.offerName} ready. Tell me what you'd like adjusted, ask me anything about it, or let me know you're ready to move forward.` };
+    return { mode: "grounded_fallback", intent: "pause_discovery", answer: `I've still got your Flight Plan on ${plan.recommendation.offerName} ready. Tell me what you'd like adjusted or ask me anything about it - when you're ready to move forward, use the Save Flight Plan form on the page to lock it in.` };
   }
   if (guidance?.resuming) {
     const lastNova = [...(state.conversationHistory ?? [])].reverse().find((turn) => turn.role === "nova")?.text;
