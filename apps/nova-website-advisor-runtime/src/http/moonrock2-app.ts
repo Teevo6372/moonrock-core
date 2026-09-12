@@ -1,4 +1,5 @@
 import type { AnswerInterpreter } from "../answer-interpreter.js";
+import { createAuthRouter } from "../auth-router.js";
 import { createDiscoveryRouter } from "../discovery-router.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "../discovery-state-repository.js";
 import type { NovaConversationEngine } from "../dynamic-conversation-engine.js";
@@ -6,6 +7,7 @@ import type { OptInGhlConfig } from "../ghl-opt-in.js";
 import type { ProductionGhlHandoffConfig } from "../ghl-production-handoff.js";
 import { loadGhlRuntimeConfig } from "../ghl-runtime-config.js";
 import { createOptInRouter } from "../opt-in-router.js";
+import type { PostgresAccountRepository } from "../postgres-account-repository.js";
 import { createApp, type AppOptions } from "./app.js";
 
 export interface Moonrock2AppOptions extends AppOptions {
@@ -14,6 +16,11 @@ export interface Moonrock2AppOptions extends AppOptions {
   optInGhl?: OptInGhlConfig;
   conversationEngine?: NovaConversationEngine;
   answerInterpreter?: AnswerInterpreter;
+  // New: only wired when a real Postgres Pool exists (see server.ts) - in
+  // local/dev without DATABASE_URL, /v1/auth/login reports 503 rather than
+  // throwing at startup, matching how optInGhl already degrades.
+  accountRepository?: PostgresAccountRepository;
+  sessionSecret?: string;
 }
 
 function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | undefined {
@@ -35,7 +42,16 @@ function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | unde
 }
 
 export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnType<typeof createApp> {
-  const { discoveryRepository = new InMemoryDiscoveryStateRepository(), productionGhl, optInGhl, conversationEngine, answerInterpreter, ...appOptions } = options;
+  const {
+    discoveryRepository = new InMemoryDiscoveryStateRepository(),
+    productionGhl,
+    optInGhl,
+    conversationEngine,
+    answerInterpreter,
+    accountRepository,
+    sessionSecret,
+    ...appOptions
+  } = options;
   const llmConnected = Boolean(conversationEngine);
   const ghlConnected = Boolean(productionGhl);
   const base = createApp({
@@ -57,6 +73,10 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   const resolvedOptInGhl = resolveOptInGhlConfig(optInGhl);
   base.app.route("/v1/opt-in", createOptInRouter({
     ...(resolvedOptInGhl ? { productionGhl: resolvedOptInGhl } : {}),
+  }));
+  base.app.route("/v1/auth", createAuthRouter({
+    ...(accountRepository ? { accountRepository } : {}),
+    ...(sessionSecret ? { sessionSecret } : {}),
   }));
   return base;
 }
