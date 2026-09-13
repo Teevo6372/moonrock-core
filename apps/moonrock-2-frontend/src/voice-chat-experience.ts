@@ -41,19 +41,13 @@ function enterFocusMode(): void {
   if (root.classList.contains("nova-focus-mode")) return;
   root.classList.add("nova-focus-mode");
   const header = document.createElement("header"); header.className = "nova-focus-header";
-  header.innerHTML = `<div><strong>Nova</strong><span>Moonrock Virtual Growth Advisor</span></div><button type="button" class="nova-history-toggle" aria-expanded="false">Conversation</button>`;
+  header.innerHTML = `<div><strong>Nova</strong><span>Moonrock Virtual Growth Advisor</span></div>`;
   root.prepend(header);
-  header.querySelector("button")?.addEventListener("click", () => {
-    const thread = chatThread(); if (!thread) return;
-    const expanded = thread.classList.toggle("show-history");
-    header.querySelector("button")?.setAttribute("aria-expanded", String(expanded));
-  });
 }
 function updateProgress(): void {
-  let progress = document.querySelector<HTMLButtonElement>("#nova-quiet-progress"); const thread = chatThread(); if (!thread) return;
+  let progress = document.querySelector<HTMLElement>("#nova-quiet-progress"); const thread = chatThread(); if (!thread) return;
   if (!progress) {
-    progress = document.createElement("button"); progress.id = "nova-quiet-progress"; progress.className = "nova-quiet-progress"; progress.type = "button"; progress.title = "Show conversation history";
-    progress.addEventListener("click", () => document.querySelector<HTMLButtonElement>(".nova-history-toggle")?.click());
+    progress = document.createElement("p"); progress.id = "nova-quiet-progress"; progress.className = "nova-quiet-progress";
     thread.insertAdjacentElement("afterend", progress);
   }
   const next = `Building your Flight Plan · ${learnedCount} ${learnedCount === 1 ? "thing" : "things"} learned`;
@@ -65,7 +59,6 @@ function appendMessage(role: "nova" | "visitor" | "system", text: string, source
   const who = role === "nova" ? "Nova" : role === "visitor" ? "You" : "Status";
   message.innerHTML = `<div class="nova-chat-meta"><strong>${who}</strong>${source ? `<span>${source === "voice" ? "spoken" : "typed"}</span>` : ""}</div><p></p>`;
   message.querySelector("p")!.textContent = clean; thread.append(message);
-  thread.querySelectorAll<HTMLElement>(".nova-chat-message").forEach((item, index, all) => item.classList.toggle("is-current", index >= all.length - 2));
   thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" }); updateProgress();
 }
 function syncNovaMessage(): void {
@@ -106,10 +99,16 @@ function captureVisitorSubmission(event: Event): void {
 }
 function captureChoice(event: Event): void { const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-answer], [data-choice]") : null; if (!target) return; const value = target.dataset.choice ?? (target.dataset.answer === "true" ? "Yes, mostly" : "No, not really"); appendMessage("visitor", value, "text"); }
 function scheduleSync(): void { window.setTimeout(() => { dockAvatar(); chatThread(); enhanceForms(); syncNovaMessage(); updateProgress(); }, 20); }
+/** Brings the visitor back to exactly where the conversation left off after each turn, so they never have to hunt for it by scrolling the whole page themselves. */
+function scrollActiveConversationIntoView(): void {
+  const target = document.querySelector<HTMLElement>('[data-conversation-form], #post-plan-question') ?? chatThread();
+  target?.scrollIntoView({ behavior: "smooth", block: "end" });
+}
 function handleConversationState(event: Event): void {
   const response = (event as CustomEvent<DiscoveryResponse>).detail;
   learnedCount = response?.progress?.answered ?? learnedCount;
   scheduleSync();
+  window.setTimeout(scrollActiveConversationIntoView, 80);
 }
 export function initializeNovaVoiceChatExperience(): void {
   if (observed) return; observed = true;
