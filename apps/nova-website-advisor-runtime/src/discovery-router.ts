@@ -1,10 +1,10 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AnswerInterpreter } from "./answer-interpreter.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { extractStatedMonthlyBudgetUsd } from "./diagnostic-engine.js";
 import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery, submitNovaDiscoveryAnswer, type NovaDiscoveryResponse } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
-import { appendConversationExchange, isFlightPlanRequest, type DiscoverySessionState } from "./discovery-session.js";
+import { appendConversationExchange, isClearYes, isFlightPlanRequest, isReadyToSaveSignal, isSaveCancelSignal, type DiscoverySessionState, type PendingConversationalSave } from "./discovery-session.js";
 import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type NovaConversationEngine, type NovaConversationTurn } from "./dynamic-conversation-engine.js";
 import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
@@ -35,6 +35,90 @@ function completionAnswerForTier(response: NovaDiscoveryResponse): string {
     return "I have enough to give you a starting recommendation for your white-label setup; anything still unknown is an assumption we can confirm before provisioning.";
   }
   return "I have enough to give you a useful starting direction. Here's your Preliminary Flight Plan; anything still unknown is an assumption we can fine-tune after you see the recommendation.";
+}
+
+function extractEmailAddress(text: string): string | undefined {
+  return text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0];
+}
+
+/** Best-effort split of a freely-typed name into firstName/lastName - good enough for a conversational shortcut, not a replacement for the real form's separate fields. */
+function splitName(text: string): { firstName: string; lastName?: string } {
+  const cleaned = text.trim().replace(/^(i'?m|it'?s|this is|my name is|name'?s)\s+/i, "").trim();
+  const [first, ...rest] = cleaned.split(/\s+/).filter(Boolean);
+  return { firstName: first || cleaned, ...(rest.length ? { lastName: rest.join(" ") } : {}) };
+}
+
+/** Builds the next turn's response, persists it, and returns the Response - the shared shape every /conversation branch below returns. */
+async function respondAndPersist(
+  context: Context,
+  repository: DiscoveryStateRepository,
+  sessionId: string,
+  expectedVersion: number,
+  nextState: DiscoverySessionState,
+  question: string,
+  answer: string,
+): Promise<Response> {
+  const conversationTurn: NovaConversationTurn = { answer, mode: "grounded_fallback", intent: "pause_discovery" };
+  const state = appendConversationExchange(nextState, question, answer);
+  try { await repository.save(sessionId, state, expectedVersion); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
+  const currentView = responseWithView(state);
+  return context.json({ ...currentView.response, conversationTurn, journey: currentView.journey, view: currentView.view });
+}
+
+/**
+ * Advances an in-progress conversational Flight Plan save (see
+ * PendingConversationalSave in discovery-session.ts). Deliberately collects
+ * only name/email/one explicit yes - no phone/SMS opt-in, which stays on the
+ * real Save Flight Plan form only. Calls the exact same handoffFlightPlanToGhl
+ * the form's /save-flight-plan route uses once consent is given.
+ */
+async function handlePendingSave(
+  context: Context,
+  repository: DiscoveryStateRepository,
+  sessionId: string,
+  current: { state: DiscoverySessionState; version: number },
+  question: string,
+  productionGhl: ProductionGhlHandoffConfig | undefined,
+): Promise<Response> {
+  const pending = current.state.pendingSave as PendingConversationalSave;
+  const { pendingSave: _drop, ...withoutPendingSave } = current.state;
+
+  const decline = (message: string) => respondAndPersist(context, repository, sessionId, current.version, withoutPendingSave, question, message);
+
+  if (!productionGhl) return decline("Sorry, saving isn't available right now - nothing was lost. You're still welcome to keep talking.");
+  if (isHumanHandoffRequest(question) || isSaveCancelSignal(question)) return decline("No problem, I won't save anything. Say the word whenever you're ready.");
+
+  if (pending.stage === "awaiting_name") {
+    const { firstName, lastName } = splitName(question);
+    const nextPending: PendingConversationalSave = { stage: "awaiting_email", firstName, ...(lastName ? { lastName } : {}) };
+    const answer = `Thanks${firstName ? `, ${firstName}` : ""} - what's the best email to save this with?`;
+    return respondAndPersist(context, repository, sessionId, current.version, { ...current.state, pendingSave: nextPending }, question, answer);
+  }
+
+  if (pending.stage === "awaiting_email") {
+    const email = extractEmailAddress(question);
+    if (!email) return respondAndPersist(context, repository, sessionId, current.version, current.state, question, "I didn't catch a valid email in that - what's the best email to save this with?");
+    const nextPending: PendingConversationalSave = { ...pending, email, stage: "awaiting_consent" };
+    const answer = `Got it - ${email}. Reply YES and I'll save your Flight Plan and this inquiry with Moonrock using that email, or say no and I won't.`;
+    return respondAndPersist(context, repository, sessionId, current.version, { ...current.state, pendingSave: nextPending }, question, answer);
+  }
+
+  // pending.stage === "awaiting_consent"
+  if (!isClearYes(question)) return decline("No problem, I won't save anything. Say the word whenever you're ready.");
+  const restored = restoreNovaDiscovery(current.state);
+  if (!restored.result) return decline("I lost track of the Flight Plan details for that - you can also use the Save Flight Plan form on the page instead.");
+  const identity: ProductionGhlContactIdentity = { email: pending.email as string, ...(pending.firstName ? { firstName: pending.firstName } : {}), ...(pending.lastName ? { lastName: pending.lastName } : {}) };
+  try {
+    const ascension = typeof current.state.ascensionScore === "number"
+      ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
+      : undefined;
+    const result = await handoffFlightPlanToGhl({ sessionId, identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, productionGhl, { apply: productionGhl.enabled && productionGhl.fieldsVerified && productionGhl.writesEnabled });
+    const answer = result.status === "confirmed" ? "You're all set - your Flight Plan is saved with Moonrock." : "Your Flight Plan details are ready, but live CRM writes are currently disabled.";
+    return respondAndPersist(context, repository, sessionId, current.version, withoutPendingSave, question, answer);
+  } catch (error) {
+    console.error(`[conversation-save] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
+    return decline("I couldn't save that just now - you can also use the Save Flight Plan form on the page instead.");
+  }
 }
 
 export function createDiscoveryRouter(repository: DiscoveryStateRepository = new InMemoryDiscoveryStateRepository(), options: DiscoveryRouterOptions = {}): Hono {
@@ -96,6 +180,10 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     if (typeof body.question !== "string" || !body.question.trim()) return context.json({ code: "INVALID_NOVA_QUESTION" }, 400);
     const question = body.question.trim();
 
+    if (current.state.pendingSave) {
+      return handlePendingSave(context, repository, sessionId, current, question, options.productionGhl);
+    }
+
     if (!current.state.completed && isFlightPlanRequest(question)) {
       const result = requestPreliminaryFlightPlan(current.state);
       const answer = `Absolutely. I'm stopping discovery here. ${completionAnswerForTier(result.response)}`;
@@ -124,6 +212,12 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
         const journey = response.result ? completedJourney(response.result.flightPlan) : journeyForProgress(100, true);
         return context.json({ ...response, conversationTurn, journey, view });
       }
+    }
+
+    if (current.state.completed && options.productionGhl && isReadyToSaveSignal(question)) {
+      const nextPending: PendingConversationalSave = { stage: "awaiting_name" };
+      const answer = "I can save this for you right now, right here in chat - what name should I put on it?";
+      return respondAndPersist(context, repository, sessionId, current.version, { ...current.state, pendingSave: nextPending }, question, answer);
     }
 
     const currentView = responseWithView(current.state);

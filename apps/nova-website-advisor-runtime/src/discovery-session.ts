@@ -21,6 +21,20 @@ export interface DiscoveryConversationTurn {
   at: string;
 }
 
+/**
+ * In-progress conversational Flight Plan save (see isReadyToSaveSignal,
+ * below, and discovery-router.ts's /conversation handling). Deliberately
+ * excludes phone/SMS opt-in - that consent language stays on the real Save
+ * Flight Plan form only; this flow collects just enough (name, email, one
+ * explicit yes) to call the same handoffFlightPlanToGhl the form uses.
+ */
+export interface PendingConversationalSave {
+  stage: "awaiting_name" | "awaiting_email" | "awaiting_consent";
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
 export interface DiscoverySessionState {
   path: BusinessPath;
   answers: Partial<DiagnosticInput>;
@@ -42,6 +56,8 @@ export interface DiscoverySessionState {
   tier0DownloadsCount?: number;
   /** Every sale closed autonomously THIS conversation/session (see conversation-sale-tracker.ts). Set only via recordConversationSale, below - distinct from purchaseHistory's lifetime ladder-tier record. */
   conversationSalesClosed?: ConversationSaleRecord[];
+  /** Set only while a conversational Flight Plan save is in progress (see PendingConversationalSave, above); cleared on completion, decline, or cancellation. */
+  pendingSave?: PendingConversationalSave;
 }
 
 export interface DiscoveryProgress {
@@ -118,6 +134,21 @@ export function recordConversationSale(state: DiscoverySessionState, sale: Omit<
 
 export function isFlightPlanRequest(text: string): boolean {
   return /\b(?:provide|show|give|build|create|generate|see|view|ready for|want)\b[\s\S]{0,40}\b(?:flight\s*plan|recommendation|recommended plan|starting plan)\b|\b(?:flight\s*plan|recommendation)\b[\s\S]{0,30}\b(?:now|please|ready)\b/i.test(text.trim());
+}
+
+/** A visitor signaling readiness to proceed/save, once a Flight Plan already exists (see PendingConversationalSave). */
+export function isReadyToSaveSignal(text: string): boolean {
+  return /\block (it|this) in\b|\bsign (me|us) up\b|\blet'?s (do this|move forward|get started|proceed|go)\b|\bready to (move forward|proceed|start|go|sign up)\b|\bi'?m ready\b|\bhow do i (get started|sign up|proceed)\b/i.test(text.trim());
+}
+
+/** A visitor backing out of an in-progress conversational save (see PendingConversationalSave). */
+export function isSaveCancelSignal(text: string): boolean {
+  return /^\s*(never ?mind|forget it|cancel|no thanks?|not now|nah|stop)\b/i.test(text.trim());
+}
+
+/** A clear, standalone affirmative - the bar for treating a chat reply as consent (see PendingConversationalSave's "awaiting_consent" stage). */
+export function isClearYes(text: string): boolean {
+  return /^\s*(yes|yeah|yep|yup|sure|confirm|i confirm|do it|please do)\b/i.test(text.trim());
 }
 
 export function shouldProducePreliminaryPlan(path: BusinessPath, answers: Partial<DiagnosticInput>, meaningfulTurns: number, force = false): boolean {
