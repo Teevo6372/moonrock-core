@@ -1,5 +1,6 @@
 import "./flight-plan-save-card.css";
 import { completeHumanHandoff } from "./api.js";
+import { isPlausibleName } from "./identity-validation.js";
 import type { ContactIdentity, GhlSaasResult, WebsiteBuildResult } from "./types.js";
 
 interface SaveCardConfig { kicker: string; title: string; requestText: string; consentLabel: string; submitLabel: string; }
@@ -8,6 +9,15 @@ let pending: SaveCardConfig | undefined;
 function statusElement(): HTMLElement | null { return document.querySelector<HTMLElement>("#status"); }
 function setStatus(message: string): void { const status = statusElement(); if (status) status.textContent = message; }
 
+function showError(card: HTMLElement, message: string): void {
+  const error = card.querySelector<HTMLElement>("[data-save-card-error]");
+  if (error) { error.textContent = message; error.hidden = false; }
+}
+function clearError(card: HTMLElement): void {
+  const error = card.querySelector<HTMLElement>("[data-save-card-error]");
+  if (error) { error.hidden = true; error.textContent = ""; }
+}
+
 function cardMarkup(config: SaveCardConfig): string {
   return `
     <section class="identity-card" data-result-save-card aria-labelledby="result-save-title">
@@ -15,6 +25,7 @@ function cardMarkup(config: SaveCardConfig): string {
         <button type="button" class="save-card-icon" data-save-card-minimize aria-label="Minimize save form" title="Minimize">−</button>
         <button type="button" class="save-card-icon" data-save-card-close aria-label="Close save form" title="Close">×</button>
       </div>
+      <p class="save-card-banner">This is a short save form, separate from the chat below. Still have a question for Nova first? Minimize or close this and ask below — it stays open.</p>
       <p class="identity-kicker">${escapeHtml(config.kicker)}</p>
       <h3 id="result-save-title">${escapeHtml(config.title)}</h3>
       <p>This is optional. Saving does not control whether you can keep talking with Nova or continue reviewing the recommendation.</p>
@@ -25,6 +36,7 @@ function cardMarkup(config: SaveCardConfig): string {
           <label>Email<input name="email" type="email" autocomplete="email" required></label>
           <label>Phone <span class="optional">optional</span><input name="phone" type="tel" autocomplete="tel"></label>
         </div>
+        <p data-save-card-error class="save-card-error" role="alert" hidden></p>
         <label class="consent-row"><input name="consent" type="checkbox" required><span>${escapeHtml(config.consentLabel)}</span></label>
         <label class="consent-row"><input name="followUpConsent" type="checkbox"><span>Moonrock may follow up with me about this. Optional.</span></label>
         <label class="consent-row"><input name="smsOptIn" type="checkbox"><span>Text me at the phone number above about this, appointment reminders, and offers from Moonrock Marketing Company. Msg frequency varies, msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. Consent isn't required to receive services.</span></label>
@@ -70,13 +82,20 @@ async function submitSave(event: SubmitEvent, card: HTMLElement, config: SaveCar
   event.preventDefault();
   const form = event.currentTarget as HTMLFormElement;
   if (!form.reportValidity()) return;
+  clearError(card);
   const data = new FormData(form);
   if (!data.get("consent")) { setStatus("Please confirm permission to save this."); return; }
+  const firstName = String(data.get("firstName") ?? "").trim();
+  const lastName = String(data.get("lastName") ?? "").trim();
+  if (!isPlausibleName(firstName) || !isPlausibleName(lastName)) {
+    showError(card, "That doesn't look like a name — mind entering just your first and last name? If you had a question for Nova, the chat box below is still open.");
+    return;
+  }
   const phone = String(data.get("phone") ?? "").trim();
   if (data.get("smsOptIn") && !phone) { setStatus("Please add a phone number to opt in to text messages."); return; }
   const identity: ContactIdentity = {
-    firstName: String(data.get("firstName") ?? "").trim(),
-    lastName: String(data.get("lastName") ?? "").trim(),
+    firstName,
+    lastName,
     email: String(data.get("email") ?? "").trim(),
     ...(phone ? { phone } : {}),
     followUpConsent: Boolean(data.get("followUpConsent")),

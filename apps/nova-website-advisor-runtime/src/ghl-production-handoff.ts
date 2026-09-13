@@ -66,6 +66,23 @@ export class ProductionGhlHandoffBlockedError extends Error {
   constructor(message: string) { super(message); this.name = "ProductionGhlHandoffBlockedError"; }
 }
 
+/**
+ * Server-side backstop matching the frontend's isPlausibleName check
+ * (apps/moonrock-2-frontend/src/identity-validation.ts). Duplicated rather
+ * than shared across packages - this exists so a direct API call (bypassing
+ * the frontend form entirely) can't push a question or sentence into GHL as
+ * a contact's name. Deliberately permissive: this only needs to catch the
+ * obvious non-name case, not validate that a string is a "real" name.
+ */
+function isPlausibleName(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.length > 40) return false;
+  if (/[?!.,;:]/.test(trimmed)) return false;
+  if (trimmed.split(/\s+/).length > 4) return false;
+  return true;
+}
+
 export async function handoffHumanRequestToGhl(
   input: ProductionGhlHumanHandoffInput,
   config: ProductionGhlHandoffConfig,
@@ -135,7 +152,11 @@ export async function handoffFlightPlanToGhl(input: ProductionGhlHandoffInput, c
   }, "contact upsert");
   const contactId = contactPayload.contact?.id ?? contactPayload.id;
   if (!contactId) throw new Error("HighLevel contact upsert succeeded without returning a contact ID");
-  const opportunityPayload = await postJson<{ opportunity?: { id?: string }; id?: string }>(fetchImpl, `${baseUrl}/opportunities/upsert`, headers, { locationId: config.locationId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, contactId, name: `${input.flightPlan.businessName} — Nova Flight Plan`, status: "open", monetaryValue: input.diagnostic.opportunityEstimate?.monthlyOpportunityUsd ?? 0, customFields: Object.entries(opportunityOperation.fields).map(([id, value]) => ({ id, fieldValue: value })) }, "opportunity upsert");
+  // Fall back through diagnosticInput.businessName before defaulting, so the
+  // opportunity title never interpolates a bare "null"/"undefined" when the
+  // business name wasn't captured during discovery.
+  const opportunityBusinessName = input.flightPlan.businessName || input.diagnosticInput.businessName || "Unnamed Business";
+  const opportunityPayload = await postJson<{ opportunity?: { id?: string }; id?: string }>(fetchImpl, `${baseUrl}/opportunities/upsert`, headers, { locationId: config.locationId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, contactId, name: `${opportunityBusinessName} — Nova Flight Plan`, status: "open", monetaryValue: input.diagnostic.opportunityEstimate?.monthlyOpportunityUsd ?? 0, customFields: Object.entries(opportunityOperation.fields).map(([id, value]) => ({ id, fieldValue: value })) }, "opportunity upsert");
   const opportunityId = opportunityPayload.opportunity?.id ?? opportunityPayload.id;
   if (!opportunityId) throw new Error("HighLevel opportunity upsert succeeded without returning an opportunity ID");
   if (tagsOperation.tags.length > 0) await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/tags`, headers, { tags: tagsOperation.tags }, "contact tag write");
@@ -161,6 +182,8 @@ function assertHumanHandoffReady(input: ProductionGhlHumanHandoffInput, config: 
   if (apply && !config.writesEnabled) throw new ProductionGhlHandoffBlockedError("Production GHL writes are not enabled");
   if (!config.locationId.trim() || !config.accessToken.trim()) throw new ProductionGhlHandoffBlockedError("GHL connection details are required");
   if (!input.identity.email.trim()) throw new ProductionGhlHandoffBlockedError("An email is required for human handoff continuity");
+  if (input.identity.firstName && !isPlausibleName(input.identity.firstName)) throw new ProductionGhlHandoffBlockedError("First name does not look like a valid name");
+  if (input.identity.lastName && !isPlausibleName(input.identity.lastName)) throw new ProductionGhlHandoffBlockedError("Last name does not look like a valid name");
 }
 
 function assertProductionHandoffReady(input: ProductionGhlHandoffInput, config: ProductionGhlHandoffConfig, apply: boolean): void {
@@ -170,6 +193,8 @@ function assertProductionHandoffReady(input: ProductionGhlHandoffInput, config: 
   if (!config.locationId.trim()) throw new ProductionGhlHandoffBlockedError("GHL location ID is required");
   if (!config.accessToken.trim()) throw new ProductionGhlHandoffBlockedError("GHL access token is required");
   if (!input.identity.email.trim()) throw new ProductionGhlHandoffBlockedError("A verified lead email is required before CRM handoff");
+  if (input.identity.firstName && !isPlausibleName(input.identity.firstName)) throw new ProductionGhlHandoffBlockedError("First name does not look like a valid name");
+  if (input.identity.lastName && !isPlausibleName(input.identity.lastName)) throw new ProductionGhlHandoffBlockedError("Last name does not look like a valid name");
   if (input.diagnostic.escalationReasons.some((reason) => reason.toLowerCase().includes("illegal"))) throw new ProductionGhlHandoffBlockedError("Illegal or abusive requests cannot enter the automated CRM handoff");
 }
 
