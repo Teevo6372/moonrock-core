@@ -171,6 +171,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
       const result = await handoffHumanRequestToGhl({ sessionId, identity: body.identity, state: current.state, requestText: body.requestText }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
       return context.json({ humanHandoff: result, answer: result.status === "confirmed" ? "You're set. I saved what we covered and flagged this for a Moonrock person. You won't need to start over." : "I've got your handoff request ready, but Moonrock's live CRM writes are currently disabled." });
     } catch (error) {
+      console.error(`[handoff] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
       return context.json({ code: "HANDOFF_FAILED", detail: error instanceof Error ? error.message : "Moonrock could not complete the handoff right now." }, 503);
     }
   });
