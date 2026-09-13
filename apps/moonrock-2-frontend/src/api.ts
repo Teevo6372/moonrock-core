@@ -167,6 +167,22 @@ export function submitOptIn(input: OptInSubmission): Promise<OptInSubmissionResp
   return post<OptInSubmissionResponse>("/v1/opt-in", input);
 }
 
+export interface ContactFormSubmission {
+  name: string;
+  email: string;
+  message: string;
+  phone?: string;
+}
+
+export interface ContactFormResponse {
+  status: "dry_run" | "confirmed";
+  answer: string;
+}
+
+export function submitContactForm(input: ContactFormSubmission): Promise<ContactFormResponse> {
+  return post<ContactFormResponse>("/v1/contact", input);
+}
+
 document.addEventListener("nova:complete-human-handoff", (event) => {
   const detail = (event as CustomEvent<{ identity: ContactIdentity; requestText: string }>).detail;
   if (!detail?.identity?.email || !detail.requestText) return;

@@ -1,4 +1,5 @@
 import "./styles.css";
+import "./site-nav.js";
 import { answerDiscovery, startDiscovery } from "./api.js";
 import { createNovaVisualStage } from "./visual-stage.js";
 import type { BusinessPath, DiscoveryQuestion, DiscoveryResponse, GhlSaasResult, WebsiteBuildResult } from "./types.js";
