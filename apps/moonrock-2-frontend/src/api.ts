@@ -185,11 +185,16 @@ const resourceQuestions: Record<string, string> = {
 
 function conversationAnswerTarget(): HTMLDivElement | null { return document.querySelector<HTMLDivElement>("#resource-answer"); }
 
+function isReadySignal(question: string): boolean {
+  return /\block (it|this) in\b|\bsign (me|us) up\b|\blet'?s (do this|move forward|get started|proceed|go)\b|\bready to (move forward|proceed|start|go|sign up)\b|\bi'?m ready\b|\bhow do i (get started|sign up|proceed)\b/i.test(question);
+}
+
 async function renderRuntimeConversation(question: string): Promise<void> {
   const target = conversationAnswerTarget();
   if (!target) return;
   target.textContent = "Nova is thinking about that in the context of your Flight Plan…";
   window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "thinking" } }));
+  if (isReadySignal(question)) window.dispatchEvent(new CustomEvent("nova:reopen-save-card"));
   try {
     const turn = await askNova(question);
     target.textContent = turn.answer;

@@ -124,3 +124,17 @@ window.addEventListener("nova:ghl-saas-result", (event) => {
   };
   window.setTimeout(renderCard, 0);
 });
+
+window.addEventListener("nova:reopen-save-card", () => {
+  const result = document.querySelector<HTMLElement>("#nova-result");
+  const existing = result?.querySelector<HTMLElement>("[data-result-save-card]");
+  if (existing) {
+    existing.hidden = false;
+    result?.querySelector<HTMLButtonElement>("[data-save-card-reopen]")?.remove();
+    existing.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  if (!pending) return;
+  renderCard();
+  window.setTimeout(() => result?.querySelector<HTMLElement>("[data-result-save-card]")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+});

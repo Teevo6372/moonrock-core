@@ -99,3 +99,16 @@ window.addEventListener("nova:flight-plan", (event) => {
   latestPlan = (event as CustomEvent<FlightPlan>).detail;
   window.setTimeout(renderCard, 0);
 });
+
+window.addEventListener("nova:reopen-save-card", () => {
+  const result = document.querySelector<HTMLElement>("#nova-result");
+  const existing = result?.querySelector<HTMLElement>("[data-flight-plan-save-card]");
+  if (existing) {
+    existing.hidden = false;
+    result?.querySelector<HTMLButtonElement>("[data-save-card-reopen]")?.remove();
+    existing.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  renderCard();
+  window.setTimeout(() => result?.querySelector<HTMLElement>("[data-flight-plan-save-card]")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+});
