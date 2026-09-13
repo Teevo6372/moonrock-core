@@ -154,6 +154,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
       const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
       return context.json({ status: result.status, answer: result.status === "confirmed" ? "Your Flight Plan is saved with Moonrock." : "Your Flight Plan details are ready, but live CRM writes are currently disabled." });
     } catch (error) {
+      console.error(`[save-flight-plan] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
       return context.json({ code: "FLIGHT_PLAN_SAVE_FAILED", detail: error instanceof Error ? error.message : "Moonrock could not save the Flight Plan right now." }, 503);
     }
   });
