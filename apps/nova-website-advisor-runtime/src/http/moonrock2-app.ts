@@ -1,5 +1,7 @@
 import type { AnswerInterpreter } from "../answer-interpreter.js";
 import { createAuthRouter } from "../auth-router.js";
+import type { GeneralContactGhlConfig } from "../contact-form-ghl.js";
+import { createContactRouter } from "../contact-router.js";
 import { createDiscoveryRouter } from "../discovery-router.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "../discovery-state-repository.js";
 import type { NovaConversationEngine } from "../dynamic-conversation-engine.js";
@@ -14,6 +16,7 @@ export interface Moonrock2AppOptions extends AppOptions {
   discoveryRepository?: DiscoveryStateRepository;
   productionGhl?: ProductionGhlHandoffConfig;
   optInGhl?: OptInGhlConfig;
+  contactGhl?: GeneralContactGhlConfig;
   conversationEngine?: NovaConversationEngine;
   answerInterpreter?: AnswerInterpreter;
   // New: only wired when a real Postgres Pool exists (see server.ts) - in
@@ -41,11 +44,32 @@ function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | unde
   }
 }
 
+// Reuses the same three NOVA_GHL_* env vars as opt-in (no new Railway
+// config needed) - a standalone contact form has no discovery session, so
+// it deliberately does not reuse productionGhl's separate fieldsVerified
+// gate, which only makes sense for the field-mapped discovery handoff.
+function resolveGeneralContactGhlConfig(explicit?: GeneralContactGhlConfig): GeneralContactGhlConfig | undefined {
+  if (explicit) return explicit;
+  try {
+    const runtimeConfig = loadGhlRuntimeConfig();
+    return {
+      enabled: true,
+      writesEnabled: (process.env.NOVA_GHL_WRITES_ENABLED ?? "").trim().toLowerCase() === "true",
+      locationId: runtimeConfig.locationId,
+      accessToken: runtimeConfig.privateIntegrationToken,
+      baseUrl: runtimeConfig.baseUrl,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnType<typeof createApp> {
   const {
     discoveryRepository = new InMemoryDiscoveryStateRepository(),
     productionGhl,
     optInGhl,
+    contactGhl,
     conversationEngine,
     answerInterpreter,
     accountRepository,
@@ -73,6 +97,10 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   const resolvedOptInGhl = resolveOptInGhlConfig(optInGhl);
   base.app.route("/v1/opt-in", createOptInRouter({
     ...(resolvedOptInGhl ? { productionGhl: resolvedOptInGhl } : {}),
+  }));
+  const resolvedContactGhl = resolveGeneralContactGhlConfig(contactGhl);
+  base.app.route("/v1/contact", createContactRouter({
+    ...(resolvedContactGhl ? { ghl: resolvedContactGhl } : {}),
   }));
   base.app.route("/v1/auth", createAuthRouter({
     ...(accountRepository ? { accountRepository } : {}),
