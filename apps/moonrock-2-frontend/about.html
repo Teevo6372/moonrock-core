@@ -23,9 +23,14 @@
       .cta-row { margin-top: 40px; }
       .cta-row a.button { display: inline-block; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 13px 24px; color: #fff; text-decoration: none; background: rgba(255,255,255,.07); }
       .cta-row a.button:hover { border-color: #ff4fd8; }
-      footer.site-footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1); color: #777185; font-size: .82rem; }
+      footer.site-footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1); color: #777185; font-size: .82rem; display: flex; align-items: flex-start; gap: 16px; }
+      .site-footer-logo-link { flex-shrink: 0; display: flex; }
+      .site-footer-logo { height: 4.8em; width: 4.8em; display: block; border-radius: 50%; object-fit: cover; }
+      .site-footer-lines { display: flex; flex-direction: column; justify-content: space-between; height: 4.8em; }
+      .site-footer-lines p { margin: 0; }
       footer.site-footer a { color: #9be7ff; text-decoration: none; }
       footer.site-footer a:hover { text-decoration: underline; }
+      @media (max-width: 480px) { footer.site-footer { flex-direction: column; align-items: flex-start; gap: 12px; } }
     </style>
   </head>
   <body>
@@ -50,7 +55,14 @@
       </div>
 
       <footer class="site-footer">
-        <p>&copy; 2026 Moonrock Marketing Company. All rights reserved. <a href="/">Home</a> &middot; <a href="/about.html">About</a> &middot; <a href="/services.html">Services</a> &middot; <a href="/contact.html">Contact</a> &middot; <a href="/privacy-policy.html">Privacy Policy</a> &middot; <a href="/terms-of-service.html">Terms of Service</a></p>
+        <a class="site-footer-logo-link" href="/" aria-label="Moonrock Marketing home">
+          <img class="site-footer-logo" src="/moonrock-logo-badge.png" alt="Moonrock Marketing">
+        </a>
+        <div class="site-footer-lines">
+          <p><a href="tel:+17852188962">(785) 218-8962</a> &middot; <a href="mailto:stephen@moonrockmarketing.com">stephen@moonrockmarketing.com</a></p>
+          <p><a href="/privacy-policy.html">Privacy Policy</a> &middot; <a href="/terms-of-service.html">Terms of Service</a> &middot; <a href="/opt-in.html">SMS Opt-In / Opt-Out</a></p>
+          <p>&copy; 2026 Moonrock Marketing Company. All rights reserved.</p>
+        </div>
       </footer>
     </main>
     <script type="module" src="/src/site-nav.ts"></script>
