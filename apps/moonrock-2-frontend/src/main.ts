@@ -320,7 +320,6 @@ function renderFlightPlan(response: DiscoveryResponse): void {
     <p class="disclaimer">${escapeHtml(opportunity?.disclaimer ?? flightPlan.disclosures[0] ?? "")}</p>
     ${renderNextStepsSection()}
   `;
-  wireResultCardInteractions();
 }
 
 function renderNextStepsSection(): string {
@@ -344,17 +343,6 @@ function renderNextStepsSection(): string {
     </section>`;
 }
 
-function wireResultCardInteractions(): void {
-  result.querySelectorAll<HTMLButtonElement>("[data-resource]").forEach((button) => {
-    button.addEventListener("click", () => answerResourceQuestion(button.dataset.resource ?? ""));
-  });
-  result.querySelector<HTMLFormElement>("#post-plan-question")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const input = result.querySelector<HTMLInputElement>("#post-plan-input");
-    if (input?.value.trim()) answerOpenQuestion(input.value.trim());
-  });
-}
-
 function renderWebsiteBuildResult(websiteBuildResult: WebsiteBuildResult): void {
   const brief = websiteBuildResult.brief;
   controls.innerHTML = "";
@@ -376,7 +364,6 @@ function renderWebsiteBuildResult(websiteBuildResult: WebsiteBuildResult): void 
     <p class="disclaimer">${escapeHtml(brief.disclosures[0] ?? "")}</p>
     ${renderNextStepsSection()}
   `;
-  wireResultCardInteractions();
 }
 
 function renderGhlSaasResult(ghlSaasResult: GhlSaasResult): void {
@@ -394,35 +381,6 @@ function renderGhlSaasResult(ghlSaasResult: GhlSaasResult): void {
     </div>
     ${renderNextStepsSection()}
   `;
-  wireResultCardInteractions();
-}
-
-function answerResourceQuestion(topic: string): void {
-  const answers: Record<string, string> = {
-    pricing: "The Flight Plan shows the current recommended monthly and setup pricing for this configuration. Final scope can change if we uncover unusual integrations, compliance needs, or substantially different usage. I’d rather tell you that up front than surprise you later.",
-    payments: "Moonrock can discuss practical payment timing and available payment arrangements before anything is signed. The goal is to make implementation understandable and predictable—not pressure you into a payment decision during discovery.",
-    implementation: "Implementation starts by validating the workflow we just discussed. Then Moonrock configures the customer-facing experience, automations, monitoring, integrations, and escalation rules behind the scenes. We focus on the business outcome rather than asking you to become an expert in the underlying software stack.",
-    local: "Moonrock is based in Lawrence, Kansas. For local businesses, that means we can understand the market and work like a nearby technology partner while still using systems that support customers remotely and around the clock.",
-    services: "AI Employees are the center of Moonrock 2.0, but the work can include customer response, lead capture, follow-up, scheduling, CRM workflows, reporting, operational automation, voice handling, integrations, and other supporting systems when they are part of the same business outcome.",
-  };
-  showResourceAnswer(answers[topic] ?? "Tell me what you want to dig into and I’ll explain it without turning it into a sales pitch.");
-}
-
-function answerOpenQuestion(question: string): void {
-  const q = question.toLowerCase();
-  if (/price|cost|month|setup/.test(q)) return answerResourceQuestion("pricing");
-  if (/pay|financ|installment|payment/.test(q)) return answerResourceQuestion("payments");
-  if (/implement|setup|how long|onboard/.test(q)) return answerResourceQuestion("implementation");
-  if (/local|lawrence|kansas|nearby|partner/.test(q)) return answerResourceQuestion("local");
-  if (/service|website|crm|automation|phone|voice|follow.?up/.test(q)) return answerResourceQuestion("services");
-  showResourceAnswer("That’s a good question, and I don’t want to fake a specific answer from a keyword. I’d save that with your Flight Plan for a Moonrock follow-up, or we can keep narrowing it down through the options above while the full conversational answer layer is expanded.");
-}
-
-function showResourceAnswer(answer: string): void {
-  const target = result.querySelector<HTMLDivElement>("#resource-answer");
-  if (!target) return;
-  target.textContent = answer;
-  visualStage.playTransientState("speaking");
 }
 
 async function begin(path: BusinessPath): Promise<void> {
