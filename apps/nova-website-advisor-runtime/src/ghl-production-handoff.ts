@@ -12,6 +12,8 @@ export interface ProductionGhlContactIdentity {
   lastName?: string;
   phone?: string;
   companyName?: string;
+  /** From the save form's optional "Moonrock may follow up with me" checkbox - see PendingConversationalSave's chat-based save path, which never collects this and so always omits it (correctly defaults to no consent). */
+  followUpConsent?: boolean;
 }
 
 export interface ProductionGhlHandoffConfig {
@@ -58,7 +60,7 @@ export interface ProductionGhlHandoffResult {
   tagsApplied?: string[];
   noteCreated?: boolean;
   autonomousCloseAllowed: boolean;
-  followUpEnabled: false;
+  followUpEnabled: boolean;
   deferredOperations: readonly [];
 }
 
@@ -137,7 +139,8 @@ export async function handoffHumanRequestToGhl(
 export async function handoffFlightPlanToGhl(input: ProductionGhlHandoffInput, config: ProductionGhlHandoffConfig, options: { apply?: boolean; fetchImpl?: typeof fetch } = {}): Promise<ProductionGhlHandoffResult> {
   assertProductionHandoffReady(input, config, Boolean(options.apply));
   const plan = buildGhlFlightPlanSyncPlan({ sessionId: input.sessionId, diagnosticInput: input.diagnosticInput, diagnostic: input.diagnostic, flightPlan: input.flightPlan, fieldRegistry: config.fieldRegistry, ...(input.ascension ? { ascension: input.ascension } : {}) });
-  if (!options.apply) return { status: "dry_run", autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled: false, deferredOperations: [] };
+  const followUpEnabled = Boolean(input.identity.followUpConsent);
+  if (!options.apply) return { status: "dry_run", autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled, deferredOperations: [] };
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = (config.baseUrl ?? "https://services.leadconnectorhq.com").replace(/\/$/, "");
   const headers = { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${config.accessToken}`, Version: "v3" };
@@ -159,9 +162,13 @@ export async function handoffFlightPlanToGhl(input: ProductionGhlHandoffInput, c
   const opportunityPayload = await postJson<{ opportunity?: { id?: string }; id?: string }>(fetchImpl, `${baseUrl}/opportunities/upsert`, headers, { locationId: config.locationId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, contactId, name: `${opportunityBusinessName} — Nova Flight Plan`, status: "open", monetaryValue: input.diagnostic.opportunityEstimate?.monthlyOpportunityUsd ?? 0, customFields: Object.entries(opportunityOperation.fields).map(([id, value]) => ({ id, fieldValue: value })) }, "opportunity upsert");
   const opportunityId = opportunityPayload.opportunity?.id ?? opportunityPayload.id;
   if (!opportunityId) throw new Error("HighLevel opportunity upsert succeeded without returning an opportunity ID");
-  if (tagsOperation.tags.length > 0) await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/tags`, headers, { tags: tagsOperation.tags }, "contact tag write");
+  // Tags GHL's own record with whether the visitor actually consented to
+  // follow-up, so whoever reviews this opportunity knows they have
+  // permission to reach out before doing so - not just that the option exists.
+  const tagsToApply = followUpEnabled ? [...tagsOperation.tags, "nova-followup-consent"] : tagsOperation.tags;
+  if (tagsToApply.length > 0) await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/tags`, headers, { tags: tagsToApply }, "contact tag write");
   await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/notes`, headers, { body: noteOperation.note }, "Flight Plan note write");
-  return { status: "confirmed", contactId, opportunityId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, tagsApplied: [...tagsOperation.tags], noteCreated: true, autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled: false, deferredOperations: [] };
+  return { status: "confirmed", contactId, opportunityId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, tagsApplied: [...tagsToApply], noteCreated: true, autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled, deferredOperations: [] };
 }
 
 async function resolveNovaFlightPlanStage(fetchImpl: typeof fetch, baseUrl: string, headers: Record<string, string>, locationId: string): Promise<string> {

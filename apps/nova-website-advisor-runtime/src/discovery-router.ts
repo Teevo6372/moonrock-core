@@ -6,7 +6,7 @@ import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery,
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
 import { appendConversationExchange, isClearYes, isFlightPlanRequest, isReadyToSaveSignal, isSaveCancelSignal, type DiscoverySessionState, type PendingConversationalSave } from "./discovery-session.js";
 import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type NovaConversationEngine, type NovaConversationTurn } from "./dynamic-conversation-engine.js";
-import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig } from "./ghl-production-handoff.js";
+import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig, type ProductionGhlHandoffResult } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 import { completedJourney, journeyForProgress } from "./nova-sales-journey.js";
 
@@ -25,6 +25,20 @@ function responseWithView(state: DiscoverySessionState) {
 
 function handoffPrompt(requestText: string) {
   return { status: "contact_required" as const, requestText, message: "Nova paused discovery. Add your contact details and Moonrock can continue from what you've already shared." };
+}
+
+/**
+ * What actually happens next differs by offer: some are zero-touch (Nova can
+ * finish setup herself once details are locked in), others need at least one
+ * human touch - and even then, only promise a rep will reach out if the
+ * visitor actually consented to follow-up (the optional checkbox on the save
+ * form; the chat-based save flow never asks, so it correctly stays false).
+ */
+export function flightPlanSaveAnswer(result: ProductionGhlHandoffResult): string {
+  if (result.status !== "confirmed") return "Your Flight Plan details are ready, but live CRM writes are currently disabled.";
+  if (result.autonomousCloseAllowed) return "Your Flight Plan is saved with Moonrock. This option can be set up without extra steps - just let Nova know here in chat whenever you're ready to move forward.";
+  if (result.followUpEnabled) return "Your Flight Plan is saved with Moonrock. Since this option includes a quick setup step, a Moonrock rep will reach out by email or phone shortly to go over the details.";
+  return "Your Flight Plan is saved with Moonrock. This option includes a short review by our team before setup - feel free to reach out directly anytime, or keep talking with Nova here.";
 }
 
 function completionAnswerForTier(response: NovaDiscoveryResponse): string {
@@ -113,7 +127,7 @@ async function handlePendingSave(
       ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
       : undefined;
     const result = await handoffFlightPlanToGhl({ sessionId, identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, productionGhl, { apply: productionGhl.enabled && productionGhl.fieldsVerified && productionGhl.writesEnabled });
-    const answer = result.status === "confirmed" ? "You're all set - your Flight Plan is saved with Moonrock." : "Your Flight Plan details are ready, but live CRM writes are currently disabled.";
+    const answer = flightPlanSaveAnswer(result);
     return respondAndPersist(context, repository, sessionId, current.version, withoutPendingSave, question, answer);
   } catch (error) {
     console.error(`[conversation-save] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
@@ -246,7 +260,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
         ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
         : undefined;
       const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
-      return context.json({ status: result.status, answer: result.status === "confirmed" ? "Your Flight Plan is saved with Moonrock." : "Your Flight Plan details are ready, but live CRM writes are currently disabled." });
+      return context.json({ status: result.status, answer: flightPlanSaveAnswer(result) });
     } catch (error) {
       console.error(`[save-flight-plan] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
       return context.json({ code: "FLIGHT_PLAN_SAVE_FAILED", detail: error instanceof Error ? error.message : "Moonrock could not save the Flight Plan right now." }, 503);
