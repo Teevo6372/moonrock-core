@@ -1,4 +1,4 @@
-import "./voice-chat-experience.js";
+import { consumeVoiceInputFlag, playTurnAudio } from "./voice-chat-experience.js";
 import { assertFrontendConfig, config } from "./config.js";
 import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
 import { appendConversationTurn, archiveActiveConversation, consumeResume, getOrCreateVisitorId, initializeVisitorContinuity, migrateConversationSession, previousConversationSummary, saveConversation, updateLastResponse } from "./visitor-continuity.js";
@@ -51,6 +51,7 @@ function get<T>(path: string): Promise<T> { return request<T>(path); }
 function publish(response: DiscoveryResponse): DiscoveryResponse {
   publishProgressiveFlightPlanResponse(response);
   window.dispatchEvent(new CustomEvent("nova:conversation-state", { detail: response }));
+  playTurnAudio(response.conversationTurn?.audio);
   if (response.completed && response.result) window.dispatchEvent(new CustomEvent("nova:flight-plan", { detail: response.result.flightPlan }));
   if (response.completed && response.websiteBuildResult) window.dispatchEvent(new CustomEvent("nova:website-build-result", { detail: response.websiteBuildResult }));
   if (response.completed && response.ghlSaasResult) window.dispatchEvent(new CustomEvent("nova:ghl-saas-result", { detail: response.ghlSaasResult }));
@@ -105,19 +106,19 @@ export async function startDiscovery(sessionId: string, path: BusinessPath): Pro
   return publish(response);
 }
 
-export async function answerDiscovery(sessionId: string, field: string, value: string | number | boolean, _identity?: ContactIdentity): Promise<DiscoveryResponse> {
+export async function answerDiscovery(sessionId: string, field: string, value: string | number | boolean, _identity?: ContactIdentity, voiceInput = false): Promise<DiscoveryResponse> {
   const effectiveSessionId = activeDiscoverySessionId || sessionId;
-  const response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(effectiveSessionId)}/answers`, { field, value, visitorId: getOrCreateVisitorId() });
+  const response = await post<DiscoveryResponse>(`/v1/discovery/${encodeURIComponent(effectiveSessionId)}/answers`, { field, value, visitorId: getOrCreateVisitorId(), ...(voiceInput ? { voiceInput: true } : {}) });
   if (activeDiscoveryPath) saveConversation(effectiveSessionId, activeDiscoveryPath, response, { field, value });
   return publish(response);
 }
 
-export async function askNova(question: string): Promise<NovaConversationTurn> {
+export async function askNova(question: string, voiceInput = false): Promise<NovaConversationTurn> {
   if (!activeDiscoverySessionId) throw new Error("Nova's discovery session is not active.");
-  const envelope = await post<NovaConversationEnvelope>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question, visitorId: getOrCreateVisitorId() });
+  const envelope = await post<NovaConversationEnvelope>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/conversation`, { question, visitorId: getOrCreateVisitorId(), ...(voiceInput ? { voiceInput: true } : {}) });
   const turn: NovaConversationTurn = envelope.conversationTurn
     ? { ...envelope.conversationTurn, ...(envelope.humanHandoff ? { humanHandoff: envelope.humanHandoff } : {}) }
-    : { answer: envelope.answer, mode: envelope.mode, intent: envelope.intent, ...(envelope.humanHandoff ? { humanHandoff: envelope.humanHandoff } : {}) };
+    : { answer: envelope.answer, mode: envelope.mode, intent: envelope.intent, ...(envelope.audio ? { audio: envelope.audio } : {}), ...(envelope.humanHandoff ? { humanHandoff: envelope.humanHandoff } : {}) };
   appendConversationTurn(question, turn.answer);
   if (envelope.completed !== undefined && envelope.progress && envelope.view && envelope.progressiveFlightPlan) {
     const activePath = activeDiscoveryPath;
@@ -134,7 +135,9 @@ export async function askNova(question: string): Promise<NovaConversationTurn> {
       conversationTurn: turn,
     } as DiscoveryResponse;
     updateLastResponse(response);
-    publish(response);
+    publish(response); // plays turn.audio via publish()'s own check - do not also play it below
+  } else {
+    playTurnAudio(turn.audio);
   }
   if (turn.humanHandoff) window.dispatchEvent(new CustomEvent("nova:human-handoff", { detail: turn.humanHandoff }));
   return turn;
@@ -205,14 +208,14 @@ function isReadySignal(question: string): boolean {
   return /\block (it|this) in\b|\bsign (me|us) up\b|\blet'?s (do this|move forward|get started|proceed|go)\b|\bready to (move forward|proceed|start|go|sign up)\b|\bi'?m ready\b|\bhow do i (get started|sign up|proceed)\b/i.test(question);
 }
 
-async function renderRuntimeConversation(question: string): Promise<void> {
+async function renderRuntimeConversation(question: string, voiceInput = false): Promise<void> {
   const target = conversationAnswerTarget();
   if (!target) return;
   target.textContent = "Nova is thinking about that in the context of your Flight Plan…";
   window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: "thinking" } }));
   if (isReadySignal(question)) window.dispatchEvent(new CustomEvent("nova:reopen-save-card"));
   try {
-    const turn = await askNova(question);
+    const turn = await askNova(question, voiceInput);
     target.textContent = turn.answer;
     window.dispatchEvent(new CustomEvent("nova:voice-state", { detail: { state: turn.intent === "human_handoff" ? "handoff" : "speaking", durationMs: 1800 } }));
   } catch (error) {
@@ -235,7 +238,8 @@ document.addEventListener("submit", (event) => {
   const input = form.querySelector<HTMLInputElement>("#post-plan-input");
   const question = input?.value.trim() ?? "";
   if (!question) return;
-  event.preventDefault(); event.stopImmediatePropagation(); input!.value = ""; void renderRuntimeConversation(question);
+  const voiceInput = consumeVoiceInputFlag();
+  event.preventDefault(); event.stopImmediatePropagation(); input!.value = ""; void renderRuntimeConversation(question, voiceInput);
 }, true);
 
 initializeVisitorContinuity();

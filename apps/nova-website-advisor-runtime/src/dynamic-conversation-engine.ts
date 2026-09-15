@@ -20,7 +20,7 @@ const ALA_CARTE_CATALOG_SUMMARY = Object.values(ALA_CARTE_CATALOG).map((offer) =
   estimatedDelivery: offer.estimatedDelivery,
 }));
 
-export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; }
+export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; audio?: string; }
 export interface NovaConversationGuidance { opening?: boolean; resuming?: boolean; nextNeed?: { field: string; prompt: string }; progressPercent?: number; }
 export interface NovaConversationGenerator {
   generate(input: {

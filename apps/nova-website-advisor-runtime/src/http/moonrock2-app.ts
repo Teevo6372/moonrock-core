@@ -5,6 +5,7 @@ import { createContactRouter } from "../contact-router.js";
 import { createDiscoveryRouter } from "../discovery-router.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "../discovery-state-repository.js";
 import type { NovaConversationEngine } from "../dynamic-conversation-engine.js";
+import type { VoiceSynthesizer } from "../elevenlabs-voice.js";
 import type { OptInGhlConfig } from "../ghl-opt-in.js";
 import type { ProductionGhlHandoffConfig } from "../ghl-production-handoff.js";
 import { loadGhlRuntimeConfig } from "../ghl-runtime-config.js";
@@ -19,6 +20,7 @@ export interface Moonrock2AppOptions extends AppOptions {
   contactGhl?: GeneralContactGhlConfig;
   conversationEngine?: NovaConversationEngine;
   answerInterpreter?: AnswerInterpreter;
+  voiceSynthesizer?: VoiceSynthesizer;
   // New: only wired when a real Postgres Pool exists (see server.ts) - in
   // local/dev without DATABASE_URL, /v1/auth/login reports 503 rather than
   // throwing at startup, matching how optInGhl already degrades.
@@ -72,6 +74,7 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     contactGhl,
     conversationEngine,
     answerInterpreter,
+    voiceSynthesizer,
     accountRepository,
     sessionSecret,
     ...appOptions
@@ -93,6 +96,7 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     ...(productionGhl ? { productionGhl } : {}),
     ...(conversationEngine ? { conversationEngine } : {}),
     ...(answerInterpreter ? { answerInterpreter } : {}),
+    ...(voiceSynthesizer ? { voiceSynthesizer } : {}),
   }));
   const resolvedOptInGhl = resolveOptInGhlConfig(optInGhl);
   base.app.route("/v1/opt-in", createOptInRouter({

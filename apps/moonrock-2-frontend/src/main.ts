@@ -1,6 +1,7 @@
 import "./styles.css";
 import "./site-nav.js";
 import { answerDiscovery, startDiscovery } from "./api.js";
+import { consumeVoiceInputFlag } from "./voice-chat-experience.js";
 import { createNovaVisualStage } from "./visual-stage.js";
 import type { BusinessPath, DiscoveryQuestion, DiscoveryResponse, GhlSaasResult, WebsiteBuildResult } from "./types.js";
 
@@ -267,12 +268,13 @@ function bindConversationForm(question: DiscoveryQuestion): void {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const value = input.value.trim();
-    if (value) void submit(question, value);
+    const voiceInput = consumeVoiceInputFlag();
+    if (value) void submit(question, value, voiceInput);
   });
   if (question.answerType === "text") input.focus();
 }
 
-async function submit(question: DiscoveryQuestion, value: string | number | boolean): Promise<void> {
+async function submit(question: DiscoveryQuestion, value: string | number | boolean, voiceInput = false): Promise<void> {
   if (busy || !sessionId) return;
   if (question.field === "businessName" && typeof value === "string") businessName = value;
   lastTurn = { field: question.field, raw: value };
@@ -283,7 +285,7 @@ async function submit(question: DiscoveryQuestion, value: string | number | bool
     : "Give me a second…";
   status.textContent = question.isFinalRequired ? "Nova is building your Flight Plan…" : "Nova is thinking…";
   try {
-    const response = await answerDiscovery(sessionId, question.field, value);
+    const response = await answerDiscovery(sessionId, question.field, value, undefined, voiceInput);
     setBusy(false);
     renderResponse(response);
     if (response.completed) {

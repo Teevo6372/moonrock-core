@@ -74,7 +74,7 @@ export interface GhlSaasResult {
 
 export interface ProgressiveFlightPlanSignal { id: string; label: string; status: "watching" | "emerging" | "confirmed" | "healthy"; insight: string; }
 export interface ProgressiveFlightPlan { phase: "listening" | "mapping" | "prioritizing" | "ready"; summary: string; signals: ProgressiveFlightPlanSignal[]; nextFocus?: string; }
-export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; humanHandoff?: HumanHandoffPrompt; }
+export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; humanHandoff?: HumanHandoffPrompt; audio?: string; }
 
 export interface DiscoveryResponse {
   path: BusinessPath;

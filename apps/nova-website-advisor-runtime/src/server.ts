@@ -6,6 +6,7 @@ import { AnthropicConversationGenerator } from "./anthropic-conversation-generat
 import { GroqAnswerInterpreter, type AnswerInterpreter } from "./answer-interpreter.js";
 import { corsHeaders, isOriginAllowed, parseAllowedOrigins } from "./cors-policy.js";
 import { SessionGroundedNovaConversationEngine, type NovaConversationGenerator } from "./dynamic-conversation-engine.js";
+import { ElevenLabsVoiceSynthesizer, type VoiceSynthesizer } from "./elevenlabs-voice.js";
 import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "./ghl-production-registry.js";
 import { loadGhlRuntimeConfig } from "./ghl-runtime-config.js";
 import { GroqConversationGenerator } from "./groq-conversation-generator.js";
@@ -92,6 +93,19 @@ async function start(): Promise<void> {
           timeoutMs: boundedInteger(process.env.NOVA_ANSWER_INTERPRETER_TIMEOUT_MS, 6000, 1000, 15000),
         });
 
+  // Master switch, default off - synthesis only ever runs for voice-initiated
+  // turns (see discovery-router.ts's withVoice) even when this is on, and a
+  // missing/invalid key just means voiceSynthesizer stays undefined - same
+  // degrade-gracefully pattern as every other optional integration here.
+  const voiceEnabled = process.env.NOVA_VOICE_ENABLED === "true";
+  const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  const elevenLabsVoiceId = process.env.ELEVENLABS_VOICE_ID?.trim();
+  const voiceSynthesizer: VoiceSynthesizer | undefined =
+    voiceEnabled && elevenLabsApiKey && elevenLabsVoiceId
+      ? new ElevenLabsVoiceSynthesizer({ apiKey: elevenLabsApiKey, voiceId: elevenLabsVoiceId })
+      : undefined;
+  process.stdout.write(`Nova voice: ${voiceSynthesizer ? "enabled" : "disabled"}\n`);
+
   const sessionSecret = process.env.NOVA_SESSION_SECRET;
   const { app } = createMoonrock2App({
     allowedOrigins,
@@ -99,6 +113,7 @@ async function start(): Promise<void> {
     ...(productionGhl ? { productionGhl } : {}),
     conversationEngine,
     ...(answerInterpreter ? { answerInterpreter } : {}),
+    ...(voiceSynthesizer ? { voiceSynthesizer } : {}),
     ...(accountRepository ? { accountRepository } : {}),
     ...(sessionSecret ? { sessionSecret } : {}),
   });
