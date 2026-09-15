@@ -17,6 +17,21 @@ let lastNovaSignature = "";
 let activeRecognition: SpeechRecognitionLike | undefined;
 let observed = false;
 let learnedCount = 0;
+let lastSubmissionWasVoice = false;
+
+/** Set synchronously by captureVisitorSubmission (a document-level capture listener that always
+ * runs before any form's own submit handler) so real handlers can thread voiceInput to the API
+ * without racing the dataset flag it also consumes. */
+export function consumeVoiceInputFlag(): boolean {
+  const value = lastSubmissionWasVoice;
+  lastSubmissionWasVoice = false;
+  return value;
+}
+
+export function playTurnAudio(audio: string | undefined): void {
+  if (!audio) return;
+  new Audio(`data:audio/mpeg;base64,${audio}`).play().catch(() => {});
+}
 
 function panel(): HTMLElement | null { return document.querySelector<HTMLElement>("#nova-panel"); }
 function chatThread(): HTMLDivElement | null {
@@ -94,7 +109,8 @@ function enhanceForms(): void { document.querySelectorAll<HTMLFormElement>("[dat
 function captureVisitorSubmission(event: Event): void {
   const form = event.target instanceof HTMLFormElement ? event.target : null; if (!form || (!form.matches("[data-conversation-form]") && form.id !== "post-plan-question")) return;
   const input = form.querySelector<HTMLInputElement>('input[name="answer"], #post-plan-input'); const value = input?.value.trim() ?? ""; if (!value) return;
-  if (input?.dataset.voiceCaptured === "true") { delete input.dataset.voiceCaptured; return; }
+  if (input?.dataset.voiceCaptured === "true") { lastSubmissionWasVoice = true; delete input.dataset.voiceCaptured; return; }
+  lastSubmissionWasVoice = false;
   appendMessage("visitor", value, "text");
 }
 function captureChoice(event: Event): void { const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-answer], [data-choice]") : null; if (!target) return; const value = target.dataset.choice ?? (target.dataset.answer === "true" ? "Yes, mostly" : "No, not really"); appendMessage("visitor", value, "text"); }
