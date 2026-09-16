@@ -52,7 +52,12 @@ describe("Moonrock 2 app", () => {
     expect(await ready.json()).toMatchObject({ mode: "live", providers: "partially-connected" });
   });
 
-  it("routes a visitor with no existing website to the website_build tier and produces a brief", async () => {
+  // Ascension funnel v2: classifyServiceTier always resolves ai_employee (see
+  // diagnostic-engine.ts), so a "no existing website" signal no longer routes to
+  // website_build - Moonrock Launch Plan already bundles a website. The prior
+  // website_build-tier walk is in git history to bring back once that tier is
+  // sellable again.
+  it("stays on the ai_employee tier and recommends Moonrock Launch Plan even when the visitor has no existing website", async () => {
     const { app } = createMoonrock2App();
     const sessionId = "test-website-build-session";
     await app.request(`http://localhost/v1/discovery/${sessionId}/start`, {
@@ -67,24 +72,21 @@ describe("Moonrock 2 app", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ field, value }),
       });
-      return response.json() as Promise<{ tier: string; completed: boolean; websiteBuildResult?: { brief: { offerId: string; offerName: string } } }>;
+      return response.json() as Promise<{ tier: string; completed: boolean; result?: { flightPlan: { recommendation: { offerId: string } } } }>;
     }
 
     await answer("businessName", "Acme Landscaping");
     await answer("industry", "Landscaping");
-    let latest = await answer("businessChallenges", "We don't have a website at all right now.");
-    expect(latest.tier).toBe("website_build");
-
-    latest = await answer("hasExistingWebsite", false);
-    latest = await answer("websiteScopeNeeded", "multi_page");
-
-    expect(latest.completed).toBe(true);
-    expect(latest.tier).toBe("website_build");
-    expect(latest.websiteBuildResult?.brief.offerId).toBe("growth_site");
-    expect(latest.websiteBuildResult?.brief.offerName).toBe("Growth Site");
+    const latest = await answer("businessChallenges", "We don't have a website at all right now.");
+    expect(latest.tier).toBe("ai_employee");
   });
 
-  it("reprices the completed Flight Plan when the visitor states a monthly budget objection in free-text conversation (regression: previously Nova could offer to reprice but never actually could)", async () => {
+  // Ascension funnel v2: Moonrock Launch Plan ($97/mo) is the only AI Employee
+  // offer, and it's already the cheapest possible - a budget objection above its
+  // price can no longer reprice to a DIFFERENT, cheaper offer (there isn't one).
+  // This now documents that the repricing path correctly reports the same offer
+  // as "a fit" rather than inventing a cheaper one that doesn't exist.
+  it("confirms Moonrock Launch Plan already fits a stated monthly budget above its price, rather than inventing a different offer", async () => {
     const { app } = createMoonrock2App();
     const sessionId = "test-budget-objection-session";
     await app.request(`http://localhost/v1/discovery/${sessionId}/start`, {
@@ -109,7 +111,7 @@ describe("Moonrock 2 app", () => {
     expect(latest.completed).toBe(true);
     expect(latest.tier).toBe("ai_employee");
     const baseline = latest.result!.flightPlan.recommendation;
-    expect(baseline.monthlyFeeUsd).toBeGreaterThan(200);
+    expect(baseline.monthlyFeeUsd).toBe(97);
 
     const conversationResponse = await app.request(`http://localhost/v1/discovery/${sessionId}/conversation`, {
       method: "POST",
@@ -118,8 +120,8 @@ describe("Moonrock 2 app", () => {
     });
     expect(conversationResponse.status).toBe(200);
     const envelope = await conversationResponse.json() as { conversationTurn: { answer: string }; result?: { flightPlan: { recommendation: { offerName: string; monthlyFeeUsd: number } } } };
-    expect(envelope.result?.flightPlan.recommendation.monthlyFeeUsd).toBeLessThanOrEqual(200);
-    expect(envelope.result?.flightPlan.recommendation.offerName).not.toBe(baseline.offerName);
+    expect(envelope.result?.flightPlan.recommendation.monthlyFeeUsd).toBe(97);
+    expect(envelope.result?.flightPlan.recommendation.offerName).toBe(baseline.offerName);
     expect(envelope.conversationTurn.answer).toContain("$200/month budget");
   });
 
@@ -150,7 +152,7 @@ describe("Moonrock 2 app", () => {
       body: JSON.stringify({ question: "Honestly my budget is only $10/month, can we do that?" }),
     });
     const envelope = await conversationResponse.json() as { conversationTurn: { answer: string }; result?: { flightPlan: { recommendation: { monthlyFeeUsd: number } } } };
-    expect(envelope.result?.flightPlan.recommendation.monthlyFeeUsd).toBe(149);
+    expect(envelope.result?.flightPlan.recommendation.monthlyFeeUsd).toBe(97);
     expect(envelope.conversationTurn.answer).toContain("catalog floor");
   });
 });

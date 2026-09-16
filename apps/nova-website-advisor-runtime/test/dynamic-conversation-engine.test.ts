@@ -28,13 +28,16 @@ function completedState(): DiscoverySessionState {
 }
 
 describe("SessionGroundedNovaConversationEngine", () => {
+  // Ascension funnel v2: every completed Flight Plan now recommends Moonrock
+  // Launch Plan ($97/mo, $499 setup) regardless of bottleneck signals - see
+  // diagnostic-engine.ts's chooseOffer.
   it("answers pricing questions from the completed Flight Plan context", async () => {
     const engine = new SessionGroundedNovaConversationEngine();
     const turn = await engine.respond(completedState(), "What would this cost me?");
     expect(turn.mode).toBe("grounded_fallback");
     expect(turn.answer).toContain("Prairie Service Co");
-    expect(turn.answer).toContain("$749/month");
-    expect(turn.answer).toContain("$1499");
+    expect(turn.answer).toContain("$97/month");
+    expect(turn.answer).toContain("$499");
   });
 
   it("keeps implementation answers grounded without exposing vendor names", async () => {
@@ -106,7 +109,12 @@ describe("ascension funnel grounding in businessContext", () => {
     expect(serialized).not.toContain("ghlNativeComponentNote");
   });
 
-  it("includes activeBundle only when a cross-tier bundle actually applies", async () => {
+  // Ascension funnel v2: classifyServiceTier always resolves ai_employee (see
+  // diagnostic-engine.ts), and composeCrossTierBundle only ever applies to the
+  // website_build tier, so activeBundle is always undefined right now - the prior
+  // "website-build signal produces an active bundle" case is unreachable until
+  // website_build is a sellable tier again.
+  it("never includes activeBundle now that website_build/ghl_saas/ala_carte are paused", async () => {
     const withoutSignal = await contextFromRespond(completedState());
     expect(withoutSignal.activeBundle).toBeUndefined();
 
@@ -116,7 +124,7 @@ describe("ascension funnel grounding in businessContext", () => {
       answers: { path: "existing_business", hasExistingWebsite: false, websiteMustHaves: "We need a quote form on the new site." },
     };
     const withSignal = await contextFromRespond(websiteBuildState);
-    expect(withSignal.activeBundle).toBeDefined();
+    expect(withSignal.activeBundle).toBeUndefined();
   });
 
   it("includes fastTrack only when the visitor's signals are actually eligible", async () => {
@@ -134,11 +142,11 @@ describe("ascension funnel grounding in businessContext", () => {
     expect((eligible.fastTrack as { fastTrackEligible: boolean }).fastTrackEligible).toBe(true);
   });
 
-  it("keeps the grounded fallback price-accurate even when an active bundle exists in context", async () => {
+  it("keeps the grounded fallback price-accurate", async () => {
     const engine = new SessionGroundedNovaConversationEngine();
     const turn = await engine.respond(completedState(), "What would this cost me?");
     expect(turn.mode).toBe("grounded_fallback");
-    expect(turn.answer).toContain("$749/month");
+    expect(turn.answer).toContain("$97/month");
   });
 });
 

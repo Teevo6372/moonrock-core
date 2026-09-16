@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
 import { ALA_CARTE_CATALOG } from "../src/ala-carte-catalog.js";
-import { composeCrossTierBundle } from "../src/ascension-bundle.js";
 import { chooseGhlSaasOfferWithinBudget, chooseOfferWithinBudget, chooseWebsiteBuildOfferWithinBudget, classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, extractStatedMonthlyBudgetUsd, extractStatedSetupBudgetUsd, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
@@ -11,65 +10,17 @@ function input(overrides: Partial<DiagnosticInput> = {}): DiagnosticInput {
   return { path: "existing_business", ...overrides };
 }
 
+// Ascension funnel v2: classifyServiceTier is short-circuited to always return
+// ai_employee (Moonrock Launch Plan is the only sellable offer right now - see
+// diagnostic-engine.ts). The prior signal-based tier classification (website_build/
+// ghl_saas/ala_carte) is in git history to bring back once more ascension-funnel
+// products exist; these tests cover the new fixed behavior instead.
 describe("classifyServiceTier", () => {
-  it("falls back to ai_employee when no other tier signal is present", () => {
-    const result = classifyServiceTier(input({ businessChallenges: "We keep missing calls during busy season." }));
-    expect(result.tier).toBe("ai_employee");
-  });
-
-  it("classifies website_build when the visitor explicitly has no website", () => {
-    const result = classifyServiceTier(input({ hasExistingWebsite: false }));
-    expect(result).toMatchObject({ tier: "website_build", confidence: "explicit" });
-  });
-
-  it("infers website_build from free-text challenge language", () => {
-    const result = classifyServiceTier(input({ businessChallenges: "Honestly we just don't have a website yet." }));
-    expect(result.tier).toBe("website_build");
-  });
-
-  it("infers website_build when the visitor wants online store/e-commerce setup, even without saying they lack a website (regression: this previously fell through to ai_employee)", () => {
-    expect(classifyServiceTier(input({ businessChallenges: "I run a card shop and I'm seeking online store setup." })).tier).toBe("website_build");
-    expect(classifyServiceTier(input({ businessChallenges: "We want to start selling online, maybe an e-commerce site." })).tier).toBe("website_build");
-    expect(classifyServiceTier(input({ businessChallenges: "Need a shopping cart added so customers can check out." })).tier).toBe("website_build");
-  });
-
-  it("does not misclassify unrelated 'store' or 'online' mentions as an online-store request", () => {
-    const result = classifyServiceTier(input({ businessChallenges: "We store customer records manually and it's a mess.", industry: "home services" }));
-    expect(result.tier).toBe("ai_employee");
-  });
-
-  it("classifies ghl_saas when the visitor explicitly identifies as an agency/reseller", () => {
-    const result = classifyServiceTier(input({ isAgencyOrReseller: true }));
-    expect(result).toMatchObject({ tier: "ghl_saas", confidence: "explicit" });
-  });
-
-  it("infers ghl_saas from agency industry plus reselling language", () => {
-    const result = classifyServiceTier(input({ industry: "marketing agency", businessChallenges: "I want to resell this to my clients." }));
-    expect(result.tier).toBe("ghl_saas");
-  });
-
-  it("does not classify ghl_saas from reselling language alone without an agency-shaped industry", () => {
-    const result = classifyServiceTier(input({ industry: "plumbing", businessChallenges: "I want to resell this to my clients." }));
-    expect(result.tier).toBe("ai_employee");
-  });
-
-  it("prioritizes ghl_saas over website_build when both signals are present", () => {
-    const result = classifyServiceTier(input({ isAgencyOrReseller: true, hasExistingWebsite: false }));
-    expect(result.tier).toBe("ghl_saas");
-  });
-
-  it("classifies ala_carte only as a last resort, lowest priority behind every other tier signal", () => {
-    const result = classifyServiceTier(input({ businessChallenges: "I just want something simple, not ready for a full website." }));
-    expect(result.tier).toBe("ala_carte");
-  });
-
-  it("stays a single winning tier (website_build) even when the answers also carry a cross-tier bundling signal, since bundling is a separate enrichment layer, not a reclassification", () => {
-    const classification = classifyServiceTier(input({ hasExistingWebsite: false, websiteMustHaves: "We need a quote form on the new site." }));
-    expect(classification.tier).toBe("website_build");
-
-    const bundle = composeCrossTierBundle(classification.tier, input({ hasExistingWebsite: false, websiteMustHaves: "We need a quote form on the new site." }));
-    expect(bundle).toBeDefined();
-    expect(bundle!.lineItems.some((item) => item.itemId === "crm_pipeline")).toBe(true);
+  it("always classifies ai_employee regardless of tier signals, now that Moonrock Launch Plan is the only sellable offer", () => {
+    expect(classifyServiceTier(input({ businessChallenges: "We keep missing calls during busy season." })).tier).toBe("ai_employee");
+    expect(classifyServiceTier(input({ hasExistingWebsite: false })).tier).toBe("ai_employee");
+    expect(classifyServiceTier(input({ isAgencyOrReseller: true })).tier).toBe("ai_employee");
+    expect(classifyServiceTier(input({ businessChallenges: "I just want something simple, not ready for a full website." })).tier).toBe("ai_employee");
   });
 });
 
@@ -409,23 +360,26 @@ describe("chooseOfferWithinBudget", () => {
   });
 
   it("falls back to the cheapest catalog offer, honestly flagged, when nothing fits", () => {
-    expect(chooseOfferWithinBudget(10)).toMatchObject({ offerId: "reputation_retention", fitsWithinBudget: false, cheapestMonthlyFeeUsd: 149 });
+    expect(chooseOfferWithinBudget(10)).toMatchObject({ offerId: "moonrock_launch_plan", fitsWithinBudget: false, cheapestMonthlyFeeUsd: 97 });
   });
 });
 
+// Ascension funnel v2: chooseOffer always returns moonrock_launch_plan (see
+// diagnostic-engine.ts), and at $97/mo it's already the cheapest catalog offer, so
+// the budget-override branch in diagnoseBusiness can no longer be triggered by any
+// realistic stated budget - it only fires below the offer's own price. Prior tests
+// exercising a budget override BETWEEN two different need-based offers no longer
+// apply (there's only one offer to recommend); this covers the new reality instead.
 describe("diagnoseBusiness budget-aware revision", () => {
-  it("overrides the need-based recommendation when it exceeds a stated budget ceiling", () => {
-    const result = diagnoseBusiness({ path: "existing_business", missedCallsPerMonth: 10, medianLeadResponseMinutes: 45 });
-    expect(result.recommendedOfferId).toBe("front_office");
-
-    const budgeted = diagnoseBusiness({ path: "existing_business", missedCallsPerMonth: 10, medianLeadResponseMinutes: 45, budgetCeilingMonthlyUsd: 200 });
-    expect(budgeted.recommendedOfferId).toBe("customer_care");
-    expect(budgeted.recommendationReason).toContain("$200/month budget");
+  it("always recommends moonrock_launch_plan regardless of a stated budget ceiling above its price", () => {
+    const result = diagnoseBusiness({ path: "existing_business", missedCallsPerMonth: 10, medianLeadResponseMinutes: 45, budgetCeilingMonthlyUsd: 200 });
+    expect(result.recommendedOfferId).toBe("moonrock_launch_plan");
+    expect(result.recommendationReason).not.toContain("budget");
   });
 
-  it("leaves the need-based recommendation untouched when it already fits the stated budget", () => {
-    const result = diagnoseBusiness({ path: "existing_business", repetitiveSupportLoad: "medium", budgetCeilingMonthlyUsd: 500 });
-    expect(result.recommendedOfferId).toBe("customer_care");
-    expect(result.recommendationReason).not.toContain("budget");
+  it("still fires the budget note (falling back to the catalog floor) when a stated budget is below moonrock_launch_plan's own price", () => {
+    const result = diagnoseBusiness({ path: "existing_business", repetitiveSupportLoad: "medium", budgetCeilingMonthlyUsd: 50 });
+    expect(result.recommendedOfferId).toBe("moonrock_launch_plan");
+    expect(result.recommendationReason).toContain("catalog floor");
   });
 });

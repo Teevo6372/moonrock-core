@@ -4,7 +4,13 @@ import { AI_EMPLOYEE_CATALOG, priceOffer } from "../src/ai-employee-catalog.js";
 import { diagnoseBusiness } from "../src/diagnostic-engine.js";
 
 describe("Nova diagnostic engine", () => {
-  it("recommends Front Office when an existing business has multiple front-office bottlenecks", () => {
+  // Ascension funnel v2: chooseOffer always recommends moonrock_launch_plan
+  // regardless of bottleneck findings (see diagnostic-engine.ts) - bottleneck
+  // scoring and the opportunity estimate are untouched and still assert on real
+  // signal-driven behavior. The prior bottleneck-to-offer branching (front_office/
+  // receptionist/ai_workforce/etc.) is in git history to bring back once more
+  // ascension-funnel products exist.
+  it("still scores bottlenecks and the opportunity estimate correctly, even though every offer resolves to Moonrock Launch Plan", () => {
     const result = diagnoseBusiness({
       path: "existing_business",
       businessName: "ABC Plumbing",
@@ -17,13 +23,13 @@ describe("Nova diagnostic engine", () => {
       estimatesNeedManualFollowUp: true,
     });
 
-    expect(result.recommendedOfferId).toBe("front_office");
+    expect(result.recommendedOfferId).toBe("moonrock_launch_plan");
     expect(result.autonomousCloseAllowed).toBe(true);
     expect(result.opportunityEstimate?.monthlyOpportunityUsd).toBe(2700);
     expect(result.bottlenecks[0]?.score).toBeGreaterThanOrEqual(70);
   });
 
-  it("recommends Receptionist when missed calls are the primary isolated issue", () => {
+  it("recommends Moonrock Launch Plan when missed calls are the primary isolated issue", () => {
     const result = diagnoseBusiness({
       path: "existing_business",
       missedCallsPerMonth: 8,
@@ -31,7 +37,7 @@ describe("Nova diagnostic engine", () => {
       closeRatePercent: 25,
     });
 
-    expect(result.recommendedOfferId).toBe("receptionist");
+    expect(result.recommendedOfferId).toBe("moonrock_launch_plan");
     expect(result.autonomousCloseAllowed).toBe(true);
   });
 
@@ -42,20 +48,17 @@ describe("Nova diagnostic engine", () => {
       riskCategories: ["healthcare_phi"],
     });
 
-    expect(result.recommendedOfferId).toBe("receptionist");
+    expect(result.recommendedOfferId).toBe("moonrock_launch_plan");
     expect(result.autonomousCloseAllowed).toBe(false);
     expect(result.escalationReasons.join(" ")).toContain("healthcare_phi");
   });
 
-  it("never autonomously closes the custom AI Workforce tier", () => {
-    const result = diagnoseBusiness({
-      path: "existing_business",
-      departmentsAffected: 4,
-    });
-
-    expect(result.recommendedOfferId).toBe("ai_workforce");
+  it("keeps AI Workforce marked non-autonomous in the catalog even though it's currently unreachable via chooseOffer", () => {
     expect(AI_EMPLOYEE_CATALOG.ai_workforce.autonomousSaleAllowed).toBe(false);
-    expect(result.autonomousCloseAllowed).toBe(false);
+
+    const result = diagnoseBusiness({ path: "existing_business", departmentsAffected: 4 });
+    expect(result.recommendedOfferId).toBe("moonrock_launch_plan");
+    expect(result.autonomousCloseAllowed).toBe(true);
   });
 
   it("applies the approved founding-customer setup price without changing monthly price", () => {
