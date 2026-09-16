@@ -1,8 +1,5 @@
 import "./revenue-calculator.css";
 
-/** Matches the 15% conversion rate already cited in the missed-calls case study's own "Real example" copy - keep these numbers in sync if that copy ever changes. */
-const ASSUMED_CLOSE_RATE = 0.15;
-
 function formatUsd(value: number): string {
   return `$${Math.round(value).toLocaleString("en-US")}`;
 }
@@ -10,7 +7,7 @@ function formatUsd(value: number): string {
 function recompute(callsInput: HTMLInputElement, valueInput: HTMLInputElement, monthlyEl: HTMLElement, annualEl: HTMLElement): void {
   const missedCallsPerMonth = Math.max(0, Number(callsInput.value) || 0);
   const averageJobValueUsd = Math.max(0, Number(valueInput.value) || 0);
-  const monthlyLossUsd = missedCallsPerMonth * averageJobValueUsd * ASSUMED_CLOSE_RATE;
+  const monthlyLossUsd = missedCallsPerMonth * averageJobValueUsd;
   const annualLossUsd = monthlyLossUsd * 12;
 
   monthlyEl.innerHTML = `${formatUsd(monthlyLossUsd)}<small>/mo</small>`;
