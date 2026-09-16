@@ -11,22 +11,29 @@ if (!app) throw new Error("Moonrock frontend root not found");
 app.innerHTML = `
   <main class="shell">
     <section class="hero">
-      <h1>Never Miss Another Job Again.</h1>
-      <p class="lede">Time is money. You don't have hours to sit in front of a computer building a website or connecting all your business tools — so we built someone who does it for you.</p>
-      <div class="nova-intro">
-        <p class="nova-intro-lead">Meet <strong>Nova</strong> — your Moonrock Growth Advisor.</p>
-        <p>Spend just <strong>60 seconds</strong> chatting with Nova. She'll ask a few quick questions, figure out exactly what's holding your business back, and build you a custom <strong>Flight Plan</strong> — your website, your tools, all of it, mapped out for you.</p>
-        <ul class="nova-intro-points">
-          <li>Available 24/7 — no waiting for office hours</li>
-          <li>Remembers your past conversations — no repeating yourself</li>
-          <li>Text her or talk to her hands-free — whatever's easiest while you're on the job</li>
-          <li>Completely on your schedule — she works around you, not the other way around</li>
-        </ul>
+      <a class="brand-mark" href="/" aria-label="Moonrock Marketing home">
+        <img src="/moonrock-logo-badge.png" alt="Moonrock Marketing" width="46" height="46">
+        <span>MOONROCK<br><small>Marketing</small></span>
+      </a>
+      <div class="hero-copy">
+        <span class="hero-eyebrow">For local businesses who can't miss a call</span>
+        <h1>Stop losing jobs to a phone that <span class="pop">doesn't answer.</span></h1>
+        <p class="lede">Time is money. You don't have hours to sit in front of a computer building a website or connecting all your business tools — so we built someone who does it for you.</p>
+        <div class="nova-intro">
+          <p class="nova-intro-lead">Meet <strong>Nova</strong> — your Moonrock Growth Advisor.</p>
+          <p>Spend just <strong>60 seconds</strong> chatting with Nova. She'll ask a few quick questions, figure out exactly what's holding your business back, and build you a custom <strong>Flight Plan</strong> — your website, your tools, all of it, mapped out for you.</p>
+          <ul class="nova-intro-points">
+            <li>Available 24/7 — no waiting for office hours</li>
+            <li>Remembers your past conversations — no repeating yourself</li>
+            <li>Text her or talk to her hands-free — whatever's easiest while you're on the job</li>
+            <li>Completely on your schedule — she works around you, not the other way around</li>
+          </ul>
+        </div>
+        <div class="paths" role="group" aria-label="Start chatting with Nova">
+          <button data-path="existing_business" class="cta-primary">Chat with Nova — takes 60 seconds</button>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
       </div>
-      <div class="paths" role="group" aria-label="Start chatting with Nova">
-        <button data-path="existing_business" class="cta-primary">Chat with Nova — takes 60 seconds</button>
-      </div>
-      <p id="status" class="status" aria-live="polite"></p>
     </section>
 
     <section class="hook-section" aria-labelledby="hook-title">
