@@ -5,6 +5,7 @@ import { AnthropicAnswerInterpreter } from "./anthropic-answer-interpreter.js";
 import { AnthropicConversationGenerator } from "./anthropic-conversation-generator.js";
 import { GroqAnswerInterpreter, type AnswerInterpreter } from "./answer-interpreter.js";
 import { corsHeaders, isOriginAllowed, parseAllowedOrigins } from "./cors-policy.js";
+import type { StripeCheckoutConfig } from "./discovery-router.js";
 import { SessionGroundedNovaConversationEngine, type NovaConversationGenerator } from "./dynamic-conversation-engine.js";
 import { ElevenLabsVoiceSynthesizer, type VoiceSynthesizer } from "./elevenlabs-voice.js";
 import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "./ghl-production-registry.js";
@@ -16,6 +17,7 @@ import { PostgresAccountRepository } from "./postgres-account-repository.js";
 import { PostgresDiscoveryStateRepository } from "./postgres-discovery-state.js";
 import { PostgresDurableStateRepository } from "./postgres-durable-state.js";
 import { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
+import { StripeClient } from "./stripe-client.js";
 
 const port = Number(process.env.PORT ?? process.env.NOVA_LOCAL_PORT ?? "8787");
 const hostname = process.env.NOVA_BIND_HOST ?? (process.env.RAILWAY_ENVIRONMENT ? "0.0.0.0" : "127.0.0.1");
@@ -109,9 +111,39 @@ async function start(): Promise<void> {
       : undefined;
   process.stdout.write(`Nova voice: ${voiceSynthesizer ? "enabled" : "disabled"}\n`);
 
+  // Master switch, default off - checkout is only ever offered for the
+  // autonomous-close-eligible Moonrock Launch Plan recommendation (see
+  // discovery-router.ts's create-checkout-session route), and a missing/
+  // invalid config just means stripe stays undefined - same degrade-
+  // gracefully pattern as voice and every other optional integration here.
+  const stripeEnabled = process.env.NOVA_STRIPE_ENABLED === "true";
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
+  const stripeFoundingSetupPriceId = process.env.STRIPE_LAUNCH_PLAN_FOUNDING_SETUP_PRICE_ID?.trim();
+  const stripeStandardSetupPriceId = process.env.STRIPE_LAUNCH_PLAN_STANDARD_SETUP_PRICE_ID?.trim();
+  const stripeMonthlyPriceId = process.env.STRIPE_LAUNCH_PLAN_MONTHLY_PRICE_ID?.trim();
+  const stripeSuccessUrl = process.env.NOVA_STRIPE_SUCCESS_URL?.trim();
+  const stripeCancelUrl = process.env.NOVA_STRIPE_CANCEL_URL?.trim();
+  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  const stripe: StripeCheckoutConfig | undefined =
+    stripeEnabled && stripeSecretKey && stripeFoundingSetupPriceId && stripeStandardSetupPriceId && stripeMonthlyPriceId && stripeSuccessUrl && stripeCancelUrl
+      ? {
+          enabled: true,
+          client: new StripeClient({ secretKey: stripeSecretKey }),
+          foundingSetupPriceId: stripeFoundingSetupPriceId,
+          standardSetupPriceId: stripeStandardSetupPriceId,
+          monthlyPriceId: stripeMonthlyPriceId,
+          successUrl: stripeSuccessUrl,
+          cancelUrl: stripeCancelUrl,
+        }
+      : undefined;
+  process.stdout.write(`Nova Stripe checkout: ${stripe ? "enabled" : "disabled"}\n`);
+
   const sessionSecret = process.env.NOVA_SESSION_SECRET;
   const { app } = createMoonrock2App({
     allowedOrigins,
+    // Default 16KB is tight for a Stripe checkout.session.completed webhook
+    // payload (nested customer/line-item detail) - raised for this app only.
+    bodyLimitBytes: 65_536,
     ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}),
     ...(productionGhl ? { productionGhl } : {}),
     conversationEngine,
@@ -120,6 +152,8 @@ async function start(): Promise<void> {
     ...(accountRepository ? { accountRepository } : {}),
     ...(sessionSecret ? { sessionSecret } : {}),
     ...(launchPlanRepository ? { launchPlanRepository } : {}),
+    ...(stripe ? { stripe } : {}),
+    ...(stripeWebhookSecret ? { stripeWebhookSecret } : {}),
   });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
