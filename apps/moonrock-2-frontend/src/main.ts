@@ -55,18 +55,41 @@ app.innerHTML = `
       </div>
     </section>
 
-    <section class="case-study" id="case-study-calls" aria-labelledby="case-study-calls-title">
-      <div class="result-kicker">CASE STUDY: MISSED CALLS</div>
-      <h2 id="case-study-calls-title">The Call You Never Even Knew You Lost</h2>
-      <p class="lede">Right now, if your phone rings and you can't answer it — because you're under a sink, on a roof, or with another customer — that caller doesn't wait. They hang up and call the next guy.</p>
-      <ul class="case-study-stats">
-        <li>Small businesses miss <strong>6 out of every 10 calls</strong></li>
-        <li><strong>85% of callers</strong> who reach voicemail never call back — they just call someone else</li>
-        <li>After-hours emergencies make up <strong>31%</strong> of contractor calls, and the average callback delay is <strong>4.2 hours</strong> — by then, <strong>67%</strong> of those callers have already booked with a competitor</li>
-        <li>Most contractors lose <strong>$800–$1,500 a month</strong> in jobs they never even knew they lost</li>
-      </ul>
-      <div class="case-study-example">
-        <strong>Real example:</strong> A plumber gets 15 calls a day and misses about 4 of them while on job sites. At just 2 missed calls a day and a $500 average job, that's <strong>$365,000 a year</strong> walking out the door — even at a modest 15% conversion rate, that's still <strong>$54,750</strong> in lost business, every year, from calls that just never got answered.
+    <section class="case-study case-study-with-calc" id="case-study-calls" aria-labelledby="case-study-calls-title">
+      <div class="case-study-copy">
+        <div class="result-kicker">CASE STUDY: MISSED CALLS</div>
+        <h2 id="case-study-calls-title">The Call You Never Even Knew You Lost</h2>
+        <p class="lede">Right now, if your phone rings and you can't answer it — because you're under a sink, on a roof, or with another customer — that caller doesn't wait. They hang up and call the next guy.</p>
+        <ul class="case-study-stats">
+          <li>Small businesses miss <strong>6 out of every 10 calls</strong></li>
+          <li><strong>85% of callers</strong> who reach voicemail never call back — they just call someone else</li>
+          <li>After-hours emergencies make up <strong>31%</strong> of contractor calls, and the average callback delay is <strong>4.2 hours</strong> — by then, <strong>67%</strong> of those callers have already booked with a competitor</li>
+          <li>Most contractors lose <strong>$800–$1,500 a month</strong> in jobs they never even knew they lost</li>
+        </ul>
+        <div class="case-study-example">
+          <strong>Real example:</strong> A plumber gets 15 calls a day and misses about 4 of them while on job sites. At just 2 missed calls a day and a $500 average job, that's <strong>$365,000 a year</strong> walking out the door — even at a modest 15% conversion rate, that's still <strong>$54,750</strong> in lost business, every year, from calls that just never got answered.
+        </div>
+      </div>
+
+      <div class="loss-calculator" aria-labelledby="loss-calc-title">
+        <p class="loss-calc-kicker">SEE YOUR NUMBERS</p>
+        <h3 id="loss-calc-title">What are missed calls costing you?</h3>
+        <div class="loss-calc-field">
+          <label for="loss-calc-calls">Missed calls per month</label>
+          <input id="loss-calc-calls" type="number" inputmode="numeric" min="0" max="9999" step="1" value="20">
+        </div>
+        <div class="loss-calc-field">
+          <label for="loss-calc-value">Average job value</label>
+          <div class="loss-calc-prefixed"><span aria-hidden="true">$</span><input id="loss-calc-value" type="number" inputmode="decimal" min="0" max="999999" step="10" value="500"></div>
+        </div>
+        <div class="loss-calc-result">
+          <span class="loss-calc-result-label">Estimated lost revenue</span>
+          <strong id="loss-calc-monthly">$1,500<small>/mo</small></strong>
+          <span id="loss-calc-annual" class="loss-calc-annual">That's $18,000 a year, walking out the door.</span>
+        </div>
+        <p class="loss-calc-caption">Moonrock can solve this instantly — starting at $97/mo.</p>
+        <button type="button" class="cta-primary" data-path="existing_business">Chat with Nova — takes 60 seconds</button>
+        <p class="loss-calc-disclaimer">Directional estimate assuming a 15% close rate on recovered calls — not a guarantee.</p>
       </div>
     </section>
 
