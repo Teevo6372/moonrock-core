@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import { FOUNDING_CUSTOMER_LIMIT } from "./ai-employee-catalog.js";
 import type { AnswerInterpreter } from "./answer-interpreter.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { extractStatedMonthlyBudgetUsd } from "./diagnostic-engine.js";
@@ -10,8 +11,27 @@ import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type Nova
 import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig, type ProductionGhlHandoffResult } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 import { completedJourney, journeyForProgress } from "./nova-sales-journey.js";
+import type { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
+import type { StripeClient } from "./stripe-client.js";
 
-export interface DiscoveryRouterOptions { productionGhl?: ProductionGhlHandoffConfig; conversationEngine?: NovaConversationEngine; answerInterpreter?: AnswerInterpreter; voiceSynthesizer?: VoiceSynthesizer; }
+export interface StripeCheckoutConfig {
+  enabled: boolean;
+  client: StripeClient;
+  foundingSetupPriceId: string;
+  standardSetupPriceId: string;
+  monthlyPriceId: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export interface DiscoveryRouterOptions {
+  productionGhl?: ProductionGhlHandoffConfig;
+  conversationEngine?: NovaConversationEngine;
+  answerInterpreter?: AnswerInterpreter;
+  voiceSynthesizer?: VoiceSynthesizer;
+  stripe?: StripeCheckoutConfig;
+  launchPlanRepository?: PostgresLaunchPlanRepository;
+}
 
 /**
  * Synthesizes audio for a turn only when the visitor actually spoke to Nova
@@ -149,7 +169,7 @@ async function handlePendingSave(
     const ascension = typeof current.state.ascensionScore === "number"
       ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
       : undefined;
-    const result = await handoffFlightPlanToGhl({ sessionId, identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, productionGhl, { apply: productionGhl.enabled && productionGhl.fieldsVerified && productionGhl.writesEnabled });
+    const result = await handoffFlightPlanToGhl({ sessionId, identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}), ...(current.state.conversationHistory ? { conversationHistory: current.state.conversationHistory } : {}) }, productionGhl, { apply: productionGhl.enabled && productionGhl.fieldsVerified && productionGhl.writesEnabled });
     const answer = flightPlanSaveAnswer(result);
     return respondAndPersist(context, repository, sessionId, current.version, withoutPendingSave, question, answer, voiceInput, voice);
   } catch (error) {
@@ -288,11 +308,56 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
       const ascension = typeof current.state.ascensionScore === "number"
         ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
         : undefined;
-      const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
+      const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}), ...(current.state.conversationHistory ? { conversationHistory: current.state.conversationHistory } : {}) }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
       return context.json({ status: result.status, answer: flightPlanSaveAnswer(result) });
     } catch (error) {
       console.error(`[save-flight-plan] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
       return context.json({ code: "FLIGHT_PLAN_SAVE_FAILED", detail: error instanceof Error ? error.message : "Moonrock could not save the Flight Plan right now." }, 503);
+    }
+  });
+
+  router.post("/:sessionId/create-checkout-session", async (context) => {
+    const sessionId = context.req.param("sessionId");
+    const current = await repository.load(sessionId);
+    if (!current) return context.json({ code: "DISCOVERY_NOT_FOUND" }, 404);
+    if (!current.state.completed) return context.json({ code: "FLIGHT_PLAN_NOT_READY", detail: "Build the Preliminary Flight Plan before checking out." }, 409);
+    if (!options.stripe?.enabled) return context.json({ code: "CHECKOUT_UNAVAILABLE", detail: "Payment is not configured right now." }, 503);
+    const restored = restoreNovaDiscovery(current.state);
+    const recommendation = restored.result?.flightPlan.recommendation;
+    if (!recommendation || recommendation.offerId !== "moonrock_launch_plan" || !recommendation.autonomousCloseAllowed) {
+      return context.json({ code: "CHECKOUT_NOT_ELIGIBLE", detail: "This Flight Plan is not eligible for self-serve checkout." }, 409);
+    }
+    const body = await context.req.json().catch(() => ({})) as { identity?: { email?: unknown; firstName?: unknown; lastName?: unknown } };
+    const email = typeof body.identity?.email === "string" ? body.identity.email.trim() : "";
+    if (!email) return context.json({ code: "CHECKOUT_CONTACT_REQUIRED", detail: "A valid email is required to check out." }, 400);
+    const firstName = typeof body.identity?.firstName === "string" ? body.identity.firstName.trim() : "";
+    const lastName = typeof body.identity?.lastName === "string" ? body.identity.lastName.trim() : "";
+    const name = [firstName, lastName].filter(Boolean).join(" ");
+    const stripe = options.stripe;
+    try {
+      const foundingCount = options.launchPlanRepository ? await options.launchPlanRepository.countFoundingSignups() : FOUNDING_CUSTOMER_LIMIT;
+      const usedFoundingPrice = foundingCount < FOUNDING_CUSTOMER_LIMIT;
+      // A real Customer (not just customer_email) is what lets Stripe Checkout
+      // actually prefill the name already collected on the Save Flight Plan
+      // form, instead of asking the visitor to type it again.
+      const customer = await stripe.client.createCustomer({ email, ...(name ? { name } : {}), metadata: { moonrock_session_id: sessionId } });
+      const session = await stripe.client.createCheckoutSession({
+        mode: "subscription",
+        success_url: stripe.successUrl,
+        cancel_url: stripe.cancelUrl,
+        client_reference_id: sessionId,
+        customer: customer.id,
+        line_items: [
+          { price: usedFoundingPrice ? stripe.foundingSetupPriceId : stripe.standardSetupPriceId, quantity: 1 },
+          { price: stripe.monthlyPriceId, quantity: 1 },
+        ],
+        metadata: { moonrock_offer_id: "moonrock_launch_plan", moonrock_session_id: sessionId, moonrock_used_founding_price: String(usedFoundingPrice) },
+      });
+      if (!session.url) throw new Error("Stripe did not return a checkout URL");
+      return context.json({ url: session.url });
+    } catch (error) {
+      console.error(`[create-checkout-session] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
+      return context.json({ code: "CHECKOUT_SESSION_FAILED", detail: "Moonrock could not start checkout right now." }, 503);
     }
   });
 

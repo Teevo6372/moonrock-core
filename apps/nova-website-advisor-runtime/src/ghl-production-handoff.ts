@@ -1,6 +1,6 @@
 import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
 import { AI_EMPLOYEE_CATALOG } from "./ai-employee-catalog.js";
-import type { DiscoverySessionState } from "./discovery-session.js";
+import type { DiscoveryConversationTurn, DiscoverySessionState } from "./discovery-session.js";
 import type { FlightPlan } from "./flight-plan.js";
 import { buildGhlFlightPlanSyncPlan, type GhlAscensionSyncFields } from "./ghl-flight-plan-sync.js";
 import type { GhlFieldRegistry } from "./ghl-field-registry.js";
@@ -33,6 +33,13 @@ export interface ProductionGhlHandoffInput {
   diagnostic: DiagnosticResult;
   flightPlan: FlightPlan;
   ascension?: GhlAscensionSyncFields;
+  /** The full turn-by-turn conversation, not just the structured Flight Plan facts - written as a second, separate GHL note (see formatConversationTranscript) so a rep (or Nova, reading it back) can recall the whole conversation, not only the diagnostic summary. */
+  conversationHistory?: DiscoveryConversationTurn[];
+}
+
+/** "Visitor: ...\nNova: ..." per turn, in order - matches the same "Visitor: X / Nova: Y" style already used for the returning-visitor summary on the frontend (visitor-continuity.ts), just as a full multi-line transcript rather than a truncated one-liner. */
+export function formatConversationTranscript(history: DiscoveryConversationTurn[]): string {
+  return history.map((turn) => `${turn.role === "visitor" ? "Visitor" : "Nova"}: ${turn.text}`).join("\n");
 }
 
 export interface ProductionGhlHumanHandoffInput {
@@ -168,6 +175,9 @@ export async function handoffFlightPlanToGhl(input: ProductionGhlHandoffInput, c
   const tagsToApply = followUpEnabled ? [...tagsOperation.tags, "nova-followup-consent"] : tagsOperation.tags;
   if (tagsToApply.length > 0) await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/tags`, headers, { tags: tagsToApply }, "contact tag write");
   await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/notes`, headers, { body: noteOperation.note }, "Flight Plan note write");
+  if (input.conversationHistory && input.conversationHistory.length > 0) {
+    await postJson<unknown>(fetchImpl, `${baseUrl}/contacts/${encodeURIComponent(contactId)}/notes`, headers, { body: `Full conversation:\n${formatConversationTranscript(input.conversationHistory)}` }, "Flight Plan conversation transcript note write");
+  }
   return { status: "confirmed", contactId, opportunityId, pipelineId: MOONROCK_NOVA_SALES_PIPELINE.pipelineId, pipelineStageId, tagsApplied: [...tagsToApply], noteCreated: true, autonomousCloseAllowed: plan.autonomousCloseAllowed, followUpEnabled, deferredOperations: [] };
 }
 

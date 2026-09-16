@@ -2,15 +2,18 @@ import type { AnswerInterpreter } from "../answer-interpreter.js";
 import { createAuthRouter } from "../auth-router.js";
 import type { GeneralContactGhlConfig } from "../contact-form-ghl.js";
 import { createContactRouter } from "../contact-router.js";
-import { createDiscoveryRouter } from "../discovery-router.js";
+import { createDiscoveryRouter, type StripeCheckoutConfig } from "../discovery-router.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "../discovery-state-repository.js";
 import type { NovaConversationEngine } from "../dynamic-conversation-engine.js";
 import type { VoiceSynthesizer } from "../elevenlabs-voice.js";
 import type { OptInGhlConfig } from "../ghl-opt-in.js";
 import type { ProductionGhlHandoffConfig } from "../ghl-production-handoff.js";
 import { loadGhlRuntimeConfig } from "../ghl-runtime-config.js";
+import { createLaunchPlanRouter } from "../launch-plan-router.js";
 import { createOptInRouter } from "../opt-in-router.js";
 import type { PostgresAccountRepository } from "../postgres-account-repository.js";
+import type { PostgresLaunchPlanRepository } from "../postgres-launch-plan-repository.js";
+import { createStripeWebhookRouter } from "../stripe-webhook-router.js";
 import { createApp, type AppOptions } from "./app.js";
 
 export interface Moonrock2AppOptions extends AppOptions {
@@ -26,6 +29,11 @@ export interface Moonrock2AppOptions extends AppOptions {
   // throwing at startup, matching how optInGhl already degrades.
   accountRepository?: PostgresAccountRepository;
   sessionSecret?: string;
+  // Same degrade-gracefully pattern - GET /v1/launch-plan/status reports 503
+  // without a real Postgres Pool rather than throwing at startup.
+  launchPlanRepository?: PostgresLaunchPlanRepository;
+  stripe?: StripeCheckoutConfig;
+  stripeWebhookSecret?: string;
 }
 
 function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | undefined {
@@ -77,6 +85,9 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     voiceSynthesizer,
     accountRepository,
     sessionSecret,
+    launchPlanRepository,
+    stripe,
+    stripeWebhookSecret,
     ...appOptions
   } = options;
   const llmConnected = Boolean(conversationEngine);
@@ -97,6 +108,8 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     ...(conversationEngine ? { conversationEngine } : {}),
     ...(answerInterpreter ? { answerInterpreter } : {}),
     ...(voiceSynthesizer ? { voiceSynthesizer } : {}),
+    ...(stripe ? { stripe } : {}),
+    ...(launchPlanRepository ? { launchPlanRepository } : {}),
   }));
   const resolvedOptInGhl = resolveOptInGhlConfig(optInGhl);
   base.app.route("/v1/opt-in", createOptInRouter({
@@ -109,6 +122,15 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   base.app.route("/v1/auth", createAuthRouter({
     ...(accountRepository ? { accountRepository } : {}),
     ...(sessionSecret ? { sessionSecret } : {}),
+  }));
+  base.app.route("/v1/launch-plan", createLaunchPlanRouter({
+    ...(launchPlanRepository ? { launchPlanRepository } : {}),
+  }));
+  base.app.route("/v1/webhooks/stripe", createStripeWebhookRouter({
+    discoveryRepository,
+    ...(stripeWebhookSecret ? { webhookSecret: stripeWebhookSecret } : {}),
+    ...(productionGhl ? { productionGhl } : {}),
+    ...(launchPlanRepository ? { launchPlanRepository } : {}),
   }));
   return base;
 }

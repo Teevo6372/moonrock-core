@@ -19,6 +19,7 @@
     "provision:ghl-fields": "node dist/src/ghl-provision-fields-cli.js",
     "test:ghl-write": "node dist/src/ghl-controlled-write-cli.js",
     "validate:ghl-handoff": "node dist/src/ghl-production-handoff-validation-cli.js",
+    "provision:stripe-catalog": "tsx src/stripe-provision-catalog-cli.ts",
     "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
