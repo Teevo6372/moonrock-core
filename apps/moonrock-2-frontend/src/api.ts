@@ -148,6 +148,16 @@ export function saveFlightPlan(identity: ContactIdentity): Promise<SaveFlightPla
   return post<SaveFlightPlanResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/save-flight-plan`, { identity, visitorId: getOrCreateVisitorId() });
 }
 
+export interface LaunchPlanCheckoutSession {
+  url: string;
+}
+
+/** Reuses the same identity already collected by the Save Flight Plan form - Stripe Checkout gets a real Customer (name + email) from it rather than asking the visitor to type their details again. */
+export function createLaunchPlanCheckout(identity: ContactIdentity): Promise<LaunchPlanCheckoutSession> {
+  if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
+  return post<LaunchPlanCheckoutSession>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/create-checkout-session`, { identity, visitorId: getOrCreateVisitorId() });
+}
+
 export function completeHumanHandoff(identity: ContactIdentity, requestText: string): Promise<HumanHandoffResponse> {
   if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
   return post<HumanHandoffResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/handoff`, { identity, requestText, visitorId: getOrCreateVisitorId() });
