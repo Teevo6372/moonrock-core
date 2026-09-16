@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { diagnoseBusiness, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { buildFlightPlan } from "../src/flight-plan.js";
-import { handoffFlightPlanToGhl, type ProductionGhlContactIdentity } from "../src/ghl-production-handoff.js";
+import { formatConversationTranscript, handoffFlightPlanToGhl, type ProductionGhlContactIdentity } from "../src/ghl-production-handoff.js";
 import { MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY } from "../src/ghl-production-registry.js";
 
 const baseConfig = {
@@ -70,5 +70,19 @@ describe("handoffFlightPlanToGhl followUpEnabled reporting", () => {
   it("reports false when followUpConsent is explicitly false", async () => {
     const result = await handoffFor(diagnosticInput, { email: "unit-test@example.com", followUpConsent: false });
     expect(result.followUpEnabled).toBe(false);
+  });
+});
+
+describe("formatConversationTranscript", () => {
+  it("renders each turn as 'Visitor: ...' / 'Nova: ...' in order, one per line", () => {
+    const transcript = formatConversationTranscript([
+      { role: "visitor", text: "We miss a lot of calls.", at: "2026-01-01T00:00:00.000Z" },
+      { role: "nova", text: "Tell me more about that.", at: "2026-01-01T00:00:01.000Z" },
+    ]);
+    expect(transcript).toBe("Visitor: We miss a lot of calls.\nNova: Tell me more about that.");
+  });
+
+  it("returns an empty string for an empty history", () => {
+    expect(formatConversationTranscript([])).toBe("");
   });
 });

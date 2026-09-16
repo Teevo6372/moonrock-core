@@ -106,6 +106,7 @@ export function createStripeWebhookRouter(options: StripeWebhookRouterOptions): 
               diagnosticInput: updatedState.answers as DiagnosticInput,
               diagnostic: restored.result.diagnostic,
               flightPlan: restored.result.flightPlan,
+              ...(updatedState.conversationHistory ? { conversationHistory: updatedState.conversationHistory } : {}),
             },
             options.productionGhl,
             { apply: true },

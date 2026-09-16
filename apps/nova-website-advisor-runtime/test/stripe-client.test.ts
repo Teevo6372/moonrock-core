@@ -33,6 +33,21 @@ describe("StripeClient", () => {
     expect(body).toContain(`metadata%5Bmoonrock_offer_id%5D=moonrock_launch_plan`);
   });
 
+  it("creates a customer with email and name", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "cus_test_123" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new StripeClient({ secretKey: "sk_test_x" });
+    const result = await client.createCustomer({ email: "jamie@example.com", name: "Jamie Owner" });
+
+    expect(result).toEqual({ id: "cus_test_123" });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.stripe.com/v1/customers");
+    const body = init.body as string;
+    expect(body).toContain("email=jamie%40example.com");
+    expect(body).toContain("name=Jamie%20Owner");
+  });
+
   it("throws with the Stripe error message when the response is not ok", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 402, json: async () => ({ error: { message: "Your card was declined." } }) }));
     const client = new StripeClient({ secretKey: "sk_test_x" });

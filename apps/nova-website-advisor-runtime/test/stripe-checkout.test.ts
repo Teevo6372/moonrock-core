@@ -8,10 +8,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mockStripe(createCheckoutSession = vi.fn().mockResolvedValue({ id: "cs_test_1", url: "https://checkout.stripe.com/cs_test_1" })): StripeCheckoutConfig {
+function mockStripe(
+  createCheckoutSession = vi.fn().mockResolvedValue({ id: "cs_test_1", url: "https://checkout.stripe.com/cs_test_1" }),
+  createCustomer = vi.fn().mockResolvedValue({ id: "cus_test_1" }),
+): StripeCheckoutConfig {
   return {
     enabled: true,
-    client: { createCheckoutSession } as unknown as StripeCheckoutConfig["client"],
+    client: { createCheckoutSession, createCustomer } as unknown as StripeCheckoutConfig["client"],
     foundingSetupPriceId: "price_founding",
     standardSetupPriceId: "price_standard",
     monthlyPriceId: "price_monthly",
@@ -66,14 +69,45 @@ describe("POST /:sessionId/create-checkout-session", () => {
     const final = await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
     expect(final.json.completed).toBe(true);
 
-    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, { identity: { email: "owner@example.com" } });
+    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, { identity: { email: "owner@example.com", firstName: "Jamie", lastName: "Owner" } });
     expect(result.status).toBe(200);
     expect(result.json.url).toBe("https://checkout.stripe.com/cs_test_1");
     const params = createCheckoutSession.mock.calls[0]![0];
     expect(params.line_items).toEqual([{ price: "price_founding", quantity: 1 }, { price: "price_monthly", quantity: 1 }]);
     expect(params.client_reference_id).toBe(sessionId);
-    expect(params.customer_email).toBe("owner@example.com");
+    expect(params.customer).toBe("cus_test_1");
     expect(params.metadata.moonrock_used_founding_price).toBe("true");
+  });
+
+  it("creates a real Stripe Customer with the collected name/email rather than only passing customer_email", async () => {
+    const createCheckoutSession = vi.fn().mockResolvedValue({ id: "cs_test_name", url: "https://checkout.stripe.com/cs_test_name" });
+    const createCustomer = vi.fn().mockResolvedValue({ id: "cus_test_name" });
+    const { app } = createMoonrock2App({ stripe: mockStripe(createCheckoutSession, createCustomer), launchPlanRepository: mockLaunchPlanRepository(0) });
+    const sessionId = "checkout-customer-name";
+    await post(app, `/v1/discovery/${sessionId}/start`, { path: "existing_business" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "businessName", value: "Test Co" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "industry", value: "plumbing" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "missedCallsPerMonth", value: 10 });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
+
+    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, { identity: { email: "jamie@example.com", firstName: "Jamie", lastName: "Owner" } });
+    expect(result.status).toBe(200);
+    expect(createCustomer).toHaveBeenCalledWith(expect.objectContaining({ email: "jamie@example.com", name: "Jamie Owner" }));
+    expect(createCheckoutSession.mock.calls[0]![0].customer).toBe("cus_test_name");
+  });
+
+  it("reports 400 when no email is provided", async () => {
+    const { app } = createMoonrock2App({ stripe: mockStripe(), launchPlanRepository: mockLaunchPlanRepository(0) });
+    const sessionId = "checkout-no-email";
+    await post(app, `/v1/discovery/${sessionId}/start`, { path: "existing_business" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "businessName", value: "Test Co" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "industry", value: "plumbing" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "missedCallsPerMonth", value: 10 });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
+
+    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, {});
+    expect(result.status).toBe(400);
+    expect(result.json.code).toBe("CHECKOUT_CONTACT_REQUIRED");
   });
 
   it("uses the standard setup price once founding slots are exhausted", async () => {
@@ -86,7 +120,7 @@ describe("POST /:sessionId/create-checkout-session", () => {
     await post(app, `/v1/discovery/${sessionId}/answers`, { field: "missedCallsPerMonth", value: 10 });
     await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
 
-    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, {});
+    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, { identity: { email: "owner@example.com" } });
     expect(result.status).toBe(200);
     const params = createCheckoutSession.mock.calls[0]![0];
     expect(params.line_items).toEqual([{ price: "price_standard", quantity: 1 }, { price: "price_monthly", quantity: 1 }]);

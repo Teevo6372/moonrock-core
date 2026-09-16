@@ -63,11 +63,17 @@ export class StripeClient {
     return this.post("/v1/prices", params);
   }
 
+  /** Prefer this over passing customer_email to createCheckoutSession - a real Customer is what actually lets Checkout prefill the visitor's name, not just their email. */
+  createCustomer(params: { email: string; name?: string; metadata?: Record<string, string> }): Promise<{ id: string }> {
+    return this.post("/v1/customers", params);
+  }
+
   createCheckoutSession(params: {
     mode: "subscription" | "payment";
     success_url: string;
     cancel_url: string;
     client_reference_id?: string;
+    customer?: string;
     customer_email?: string;
     line_items: Array<{ price: string; quantity: number }>;
     metadata?: Record<string, string>;

@@ -169,7 +169,7 @@ async function handlePendingSave(
     const ascension = typeof current.state.ascensionScore === "number"
       ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
       : undefined;
-    const result = await handoffFlightPlanToGhl({ sessionId, identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, productionGhl, { apply: productionGhl.enabled && productionGhl.fieldsVerified && productionGhl.writesEnabled });
+    const result = await handoffFlightPlanToGhl({ sessionId, identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}), ...(current.state.conversationHistory ? { conversationHistory: current.state.conversationHistory } : {}) }, productionGhl, { apply: productionGhl.enabled && productionGhl.fieldsVerified && productionGhl.writesEnabled });
     const answer = flightPlanSaveAnswer(result);
     return respondAndPersist(context, repository, sessionId, current.version, withoutPendingSave, question, answer, voiceInput, voice);
   } catch (error) {
@@ -308,7 +308,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
       const ascension = typeof current.state.ascensionScore === "number"
         ? { ascensionScore: current.state.ascensionScore, currentTier: current.state.currentTier ?? null, ...(current.state.lastEngagementAt ? { lastEngagementAt: current.state.lastEngagementAt } : {}) }
         : undefined;
-      const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}) }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
+      const result = await handoffFlightPlanToGhl({ sessionId, identity: body.identity, diagnosticInput: current.state.answers as DiagnosticInput, diagnostic: restored.result.diagnostic, flightPlan: restored.result.flightPlan, ...(ascension ? { ascension } : {}), ...(current.state.conversationHistory ? { conversationHistory: current.state.conversationHistory } : {}) }, options.productionGhl, { apply: options.productionGhl.enabled && options.productionGhl.fieldsVerified && options.productionGhl.writesEnabled });
       return context.json({ status: result.status, answer: flightPlanSaveAnswer(result) });
     } catch (error) {
       console.error(`[save-flight-plan] failed for session ${sessionId}:`, error instanceof Error ? error.stack ?? error.message : error);
@@ -327,18 +327,26 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     if (!recommendation || recommendation.offerId !== "moonrock_launch_plan" || !recommendation.autonomousCloseAllowed) {
       return context.json({ code: "CHECKOUT_NOT_ELIGIBLE", detail: "This Flight Plan is not eligible for self-serve checkout." }, 409);
     }
-    const body = await context.req.json().catch(() => ({})) as { identity?: { email?: unknown } };
-    const email = typeof body.identity?.email === "string" ? body.identity.email.trim() : undefined;
+    const body = await context.req.json().catch(() => ({})) as { identity?: { email?: unknown; firstName?: unknown; lastName?: unknown } };
+    const email = typeof body.identity?.email === "string" ? body.identity.email.trim() : "";
+    if (!email) return context.json({ code: "CHECKOUT_CONTACT_REQUIRED", detail: "A valid email is required to check out." }, 400);
+    const firstName = typeof body.identity?.firstName === "string" ? body.identity.firstName.trim() : "";
+    const lastName = typeof body.identity?.lastName === "string" ? body.identity.lastName.trim() : "";
+    const name = [firstName, lastName].filter(Boolean).join(" ");
     const stripe = options.stripe;
     try {
       const foundingCount = options.launchPlanRepository ? await options.launchPlanRepository.countFoundingSignups() : FOUNDING_CUSTOMER_LIMIT;
       const usedFoundingPrice = foundingCount < FOUNDING_CUSTOMER_LIMIT;
+      // A real Customer (not just customer_email) is what lets Stripe Checkout
+      // actually prefill the name already collected on the Save Flight Plan
+      // form, instead of asking the visitor to type it again.
+      const customer = await stripe.client.createCustomer({ email, ...(name ? { name } : {}), metadata: { moonrock_session_id: sessionId } });
       const session = await stripe.client.createCheckoutSession({
         mode: "subscription",
         success_url: stripe.successUrl,
         cancel_url: stripe.cancelUrl,
         client_reference_id: sessionId,
-        ...(email ? { customer_email: email } : {}),
+        customer: customer.id,
         line_items: [
           { price: usedFoundingPrice ? stripe.foundingSetupPriceId : stripe.standardSetupPriceId, quantity: 1 },
           { price: stripe.monthlyPriceId, quantity: 1 },
