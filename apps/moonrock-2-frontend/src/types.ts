@@ -30,6 +30,7 @@ export interface FlightPlanResult {
     headline: string;
     primaryBottlenecks: Array<{ id: string; score: number; explanation: string }>;
     recommendation: {
+      offerId: string;
       offerName: string;
       setupFeeUsd: number;
       monthlyFeeUsd: number;
@@ -38,6 +39,7 @@ export interface FlightPlanResult {
       estimatedDelivery: string;
       includedVoiceMinutes?: number;
       overageVoiceRateUsd?: number;
+      autonomousCloseAllowed: boolean;
     };
     opportunity?: { monthlyOpportunityUsd: number; basis: string; disclaimer: string };
     nextAction: string;

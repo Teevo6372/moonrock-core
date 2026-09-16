@@ -1,5 +1,5 @@
 import "./flight-plan-save-card.css";
-import { saveFlightPlan } from "./api.js";
+import { createLaunchPlanCheckout, saveFlightPlan } from "./api.js";
 import { isPlausibleName } from "./identity-validation.js";
 import type { ContactIdentity, FlightPlanResult } from "./types.js";
 
@@ -19,6 +19,7 @@ function clearError(card: HTMLElement): void {
 }
 
 function cardMarkup(): string {
+  const checkoutEligible = Boolean(latestPlan?.recommendation.autonomousCloseAllowed);
   return `
     <section class="identity-card" data-flight-plan-save-card aria-labelledby="identity-title">
       <div class="save-card-toolbar" aria-label="Flight Plan save form controls">
@@ -28,7 +29,7 @@ function cardMarkup(): string {
       <p class="save-card-banner">This is a short save form, separate from the chat below. Still have a question for Nova first? Minimize or close this and ask below — it stays open.</p>
       <p class="identity-kicker">KEEP YOUR FLIGHT PLAN</p>
       <h3 id="identity-title">Want me to save this with Moonrock?</h3>
-      <p>This is optional. Saving your plan does not control whether you can keep talking with Nova or continue reviewing the recommendation.</p>
+      <p>This is optional. Saving your plan does not control whether you can keep talking with Nova or continue reviewing the recommendation.${checkoutEligible ? " This plan can be set up right away - saving will take you to secure checkout to lock it in." : ""}</p>
       <form data-flight-plan-save-form>
         <div class="identity-grid">
           <label>First name<input name="firstName" autocomplete="given-name" required></label>
@@ -40,7 +41,7 @@ function cardMarkup(): string {
         <label class="consent-row"><input name="consent" type="checkbox" required><span>Yes, save my Flight Plan and Moonrock inquiry using this email.</span></label>
         <label class="consent-row"><input name="followUpConsent" type="checkbox"><span>Moonrock may follow up with me about this Flight Plan. Optional.</span></label>
         <label class="consent-row"><input name="smsOptIn" type="checkbox"><span>Text me at the phone number above about this Flight Plan, appointment reminders, and offers from Moonrock Marketing Company. Msg frequency varies, msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. Consent isn't required to receive services.</span></label>
-        <div class="save-card-actions"><button type="submit" class="save-card-submit">Save My Flight Plan</button><p data-save-card-confirmation class="save-card-confirmation" hidden></p></div>
+        <div class="save-card-actions"><button type="submit" class="save-card-submit">${checkoutEligible ? "Save &amp; Continue to Checkout" : "Save My Flight Plan"}</button><p data-save-card-confirmation class="save-card-confirmation" hidden></p></div>
       </form>
       <p class="save-card-note">Optional — minimize or close this and keep talking with Nova.</p>
     </section>`;
@@ -61,7 +62,7 @@ function ensureReopenBar(card: HTMLElement): HTMLButtonElement {
   let bar = result.querySelector<HTMLButtonElement>("[data-save-card-reopen]");
   if (bar) return bar;
   bar = document.createElement("button");
-  bar.type = "button"; bar.className = "save-card-reopen"; bar.dataset.saveCardReopen = "true"; bar.textContent = "Save My Flight Plan"; bar.hidden = true;
+  bar.type = "button"; bar.className = "save-card-reopen"; bar.dataset.saveCardReopen = "true"; bar.textContent = latestPlan?.recommendation.autonomousCloseAllowed ? "Save & Continue to Checkout" : "Save My Flight Plan"; bar.hidden = true;
   bar.addEventListener("click", () => { card.hidden = false; bar!.hidden = true; card.scrollIntoView({ behavior: "smooth", block: "center" }); });
   card.insertAdjacentElement("beforebegin", bar);
   return bar;
@@ -107,6 +108,19 @@ async function submitSave(event: SubmitEvent, card: HTMLElement): Promise<void> 
     const confirmation = card.querySelector<HTMLElement>("[data-save-card-confirmation]");
     if (confirmation) { confirmation.hidden = false; confirmation.textContent = response.answer; }
     setStatus(response.answer);
+
+    if (latestPlan?.recommendation.autonomousCloseAllowed) {
+      setStatus("Setting up secure checkout…");
+      try {
+        const checkout = await createLaunchPlanCheckout(identity);
+        window.location.href = checkout.url;
+        return; // a full-page navigation to Stripe is about to happen
+      } catch {
+        // Checkout isn't available in this environment yet - the Flight Plan is already saved either way, so just restore the saved-confirmation status and fall through rather than showing an error.
+        setStatus(response.answer);
+      }
+    }
+
     window.setTimeout(() => { if (!card.isConnected) return; const bar = ensureReopenBar(card); card.hidden = true; bar.hidden = false; bar.textContent = "Flight Plan Saved"; }, 900);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Moonrock could not save the Flight Plan right now.");
