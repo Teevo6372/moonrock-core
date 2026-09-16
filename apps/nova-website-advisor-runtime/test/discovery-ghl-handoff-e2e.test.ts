@@ -49,7 +49,8 @@ describe("discovery to GHL handoff (dry run)", () => {
     const a4 = await post(`/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
     expect(a4.status).toBe(200);
     expect(a4.json.completed).toBe(true);
-    expect(a4.json.result.flightPlan.recommendation.monthlyFeeUsd).toBeGreaterThan(200);
+    // Ascension funnel v2: every path now recommends Moonrock Launch Plan ($97/mo).
+    expect(a4.json.result.flightPlan.recommendation.monthlyFeeUsd).toBe(97);
 
     const budgetObjection = await post(`/v1/discovery/${sessionId}/conversation`, {
       question: "I'm a small business and can't afford $200/month for this.",
@@ -88,7 +89,11 @@ describe("discovery to GHL handoff (dry run)", () => {
     expect(kinds).toEqual(expect.arrayContaining(["upsert_contact", "upsert_opportunity", "add_tags", "add_note"]));
   });
 
-  it("carries a full low-commitment conversation through the new ala_carte tier to a priced bundle", async () => {
+  // Ascension funnel v2: classifyServiceTier is short-circuited to always return
+  // ai_employee, so the ala_carte tier (and its alaCarteItemsRequested discovery
+  // question) is currently unreachable from live traffic - the prior full walk
+  // through that tier is in git history to bring back once it's sellable again.
+  it("still resolves to the ai_employee tier and a Launch Plan flight plan for a low-commitment conversation, now that ala_carte is paused", async () => {
     const { app } = createMoonrock2App({
       productionGhl: {
         enabled: true,
@@ -99,7 +104,7 @@ describe("discovery to GHL handoff (dry run)", () => {
         fieldRegistry: MOONROCK_PRODUCTION_GHL_FIELD_REGISTRY,
       },
     });
-    const sessionId = "e2e-ala-carte-dry-run-001";
+    const sessionId = "e2e-low-commitment-dry-run-001";
 
     async function post(path: string, body: unknown) {
       const response = await app.request(`http://localhost${path}`, {
@@ -122,29 +127,6 @@ describe("discovery to GHL handoff (dry run)", () => {
       value: "I just want something simple, not ready for a full website.",
     });
     expect(challenge.status).toBe(200);
-    expect(challenge.json.tier).toBe("ala_carte");
-    expect(challenge.json.completed).toBe(false);
-    expect(challenge.json.nextQuestion?.field).toBe("alaCarteItemsRequested");
-
-    const items = await post(`/v1/discovery/${sessionId}/answers`, {
-      field: "alaCarteItemsRequested",
-      value: ["crm_pipeline", "booking_appointments"],
-    });
-    expect(items.status).toBe(200);
-    expect(items.json.completed).toBe(true);
-    expect(items.json.alaCarteResult).toBeDefined();
-    expect(items.json.alaCarteResult.crmAutoAttached).toBe(false);
-    expect(items.json.alaCarteResult.blendedMonthlyFeeUsd).toBe(49 + 29);
-    expect(items.json.alaCarteResult.lineItems).toHaveLength(2);
-
-    // The ala_carte tier's own GHL sync path is Step 4's job (ascension
-    // score + GHL sync), not Step 3's - save-flight-plan today only serves
-    // the ai_employee-shaped result, so it correctly reports not-ready here
-    // rather than silently fabricating one.
-    const save = await post(`/v1/discovery/${sessionId}/save-flight-plan`, {
-      identity: { email: "ala-carte-dry-run@example.com" },
-    });
-    expect(save.status).toBe(409);
-    expect(save.json.code).toBe("FLIGHT_PLAN_NOT_READY");
+    expect(challenge.json.tier).toBe("ai_employee");
   });
 });

@@ -1,7 +1,6 @@
 import { AI_EMPLOYEE_CATALOG, priceOffer, type AiEmployeeId } from "./ai-employee-catalog.js";
 import type { AscensionBundle } from "./ascension-bundle.js";
 import type { DiagnosticInput, DiagnosticResult } from "./diagnostic-engine.js";
-import { evaluateFastTrack } from "./fast-track.js";
 
 export interface FlightPlanCommercialOption {
   offerId: AiEmployeeId;
@@ -48,15 +47,15 @@ function commercialOption(id: AiEmployeeId, reason: string, foundingCustomer = f
   };
 }
 
+/**
+ * Ascension funnel v2: Moonrock Launch Plan is the only sellable AI Employee offer
+ * right now, so there is nothing to upsell it against - no add-ons until more
+ * ascension-funnel products exist. Prior bottleneck-based secondary-offer logic is
+ * in git history to bring back at that point.
+ */
 function evidenceBackedSecondaryOffers(diagnosis: DiagnosticResult): AiEmployeeId[] {
-  const ids = new Set(diagnosis.bottlenecks.map((finding) => finding.id));
-  const candidates: AiEmployeeId[] = [];
-  if (ids.has("missed_calls") || ids.has("appointment_booking")) candidates.push("receptionist");
-  if (ids.has("slow_lead_response") || ids.has("lead_capture") || ids.has("lead_qualification")) candidates.push("lead_response");
-  if (ids.has("estimate_follow_up") || ids.has("reactivation")) candidates.push("sales_follow_up");
-  if (ids.has("repetitive_support")) candidates.push("customer_care");
-  if (ids.has("review_generation") || ids.has("retention")) candidates.push("reputation_retention");
-  return [...new Set(candidates)].filter((id) => id !== diagnosis.recommendedOfferId);
+  void diagnosis;
+  return [];
 }
 
 export function buildFlightPlan(input: DiagnosticInput, diagnosis: DiagnosticResult, options: { foundingCustomer?: boolean; confirmed?: boolean; bundle?: AscensionBundle } = {}): FlightPlan {
@@ -73,18 +72,10 @@ export function buildFlightPlan(input: DiagnosticInput, diagnosis: DiagnosticRes
   const secondary = evidenceBackedSecondaryOffers(diagnosis);
   const recommendedAddOns = secondary.slice(0, 2).map((id) => commercialOption(id, `Recommended because discovery identified a related ${AI_EMPLOYEE_CATALOG[id].solves.find((signal) => diagnosis.bottlenecks.some((finding) => finding.id === signal))?.replaceAll("_", " ") ?? "operational"} bottleneck.`, Boolean(options.foundingCustomer)));
 
-  const fastTrack = evaluateFastTrack(input, diagnosis.bottlenecks);
-  const workforceUpgradeAlreadyEligible = diagnosis.recommendedOfferId !== "ai_workforce" && (input.departmentsAffected ?? 0) >= 2;
-  const fastTrackWantsWorkforceUpgrade = diagnosis.recommendedOfferId !== "ai_workforce" && fastTrack.fastTrackEligible && fastTrack.targetTier === "ai_workforce";
-  const futureUpgrades = workforceUpgradeAlreadyEligible || fastTrackWantsWorkforceUpgrade
-    ? [commercialOption(
-        "ai_workforce",
-        fastTrackWantsWorkforceUpgrade && !workforceUpgradeAlreadyEligible
-          ? `Future upgrade to consider: ${fastTrack.reasons.join(" ")}`
-          : "Future upgrade to consider if the confirmed scope expands across multiple business functions or requires coordinated custom workflows.",
-        Boolean(options.foundingCustomer),
-      )]
-    : [];
+  // Ascension funnel v2: no upgrade path is offered yet - ai_workforce and the
+  // fast-track-to-workforce logic come back once more ascension-funnel products
+  // exist above Moonrock Launch Plan. Prior logic is in git history.
+  const futureUpgrades: FlightPlanCommercialOption[] = [];
 
   return {
     version: "1.1",

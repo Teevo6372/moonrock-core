@@ -10,11 +10,11 @@ describe("Nova Flight Plan", () => {
     const diagnosis = diagnoseBusiness(input);
     const plan = buildFlightPlan(input, diagnosis, { foundingCustomer: true });
     expect(plan.headline).toBe("Your Preliminary Moonrock Growth Flight Plan");
-    expect(plan.recommendation.offerId).toBe("front_office");
-    expect(plan.recommendation.setupFeeUsd).toBe(AI_EMPLOYEE_CATALOG.front_office.foundingCustomerSetupFeeUsd);
-    expect(plan.recommendation.monthlyFeeUsd).toBe(AI_EMPLOYEE_CATALOG.front_office.monthlyFeeUsd);
-    expect(plan.recommendation.includedFeatures).toEqual([...AI_EMPLOYEE_CATALOG.front_office.includedFeatures]);
-    expect(plan.recommendation.estimatedDelivery).toBe(AI_EMPLOYEE_CATALOG.front_office.estimatedDelivery);
+    expect(plan.recommendation.offerId).toBe("moonrock_launch_plan");
+    expect(plan.recommendation.setupFeeUsd).toBe(AI_EMPLOYEE_CATALOG.moonrock_launch_plan.foundingCustomerSetupFeeUsd);
+    expect(plan.recommendation.monthlyFeeUsd).toBe(AI_EMPLOYEE_CATALOG.moonrock_launch_plan.monthlyFeeUsd);
+    expect(plan.recommendation.includedFeatures).toEqual([...AI_EMPLOYEE_CATALOG.moonrock_launch_plan.includedFeatures]);
+    expect(plan.recommendation.estimatedDelivery).toBe(AI_EMPLOYEE_CATALOG.moonrock_launch_plan.estimatedDelivery);
     expect(plan.nextAction).toBe("purchase");
     expect(plan.opportunity?.monthlyOpportunityUsd).toBe(2000);
   });
@@ -57,17 +57,13 @@ describe("Nova Flight Plan", () => {
     expect(plan.recommendedAddOns).toEqual([]);
   });
 
-  it("adds an ai_workforce futureUpgrade when fast-track fires but the existing departmentsAffected trigger would not", () => {
-    const input = { path: "existing_business" as const, missedCallsPerMonth: 10, medianLeadResponseMinutes: 45, businessChallenges: "We operate across 5 locations." };
-    const diagnosis = diagnoseBusiness(input);
-    const plan = buildFlightPlan(input, diagnosis);
-    expect(plan.futureUpgrades.some((upgrade) => upgrade.offerId === "ai_workforce")).toBe(true);
-  });
-
-  it("does not duplicate the ai_workforce futureUpgrade when both the existing trigger and fast-track fire", () => {
+  // Ascension funnel v2: futureUpgrades is hardcoded to [] until more ascension-
+  // funnel products exist above Moonrock Launch Plan (see flight-plan.ts) - prior
+  // fast-track-to-ai_workforce upgrade tests are in git history to bring back then.
+  it("never suggests a futureUpgrade right now, even when fast-track signals or departmentsAffected would previously have triggered one", () => {
     const input = { path: "existing_business" as const, missedCallsPerMonth: 10, medianLeadResponseMinutes: 45, departmentsAffected: 2, businessChallenges: "We operate across 5 locations." };
     const diagnosis = diagnoseBusiness(input);
     const plan = buildFlightPlan(input, diagnosis);
-    expect(plan.futureUpgrades.filter((upgrade) => upgrade.offerId === "ai_workforce")).toHaveLength(1);
+    expect(plan.futureUpgrades).toEqual([]);
   });
 });

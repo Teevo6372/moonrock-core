@@ -1,6 +1,7 @@
 import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
 
 export type AiEmployeeId =
+  | "moonrock_launch_plan"
   | "reputation_retention"
   | "lead_response"
   | "customer_care"
@@ -24,6 +25,28 @@ export interface AiEmployeeOffer {
 }
 
 export const AI_EMPLOYEE_CATALOG: Readonly<Record<AiEmployeeId, AiEmployeeOffer>> = {
+  // First product of the new ascension funnel (moonrockmarketing-homepage-copy-v2.md).
+  // The 6 offers below this one are paused, not deleted - see chooseOffer/
+  // classifyServiceTier in diagnostic-engine.ts and evidenceBackedSecondaryOffers/
+  // futureUpgrades in flight-plan.ts, all short-circuited to this single offer until
+  // more ascension-funnel products are built.
+  moonrock_launch_plan: {
+    id: "moonrock_launch_plan",
+    name: "Moonrock Launch Plan",
+    setupFeeUsd: 499,
+    monthlyFeeUsd: 97,
+    autonomousSaleAllowed: true,
+    foundingCustomerSetupFeeUsd: 0,
+    solves: ["missed_calls", "review_generation", "repetitive_support", "website_scope_gap"],
+    includedFeatures: [
+      "Automatic missed-call text-back",
+      "Answers common questions (hours, pricing, availability)",
+      "Automatic review requests",
+      "A real website that gets you customers - new build or an upgrade of what you've got",
+      "All leads and bookings in one simple screen",
+    ],
+    estimatedDelivery: "About 5-7 business days after onboarding details are confirmed",
+  },
   reputation_retention: {
     id: "reputation_retention",
     name: "AI Reputation & Retention Agent",

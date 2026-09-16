@@ -103,8 +103,6 @@ export interface DiagnosticResult {
 const ESCALATION_RISKS = new Set<RiskCategory>([
   "healthcare_phi", "legal_advice", "financial_advice", "insurance_decisioning", "debt_collection", "emergency_response", "government", "children_sensitive_data", "employment_decisioning", "credit_decisioning", "high_risk_financial_transaction", "complex_enterprise", "high_volume", "custom_api",
 ]);
-const FRONT_OFFICE_BOTTLENECKS = new Set<BottleneckId>(["missed_calls", "slow_lead_response", "lead_capture", "lead_qualification", "appointment_booking", "estimate_follow_up"]);
-
 function addFinding(findings: BottleneckFinding[], id: BottleneckId, score: number, reason: string): void {
   findings.push({ id, score: Math.max(0, Math.min(100, score)), reason });
 }
@@ -143,18 +141,17 @@ function estimateOpportunity(input: DiagnosticInput): OpportunityEstimate | unde
   return { monthlyOpportunityUsd, basis: `${missedCalls} missed calls × $${averageJobValue} average value × ${closeRate}% reported close rate`, disclaimer: "Directional estimate based on information provided, not a revenue guarantee." };
 }
 
+/**
+ * Ascension funnel v2 (moonrockmarketing-homepage-copy-v2.md): Moonrock Launch Plan
+ * is the only AI Employee offer being sold right now, so every path resolves to it
+ * regardless of findings. Bottleneck scoring above this function still runs and still
+ * drives Nova's messaging/personalization - only offer selection is fixed. The prior
+ * bottleneck-to-offer branching (front_office/receptionist/sales_follow_up/etc.) is
+ * in git history to bring back once more ascension-funnel products exist.
+ */
 function chooseOffer(findings: BottleneckFinding[]): AiEmployeeId {
-  const ids = new Set(findings.map((finding) => finding.id));
-  if (ids.has("multi_department")) return "ai_workforce";
-  const frontOfficeCount = [...ids].filter((id) => FRONT_OFFICE_BOTTLENECKS.has(id)).length;
-  const crossesPhoneAndDigitalResponse = ids.has("missed_calls") && (ids.has("slow_lead_response") || ids.has("lead_capture") || ids.has("lead_qualification"));
-  if (frontOfficeCount >= 3 || crossesPhoneAndDigitalResponse) return "front_office";
-  if (ids.has("missed_calls") || ids.has("appointment_booking")) return "receptionist";
-  if (ids.has("estimate_follow_up") || ids.has("reactivation")) return "sales_follow_up";
-  if (ids.has("slow_lead_response") || ids.has("lead_capture") || ids.has("lead_qualification")) return "lead_response";
-  if (ids.has("repetitive_support")) return "customer_care";
-  if (ids.has("review_generation") || ids.has("retention")) return "reputation_retention";
-  return "front_office";
+  void findings;
+  return "moonrock_launch_plan";
 }
 
 export interface BudgetFitOffer { offerId: AiEmployeeId; fitsWithinBudget: boolean; cheapestMonthlyFeeUsd: number; }
@@ -283,42 +280,17 @@ export interface ServiceTierClassification {
   reason: string;
 }
 
-const AGENCY_CHALLENGE_PATTERN = /my clients|resell|white.?label|agency/i;
-const AGENCY_INDUSTRY_PATTERN = /agency|marketing|consult/i;
-const NO_WEBSITE_CHALLENGE_PATTERN = /don'?t have a (website|site)|need a (new )?website|no website/i;
-const WANTS_ONLINE_STORE_PATTERN = /online store|e-?commerce|sell\s+(?:products?|things?|items?|stuff|goods)?\s*online|shopping cart|web store|start selling online/i;
-// Placeholder low-commitment signal for the ala_carte tier - an initial
-// assumption to retune once real conversation data exists, per the
-// ascension-funnel spec's "use my defaults" resolution. Checked last (lowest
-// priority) in classifyServiceTier so it never steals a stronger signal.
-const ALA_CARTE_LOW_COMMITMENT_PATTERN = /just (need|want) (a |some )?(crm|booking|reviews?|forms?|texting|email)|something (cheap|simple|small)|not ready for (an?|a full) (ai employee|website)/i;
-
+/**
+ * Ascension funnel v2: website_build/ghl_saas/ala_carte are paused (Moonrock Launch
+ * Plan is the only sellable offer right now, and it already bundles a website - see
+ * ai-employee-catalog.ts), so every visitor classifies as ai_employee until more
+ * ascension-funnel products replace those tiers. The prior signal-based
+ * classification (agency/reseller, no-website, online-store, low-commitment
+ * patterns) is in git history to bring back at that point.
+ */
 export function classifyServiceTier(input: DiagnosticInput): ServiceTierClassification {
-  const challenges = input.businessChallenges ?? "";
-  const industry = input.industry ?? "";
-
-  if (input.isAgencyOrReseller === true) {
-    return { tier: "ghl_saas", confidence: "explicit", reason: "The visitor explicitly identified as an agency or reseller." };
-  }
-  if (AGENCY_CHALLENGE_PATTERN.test(challenges) && AGENCY_INDUSTRY_PATTERN.test(industry)) {
-    return { tier: "ghl_saas", confidence: "inferred", reason: "The stated challenge and industry both point to reselling software to the visitor's own clients." };
-  }
-
-  if (input.hasExistingWebsite === false) {
-    return { tier: "website_build", confidence: "explicit", reason: "The visitor confirmed they do not have a website today." };
-  }
-  if (NO_WEBSITE_CHALLENGE_PATTERN.test(challenges)) {
-    return { tier: "website_build", confidence: "inferred", reason: "The stated challenge describes not having a website." };
-  }
-  if (WANTS_ONLINE_STORE_PATTERN.test(challenges)) {
-    return { tier: "website_build", confidence: "inferred", reason: "The stated challenge describes wanting to sell online or set up an online store, which is a website/e-commerce build rather than an AI Employee subscription." };
-  }
-
-  if (ALA_CARTE_LOW_COMMITMENT_PATTERN.test(challenges)) {
-    return { tier: "ala_carte", confidence: "inferred", reason: "The stated challenge describes a single low-commitment need rather than a full website build or AI Employee subscription." };
-  }
-
-  return { tier: "ai_employee", confidence: "inferred", reason: "No stronger signal for another tier was found; defaulting to the AI Employee bottleneck diagnosis." };
+  void input;
+  return { tier: "ai_employee", confidence: "explicit", reason: "Moonrock Launch Plan is the only current ascension-funnel offer; every visitor is diagnosed on the AI Employee path." };
 }
 
 const WEBSITE_SCOPE_UPGRADE_PATTERN = /online store|e-?commerce|shopping cart|sell\s+(?:products?|things?|items?|stuff|goods)?\s*online|web store|booking|appointment|multiple pages|multi-page|several services|blog|portfolio/i;
