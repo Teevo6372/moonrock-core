@@ -153,6 +153,31 @@ describe("ascension funnel grounding in businessContext", () => {
     expect(turn.mode).toBe("grounded_fallback");
     expect(turn.answer).toContain("$97/month");
   });
+
+  // Bug found reviewing a real visitor transcript: a visitor asked "doesn't
+  // this plan currently offer 0 setup cost" and Nova had no way to answer -
+  // foundingCustomerEligible never reached businessContext at all, so the
+  // Flight Plan (and every grounded fallback) always showed the $499 standard
+  // fee even when the homepage's own founding-customer offer was still live.
+  it("always includes foundingOffer, even before a Flight Plan exists, reflecting the session's frozen founding-eligibility snapshot", async () => {
+    const notEligibleContext = await contextFromRespond({ path: "existing_business", completed: false, answers: { path: "existing_business" } });
+    expect(notEligibleContext.foundingOffer).toEqual({ eligible: false, foundingSetupFeeUsd: 0, standardSetupFeeUsd: 499 });
+
+    const eligibleContext = await contextFromRespond({ path: "existing_business", completed: false, foundingCustomerEligible: true, answers: { path: "existing_business" } });
+    expect(eligibleContext.foundingOffer).toEqual({ eligible: true, foundingSetupFeeUsd: 0, standardSetupFeeUsd: 499 });
+  });
+
+  it("prices the completed Flight Plan at the $0 founding setup fee when the session was started while founding slots were open", async () => {
+    const context = await contextFromRespond({ ...completedState(), foundingCustomerEligible: true });
+    expect((context.flightPlan as { recommendation: { setupFeeUsd: number } }).recommendation.setupFeeUsd).toBe(0);
+  });
+
+  it("keeps the grounded fallback's stated setup fee in sync with foundingOffer instead of always quoting the standard fee", async () => {
+    const engine = new SessionGroundedNovaConversationEngine();
+    const turn = await engine.respond({ ...completedState(), foundingCustomerEligible: true }, "What would this cost me?");
+    expect(turn.answer).toContain("$0 setup");
+    expect(turn.answer).not.toContain("$499");
+  });
 });
 
 describe("tool-calling path (usesToolCalling) vs. context-stuffing path (Groq)", () => {

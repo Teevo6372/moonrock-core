@@ -184,7 +184,7 @@ export function executeNovaTool(name: string, rawInput: unknown, ctx: NovaToolCo
     case "build_flight_plan": {
       const diagnostic = diagnoseBusiness(input);
       const bundle = composeCrossTierBundle(primaryTierFor(ctx), input, input.alaCarteItemsRequested ?? []);
-      return buildFlightPlan(input, diagnostic, { ...(bundle ? { bundle } : {}), confirmed: ctx.state.completed });
+      return buildFlightPlan(input, diagnostic, { foundingCustomer: Boolean(ctx.state.foundingCustomerEligible), ...(bundle ? { bundle } : {}), confirmed: ctx.state.completed });
     }
     case "check_fast_track_eligibility": {
       const diagnostic = diagnoseBusiness(input);

@@ -58,6 +58,18 @@ export interface DiscoverySessionState {
   conversationSalesClosed?: ConversationSaleRecord[];
   /** Set only while a conversational Flight Plan save is in progress (see PendingConversationalSave, above); cleared on completion, decline, or cancellation. */
   pendingSave?: PendingConversationalSave;
+  /**
+   * Snapshot of live founding-slot availability (see FOUNDING_CUSTOMER_LIMIT /
+   * PostgresLaunchPlanRepository.countFoundingSignups), resolved once in
+   * discovery-router.ts's /start handler and frozen for the life of the
+   * session - so a visitor's quoted setup fee never changes mid-conversation
+   * even if slots fill up while they're talking to Nova. The actual Stripe
+   * checkout re-checks the live count fresh at charge time (see
+   * create-checkout-session) so the $0 price can never be oversold past the
+   * real limit. Defaults to false (not eligible) when unset, matching this
+   * codebase's "never invent a discount" default.
+   */
+  foundingCustomerEligible?: boolean;
 }
 
 export interface DiscoveryProgress {
@@ -172,11 +184,11 @@ function completedProgress(state: DiscoverySessionState): DiscoveryProgress {
     return { state, ...(bundle ? { alaCarteResult: bundle } : {}) };
   }
   const diagnostic = diagnoseBusiness(answers);
-  return { state, diagnostic, flightPlan: buildFlightPlan(answers, diagnostic, { ...bundleField }), ...bundleField };
+  return { state, diagnostic, flightPlan: buildFlightPlan(answers, diagnostic, { foundingCustomer: Boolean(state.foundingCustomerEligible), ...bundleField }), ...bundleField };
 }
 
-export function createDiscoverySession(path: BusinessPath, continuity?: DiscoveryContinuity): DiscoverySessionState {
-  return { path, answers: { path }, completed: false, meaningfulTurns: 0, conversationHistory: [], ...(continuity ? { continuity } : {}) };
+export function createDiscoverySession(path: BusinessPath, continuity?: DiscoveryContinuity, foundingCustomerEligible?: boolean): DiscoverySessionState {
+  return { path, answers: { path }, completed: false, meaningfulTurns: 0, conversationHistory: [], ...(continuity ? { continuity } : {}), ...(foundingCustomerEligible ? { foundingCustomerEligible } : {}) };
 }
 
 export function appendConversationHistory(state: DiscoverySessionState, role: DiscoveryConversationTurn["role"], text: string): DiscoverySessionState {

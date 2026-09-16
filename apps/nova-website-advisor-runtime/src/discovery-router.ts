@@ -51,6 +51,21 @@ async function withVoice(turn: NovaConversationTurn, voiceInput: boolean, voice?
   }
 }
 
+/**
+ * Live founding-slot availability, shared by /start (which freezes the
+ * result onto the session for the life of the conversation - see
+ * DiscoverySessionState.foundingCustomerEligible) and create-checkout-session
+ * (which re-checks fresh at charge time so the $0 price can never be
+ * oversold past FOUNDING_CUSTOMER_LIMIT). Defaults to not-eligible when the
+ * repository isn't configured, matching this codebase's "never invent a
+ * discount" default.
+ */
+async function foundingSlotsAvailable(launchPlanRepository?: PostgresLaunchPlanRepository): Promise<boolean> {
+  if (!launchPlanRepository) return false;
+  const foundingCount = await launchPlanRepository.countFoundingSignups();
+  return foundingCount < FOUNDING_CUSTOMER_LIMIT;
+}
+
 function answeredCount(state: DiscoverySessionState): number {
   return Object.keys(state.answers).filter((key) => key !== "path").length;
 }
@@ -189,7 +204,8 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const visitorId = typeof body.visitorId === "string" && body.visitorId.trim() ? body.visitorId.trim() : `anonymous-${sessionId}`;
     const conversationId = typeof body.conversationId === "string" && body.conversationId.trim() ? body.conversationId.trim() : sessionId;
     const previousConversationSummary = typeof body.previousConversationSummary === "string" && body.previousConversationSummary.trim() ? body.previousConversationSummary.trim() : undefined;
-    const result = startNovaDiscovery(body.path, { visitorId, conversationId, ...(previousConversationSummary ? { previousConversationSummary } : {}) });
+    const foundingCustomerEligible = await foundingSlotsAvailable(options.launchPlanRepository);
+    const result = startNovaDiscovery(body.path, { visitorId, conversationId, ...(previousConversationSummary ? { previousConversationSummary } : {}) }, foundingCustomerEligible);
     const openingText = body.path === "startup" ? "I'm starting something." : "My business needs to grow.";
     const conversationTurn = await conversationEngine.respond(result.state, openingText, { opening: true, progressPercent: 0 });
     const state = appendConversationExchange(result.state, openingText, conversationTurn.answer);
@@ -335,8 +351,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const name = [firstName, lastName].filter(Boolean).join(" ");
     const stripe = options.stripe;
     try {
-      const foundingCount = options.launchPlanRepository ? await options.launchPlanRepository.countFoundingSignups() : FOUNDING_CUSTOMER_LIMIT;
-      const usedFoundingPrice = foundingCount < FOUNDING_CUSTOMER_LIMIT;
+      const usedFoundingPrice = await foundingSlotsAvailable(options.launchPlanRepository);
       // A real Customer (not just customer_email) is what lets Stripe Checkout
       // actually prefill the name already collected on the Save Flight Plan
       // form, instead of asking the visitor to type it again.
