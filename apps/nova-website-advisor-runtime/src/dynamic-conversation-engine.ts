@@ -1,24 +1,10 @@
 import { approvedServiceCatalog } from "./ai-employee-catalog.js";
-import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
-import { composeCrossTierBundle } from "./ascension-bundle.js";
 import type { NovaToolContext } from "./anthropic-tools.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
-import { classifyServiceTier, diagnoseBusiness } from "./diagnostic-engine.js";
-import { evaluateFastTrack } from "./fast-track.js";
+import { diagnoseBusiness } from "./diagnostic-engine.js";
 import { buildFlightPlan } from "./flight-plan.js";
 import type { DiscoveryConversationTurn, DiscoverySessionState } from "./discovery-session.js";
 import { APPROVED_EVIDENCE, OBJECTION_POLICY, completedJourney, journeyForProgress } from "./nova-sales-journey.js";
-
-const ALA_CARTE_CATALOG_SUMMARY = Object.values(ALA_CARTE_CATALOG).map((offer) => ({
-  id: offer.id,
-  name: offer.name,
-  ascensionTier: offer.ascensionTier,
-  automationTier: offer.automationTier,
-  setupFeeUsd: offer.setupFeeUsd,
-  monthlyFeeUsd: offer.monthlyFeeUsd,
-  includedFeatures: offer.includedFeatures,
-  estimatedDelivery: offer.estimatedDelivery,
-}));
 
 export interface NovaConversationTurn { answer: string; mode: "grounded_fallback" | "generated"; suggestedPrompts?: string[]; intent?: "continue" | "pause_discovery" | "human_handoff"; audio?: string; }
 export interface NovaConversationGuidance { opening?: boolean; resuming?: boolean; nextNeed?: { field: string; prompt: string }; progressPercent?: number; }
@@ -81,11 +67,8 @@ FAST TIME-TO-VALUE:
 - When enough is known, move to the recommendation instead of asking another low-value question.
 - Every preliminary recommendation must explain the included features, approved setup cost, approved monthly cost, approved estimated delivery window, and what still needs confirmation.
 
-ASCENSION LADDER:
-Moonrock's ladder runs Trust Builder (free setup, low monthly) → Ascension Add-On (small setup, one human checkpoint) → Custom Build (real human work) → Website Build → AI Employees → AI Workforce. A visitor does not have to walk it in order - meet them wherever earns trust fastest.
-- BUSINESS CONTEXT's alaCarteCatalog lists the approved Trust Builder/Ascension Add-On/Custom Build items and their exact prices; never invent an item or price outside it.
-- BUSINESS CONTEXT's activeBundle, when present, is the exact bundle already computed (line items and blended price) - present it as-is, never recompute or restate a different total.
-- BUSINESS CONTEXT's fastTrack, when present and fastTrackEligible is true, means this visitor's signals justify skipping ahead toward AI Employees or AI Workforce. Even then, open with something free before naming a premium price - frame it as getting them set up with a relevant Trust Builder item at no setup cost, not as a literal free product that does not exist in the catalog.
+CURRENT OFFER:
+Moonrock currently sells one offer: the Moonrock Launch Plan. There is no tiered ladder, add-on, bundle, or upsell beyond it right now - never describe or offer a Trust Builder, Ascension Add-On, Custom Build, Website Build, AI Employees, or AI Workforce tier, and never invent a bundle or a fast-track path to a premium tier. If a visitor asks what else Moonrock offers, tell them the Launch Plan is the current offer and more are on the way.
 
 CONTINUITY:
 Treat RECENT CONVERSATION HISTORY as the strongest conversational continuity signal. BUSINESS CONTEXT may also include a previousConversationSummary from an older visit. Never say you tracked a cookie, browser token, visitor ID, or hidden identifier. If a prior fact could have changed, confirm it instead of silently assuming it is still true.
@@ -142,19 +125,17 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     // never recomputed here.
     ascensionScore: state.ascensionScore, ascensionBand: state.ascensionBand,
     currentTier: state.currentTier, lastOfferedTier: state.lastOfferedTier,
-    alaCarteCatalog: ALA_CARTE_CATALOG_SUMMARY,
   };
 
-  const tier = state.tier ?? classifyServiceTier(answers as DiagnosticInput).tier;
-  const bundle = composeCrossTierBundle(tier, answers as DiagnosticInput, answers.alaCarteItemsRequested ?? []);
-  if (bundle) context.activeBundle = bundle;
-
+  // Ascension-funnel-v2: alaCarteCatalog/activeBundle/fastTrack are paused
+  // along with the rest of the old multi-tier catalog (see approvedServiceCatalog
+  // in ai-employee-catalog.ts) - every visitor already lands on the one active
+  // offer, so there is nothing left to bundle or fast-track toward. Recoverable
+  // via git history once more ascension-funnel products ship.
   const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
-  const fastTrack = evaluateFastTrack(answers as DiagnosticInput, diagnostic.bottlenecks);
-  if (fastTrack.fastTrackEligible) context.fastTrack = fastTrack;
 
   if (state.completed) {
-    const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic, { ...(bundle ? { bundle } : {}) });
+    const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
     context.flightPlan = flightPlan;
     context.flightPlanConfidence = flightPlan.status;
     context.salesJourney = completedJourney(flightPlan);
@@ -164,13 +145,17 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
 
 /**
  * Non-commercial grounding context for the Claude tool-calling path.
- * Deliberately omits activeBundle/flightPlan/flightPlanConfidence/fastTrack/
- * alaCarteCatalog/approvedServiceCatalog/salesJourney (salesJourney embeds
- * flightPlan's offerName/setupFeeUsd/monthlyFeeUsd - see nova-sales-journey.ts's
- * completedJourney) - those are now live tool calls (get_catalog,
- * build_flight_plan, check_fast_track_eligibility, compose_bundle,
- * get_ascension_state), so leaving them in context would let Claude quote a
- * price with no traceable tool_result, defeating the guardrail architecture.
+ * Deliberately omits flightPlan/flightPlanConfidence/approvedServiceCatalog/
+ * salesJourney (salesJourney embeds flightPlan's offerName/setupFeeUsd/
+ * monthlyFeeUsd - see nova-sales-journey.ts's completedJourney) - those are
+ * now live tool calls (get_catalog, build_flight_plan), so leaving them in
+ * context would let Claude quote a price with no traceable tool_result,
+ * defeating the guardrail architecture. (activeBundle/fastTrack/alaCarteCatalog
+ * no longer appear in contextForState's output at all - see the ascension-
+ * funnel-v2 comment there - but the tool-calling path's own get_ascension_state/
+ * check_fast_track_eligibility/compose_bundle/get_tier0_catalog tools still
+ * expose the paused catalog and haven't been updated to match; flagged as a
+ * follow-up since that path isn't live in production.)
  * Implemented in terms of contextForState so there is one place that decides
  * what counts as "commercial" data: if a new commercial field is ever added
  * there, it must be explicitly stripped here too or it leaks unverified into
@@ -178,7 +163,7 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
  */
 function contextForToolCallingState(state: DiscoverySessionState, progressPercent = 0): Record<string, unknown> {
   const full = contextForState(state, progressPercent);
-  const { activeBundle, flightPlan, flightPlanConfidence, fastTrack, alaCarteCatalog, approvedServiceCatalog, salesJourney, ...safe } = full as Record<string, unknown>;
+  const { flightPlan, flightPlanConfidence, approvedServiceCatalog, salesJourney, ...safe } = full as Record<string, unknown>;
   return safe;
 }
 

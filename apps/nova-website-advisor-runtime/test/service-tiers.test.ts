@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
-import { ALA_CARTE_CATALOG } from "../src/ala-carte-catalog.js";
+import { approvedServiceCatalog, GHL_SAAS_CATALOG, WEBSITE_BUILD_CATALOG } from "../src/ai-employee-catalog.js";
 import { chooseGhlSaasOfferWithinBudget, chooseOfferWithinBudget, chooseWebsiteBuildOfferWithinBudget, classifyServiceTier, diagnoseBusiness, diagnoseGhlSaas, diagnoseWebsiteBuild, extractStatedMonthlyBudgetUsd, extractStatedSetupBudgetUsd, type DiagnosticInput } from "../src/diagnostic-engine.js";
 import { normalizeDiscoveryAnswer } from "../src/conversation-normalizer.js";
 import { buildWebsiteBrief, toWebsiteBuildRequest } from "../src/website-build.js";
@@ -314,12 +313,12 @@ describe("normalizeDiscoveryAnswer for new service-tier fields", () => {
 });
 
 describe("approvedServiceCatalog", () => {
-  it("includes every AI Employee, Website Build, and GHL SaaS offer by real name", () => {
+  // Ascension funnel v2: every catalog except moonrock_launch_plan is paused
+  // (see the comment on approvedServiceCatalog in ai-employee-catalog.ts) -
+  // Nova should only ever cite the one offer actually being sold.
+  it("includes only the Moonrock Launch Plan now that the rest of the catalog is paused", () => {
     const names = approvedServiceCatalog().map((service) => service.name);
-    expect(names).toContain("Moonrock AI Front Office");
-    expect(names).toContain("Growth Site");
-    expect(names).toContain("SaaS Starter");
-    expect(names.length).toBe(Object.keys(AI_EMPLOYEE_CATALOG).length + Object.keys(WEBSITE_BUILD_CATALOG).length + Object.keys(GHL_SAAS_CATALOG).length + Object.keys(ALA_CARTE_CATALOG).length);
+    expect(names).toEqual(["Moonrock Launch Plan"]);
   });
 
   it("never includes a hallucination-prone third-party platform name that isn't an actual offer", () => {
