@@ -72,7 +72,7 @@ function wireCard(card: HTMLElement): void {
     const bar = ensureReopenBar(card); card.hidden = true; bar.hidden = false; setStatus("Flight Plan save form minimized. Nova is still available.");
   });
   card.querySelector<HTMLButtonElement>("[data-save-card-close]")?.addEventListener("click", () => {
-    card.parentElement?.querySelector("[data-save-card-reopen]")?.remove(); card.remove(); setStatus("Save form closed. Your Nova conversation remains open.");
+    const bar = ensureReopenBar(card); card.hidden = true; bar.hidden = false; setStatus("Save form closed. Your Nova conversation remains open — you can reopen the save form anytime.");
   });
   card.querySelector<HTMLFormElement>("[data-flight-plan-save-form]")?.addEventListener("submit", (event) => void submitSave(event, card));
 }
