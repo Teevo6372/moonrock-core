@@ -1,4 +1,4 @@
-import { approvedServiceCatalog } from "./ai-employee-catalog.js";
+import { AI_EMPLOYEE_CATALOG, approvedServiceCatalog } from "./ai-employee-catalog.js";
 import type { NovaToolContext } from "./anthropic-tools.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 import { diagnoseBusiness } from "./diagnostic-engine.js";
@@ -69,6 +69,7 @@ FAST TIME-TO-VALUE:
 
 CURRENT OFFER:
 Moonrock currently sells one offer: the Moonrock Launch Plan. There is no tiered ladder, add-on, bundle, or upsell beyond it right now - never describe or offer a Trust Builder, Ascension Add-On, Custom Build, Website Build, AI Employees, or AI Workforce tier, and never invent a bundle or a fast-track path to a premium tier. If a visitor asks what else Moonrock offers, tell them the Launch Plan is the current offer and more are on the way.
+- BUSINESS CONTEXT's foundingOffer tells you whether the $0 founding-customer setup fee is currently available (eligible: true) or the standard setup fee applies (eligible: false) - always check it before answering any question about setup cost, and never guess or assume either way.
 
 CONTINUITY:
 Treat RECENT CONVERSATION HISTORY as the strongest conversational continuity signal. BUSINESS CONTEXT may also include a previousConversationSummary from an older visit. Never say you tracked a cookie, browser token, visitor ID, or hidden identifier. If a prior fact could have changed, confirm it instead of silently assuming it is still true.
@@ -125,6 +126,17 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
     // never recomputed here.
     ascensionScore: state.ascensionScore, ascensionBand: state.ascensionBand,
     currentTier: state.currentTier, lastOfferedTier: state.lastOfferedTier,
+    // Always present (not gated on state.completed) so Nova can answer a
+    // direct "is the $0 founding offer still available" question at any
+    // point in discovery, not only once a Flight Plan exists. Sourced from
+    // the same frozen-at-session-start snapshot buildFlightPlan below uses
+    // (see DiscoverySessionState.foundingCustomerEligible), so this and the
+    // Flight Plan's own setupFeeUsd can never disagree with each other.
+    foundingOffer: {
+      eligible: Boolean(state.foundingCustomerEligible),
+      foundingSetupFeeUsd: AI_EMPLOYEE_CATALOG.moonrock_launch_plan.foundingCustomerSetupFeeUsd ?? AI_EMPLOYEE_CATALOG.moonrock_launch_plan.setupFeeUsd,
+      standardSetupFeeUsd: AI_EMPLOYEE_CATALOG.moonrock_launch_plan.setupFeeUsd,
+    },
   };
 
   // Ascension-funnel-v2: alaCarteCatalog/activeBundle/fastTrack are paused
@@ -135,7 +147,7 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
   const diagnostic = diagnoseBusiness(answers as DiagnosticInput);
 
   if (state.completed) {
-    const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic);
+    const flightPlan = buildFlightPlan(answers as DiagnosticInput, diagnostic, { foundingCustomer: Boolean(state.foundingCustomerEligible) });
     context.flightPlan = flightPlan;
     context.flightPlanConfidence = flightPlan.status;
     context.salesJourney = completedJourney(flightPlan);
@@ -146,8 +158,9 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
 /**
  * Non-commercial grounding context for the Claude tool-calling path.
  * Deliberately omits flightPlan/flightPlanConfidence/approvedServiceCatalog/
- * salesJourney (salesJourney embeds flightPlan's offerName/setupFeeUsd/
- * monthlyFeeUsd - see nova-sales-journey.ts's completedJourney) - those are
+ * salesJourney/foundingOffer (salesJourney embeds flightPlan's offerName/
+ * setupFeeUsd/monthlyFeeUsd - see nova-sales-journey.ts's completedJourney;
+ * foundingOffer carries its own raw setup-fee dollar amounts) - those are
  * now live tool calls (get_catalog, build_flight_plan), so leaving them in
  * context would let Claude quote a price with no traceable tool_result,
  * defeating the guardrail architecture. (activeBundle/fastTrack/alaCarteCatalog
@@ -163,7 +176,7 @@ function contextForState(state: DiscoverySessionState, progressPercent = 0): Rec
  */
 function contextForToolCallingState(state: DiscoverySessionState, progressPercent = 0): Record<string, unknown> {
   const full = contextForState(state, progressPercent);
-  const { flightPlan, flightPlanConfidence, approvedServiceCatalog, salesJourney, ...safe } = full as Record<string, unknown>;
+  const { flightPlan, flightPlanConfidence, approvedServiceCatalog, salesJourney, foundingOffer, ...safe } = full as Record<string, unknown>;
   return safe;
 }
 
@@ -182,7 +195,7 @@ function completedPlanFallback(state: DiscoverySessionState, question: string): 
   if (!state.completed) return undefined;
   const answers = state.answers as DiagnosticInput;
   const diagnostic = diagnoseBusiness(answers);
-  const plan = buildFlightPlan(answers, diagnostic);
+  const plan = buildFlightPlan(answers, diagnostic, { foundingCustomer: Boolean(state.foundingCustomerEligible) });
   const q = question.toLowerCase();
   const business = answers.businessName ? ` for ${answers.businessName}` : "";
   if (/price|cost|month|setup|fee|what would this cost/.test(q)) {
@@ -202,7 +215,7 @@ function groundedFallback(state: DiscoverySessionState, question: string, guidan
   if (state.completed) {
     const answersForPlan = answers as DiagnosticInput;
     const diagnostic = diagnoseBusiness(answersForPlan);
-    const plan = buildFlightPlan(answersForPlan, diagnostic);
+    const plan = buildFlightPlan(answersForPlan, diagnostic, { foundingCustomer: Boolean(state.foundingCustomerEligible) });
     return { mode: "grounded_fallback", intent: "pause_discovery", answer: `I've still got your Flight Plan on ${plan.recommendation.offerName} ready. Tell me what you'd like adjusted or ask me anything about it - when you're ready to move forward, use the Save Flight Plan form on the page to lock it in.` };
   }
   if (guidance?.resuming) {
