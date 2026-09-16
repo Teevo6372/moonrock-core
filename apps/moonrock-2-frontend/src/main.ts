@@ -29,6 +29,8 @@ app.innerHTML = `
             <li>Completely on your schedule — she works around you, not the other way around</li>
           </ul>
         </div>
+      </div>
+      <div class="hero-cta">
         <div class="paths" role="group" aria-label="Start chatting with Nova">
           <button data-path="existing_business" class="cta-primary">Chat with Nova — takes 60 seconds</button>
         </div>
