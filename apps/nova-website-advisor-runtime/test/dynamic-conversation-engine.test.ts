@@ -96,15 +96,17 @@ describe("ascension funnel grounding in businessContext", () => {
     return generate.mock.calls[0]![0].businessContext;
   }
 
-  it("always grounds the LLM on the approved a-la-carte catalog", async () => {
+  // Ascension funnel v2: the a-la-carte catalog is paused along with the rest
+  // of the old multi-tier catalog (see approvedServiceCatalog in
+  // ai-employee-catalog.ts) - it no longer flows into businessContext at all.
+  it("never grounds the LLM on the a-la-carte catalog now that it is paused", async () => {
     const context = await contextFromRespond(completedState());
-    expect(Array.isArray(context.alaCarteCatalog)).toBe(true);
-    expect((context.alaCarteCatalog as Array<{ name: string }>).some((item) => item.name === "CRM & Pipeline Management")).toBe(true);
+    expect(context.alaCarteCatalog).toBeUndefined();
   });
 
   it("never leaks the internal GHL-native-component note into the LLM prompt context", async () => {
     const context = await contextFromRespond(completedState());
-    const serialized = JSON.stringify(context.alaCarteCatalog);
+    const serialized = JSON.stringify(context);
     expect(serialized).not.toContain("GHL");
     expect(serialized).not.toContain("ghlNativeComponentNote");
   });
@@ -127,19 +129,22 @@ describe("ascension funnel grounding in businessContext", () => {
     expect(withSignal.activeBundle).toBeUndefined();
   });
 
-  it("includes fastTrack only when the visitor's signals are actually eligible", async () => {
+  // Ascension funnel v2: fastTrack (a path toward AI Employees/AI Workforce)
+  // is paused along with the rest of the old multi-tier catalog - every
+  // visitor already lands on the one active offer, so it never appears now,
+  // even when the underlying signals that used to trigger it are present.
+  it("never includes fastTrack now that the ascension ladder is paused", async () => {
     const plainState: DiscoverySessionState = { path: "existing_business", completed: false, answers: { path: "existing_business", missedCallsPerMonth: 3 } };
     const notEligible = await contextFromRespond(plainState);
     expect(notEligible.fastTrack).toBeUndefined();
 
-    const eligibleState: DiscoverySessionState = {
+    const eligibleSignalsState: DiscoverySessionState = {
       path: "existing_business",
       completed: false,
       answers: { path: "existing_business", businessChallenges: "We operate across 5 locations." },
     };
-    const eligible = await contextFromRespond(eligibleState);
-    expect(eligible.fastTrack).toBeDefined();
-    expect((eligible.fastTrack as { fastTrackEligible: boolean }).fastTrackEligible).toBe(true);
+    const stillNotEligible = await contextFromRespond(eligibleSignalsState);
+    expect(stillNotEligible.fastTrack).toBeUndefined();
   });
 
   it("keeps the grounded fallback price-accurate", async () => {
@@ -159,7 +164,7 @@ describe("tool-calling path (usesToolCalling) vs. context-stuffing path (Groq)",
     expect(call.system).not.toContain("TOOL-CALLING RULE");
     expect(call.volatileSystemSuffix).toBeUndefined();
     expect(call.businessContext.flightPlan).toBeDefined();
-    expect(call.businessContext.alaCarteCatalog).toBeDefined();
+    expect(call.businessContext.approvedServiceCatalog).toBeDefined();
   });
 
   it("a generator marked usesToolCalling receives the addendum, a stripped context, and toolContext, with turn guidance carried separately for caching", async () => {

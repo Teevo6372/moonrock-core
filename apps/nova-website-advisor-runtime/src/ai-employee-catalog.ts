@@ -1,5 +1,3 @@
-import { ALA_CARTE_CATALOG } from "./ala-carte-catalog.js";
-
 export type AiEmployeeId =
   | "moonrock_launch_plan"
   | "reputation_retention"
@@ -313,16 +311,19 @@ export interface ApprovedServiceSummary {
 }
 
 /**
- * Every currently sellable service across all tiers, name + one-line
- * description only. Fed to the conversation LLM as grounding so it never has
- * to (and must never) invent a product, platform, or capability Moonrock
- * does not actually offer when asked what else Moonrock can help with.
+ * Every currently sellable service, name + one-line description only. Fed to
+ * the conversation LLM as grounding so it never has to (and must never)
+ * invent a product, platform, or capability Moonrock does not actually offer
+ * when asked what else Moonrock can help with.
+ *
+ * Ascension-funnel-v2: WEBSITE_BUILD_CATALOG, GHL_SAAS_CATALOG,
+ * ALA_CARTE_CATALOG, and every AI_EMPLOYEE_CATALOG entry except
+ * moonrock_launch_plan are paused (see the comment on AI_EMPLOYEE_CATALOG
+ * above) - restricted to the one offer actually being sold so Nova stops
+ * citing paused catalogs as if they were live. Recoverable via git history
+ * once more ascension-funnel products ship.
  */
 export function approvedServiceCatalog(): ApprovedServiceSummary[] {
-  return [
-    ...Object.values(AI_EMPLOYEE_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
-    ...Object.values(WEBSITE_BUILD_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.scopeDescription })),
-    ...Object.values(GHL_SAAS_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
-    ...Object.values(ALA_CARTE_CATALOG).map((offer) => ({ name: offer.name, oneLiner: offer.includedFeatures[0] ?? offer.name })),
-  ];
+  const launchPlan = AI_EMPLOYEE_CATALOG.moonrock_launch_plan;
+  return [{ name: launchPlan.name, oneLiner: launchPlan.includedFeatures[0] ?? launchPlan.name }];
 }
