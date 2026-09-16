@@ -15,6 +15,7 @@ import { runMigrations } from "./migrations.js";
 import { PostgresAccountRepository } from "./postgres-account-repository.js";
 import { PostgresDiscoveryStateRepository } from "./postgres-discovery-state.js";
 import { PostgresDurableStateRepository } from "./postgres-durable-state.js";
+import { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
 
 const port = Number(process.env.PORT ?? process.env.NOVA_LOCAL_PORT ?? "8787");
 const hostname = process.env.NOVA_BIND_HOST ?? (process.env.RAILWAY_ENVIRONMENT ? "0.0.0.0" : "127.0.0.1");
@@ -24,12 +25,14 @@ async function start(): Promise<void> {
   let repository: PostgresDurableStateRepository | undefined;
   let pool: Pool | undefined;
   let accountRepository: PostgresAccountRepository | undefined;
+  let launchPlanRepository: PostgresLaunchPlanRepository | undefined;
   if (databaseUrl) {
     pool = new Pool({ connectionString: databaseUrl, max: boundedInteger(process.env.NOVA_DATABASE_POOL_MAX, 4, 1, 10), ssl: process.env.NOVA_DATABASE_SSL_MODE === "require" ? { rejectUnauthorized: true } : undefined });
     if (process.env.NOVA_RUN_MIGRATIONS !== "true") { await pool.end(); throw new Error("DATABASE_URL requires NOVA_RUN_MIGRATIONS=true until the schema is verified"); }
     await runMigrations(pool, resolve(process.cwd(), process.env.NOVA_MIGRATIONS_DIRECTORY ?? "migrations"));
     repository = new PostgresDurableStateRepository(pool);
     accountRepository = new PostgresAccountRepository(pool);
+    launchPlanRepository = new PostgresLaunchPlanRepository(pool);
     await repository.verifyConnection();
     process.stdout.write("Nova PostgreSQL adapters verified\n");
   }
@@ -116,6 +119,7 @@ async function start(): Promise<void> {
     ...(voiceSynthesizer ? { voiceSynthesizer } : {}),
     ...(accountRepository ? { accountRepository } : {}),
     ...(sessionSecret ? { sessionSecret } : {}),
+    ...(launchPlanRepository ? { launchPlanRepository } : {}),
   });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");

@@ -9,8 +9,10 @@ import type { VoiceSynthesizer } from "../elevenlabs-voice.js";
 import type { OptInGhlConfig } from "../ghl-opt-in.js";
 import type { ProductionGhlHandoffConfig } from "../ghl-production-handoff.js";
 import { loadGhlRuntimeConfig } from "../ghl-runtime-config.js";
+import { createLaunchPlanRouter } from "../launch-plan-router.js";
 import { createOptInRouter } from "../opt-in-router.js";
 import type { PostgresAccountRepository } from "../postgres-account-repository.js";
+import type { PostgresLaunchPlanRepository } from "../postgres-launch-plan-repository.js";
 import { createApp, type AppOptions } from "./app.js";
 
 export interface Moonrock2AppOptions extends AppOptions {
@@ -26,6 +28,9 @@ export interface Moonrock2AppOptions extends AppOptions {
   // throwing at startup, matching how optInGhl already degrades.
   accountRepository?: PostgresAccountRepository;
   sessionSecret?: string;
+  // Same degrade-gracefully pattern - GET /v1/launch-plan/status reports 503
+  // without a real Postgres Pool rather than throwing at startup.
+  launchPlanRepository?: PostgresLaunchPlanRepository;
 }
 
 function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | undefined {
@@ -77,6 +82,7 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     voiceSynthesizer,
     accountRepository,
     sessionSecret,
+    launchPlanRepository,
     ...appOptions
   } = options;
   const llmConnected = Boolean(conversationEngine);
@@ -109,6 +115,9 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   base.app.route("/v1/auth", createAuthRouter({
     ...(accountRepository ? { accountRepository } : {}),
     ...(sessionSecret ? { sessionSecret } : {}),
+  }));
+  base.app.route("/v1/launch-plan", createLaunchPlanRouter({
+    ...(launchPlanRepository ? { launchPlanRepository } : {}),
   }));
   return base;
 }
