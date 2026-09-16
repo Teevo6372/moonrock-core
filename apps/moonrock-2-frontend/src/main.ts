@@ -1,6 +1,6 @@
 import "./styles.css";
 import "./site-nav.js";
-import { answerDiscovery, startDiscovery } from "./api.js";
+import { answerDiscovery, getLaunchPlanStatus, startDiscovery } from "./api.js";
 import { consumeVoiceInputFlag } from "./voice-chat-experience.js";
 import { createNovaVisualStage } from "./visual-stage.js";
 import type { BusinessPath, DiscoveryQuestion, DiscoveryResponse, GhlSaasResult, WebsiteBuildResult } from "./types.js";
@@ -11,16 +11,94 @@ if (!app) throw new Error("Moonrock frontend root not found");
 app.innerHTML = `
   <main class="shell">
     <section class="hero">
-      <div class="hero-copy">
-        <h1>Stop guessing what's broken in your business&hellip; Nova finds it in 60 seconds.</h1>
-        <p class="lede">Tell Nova what's going on with your business. She'll ask a few sharp questions and hand you a practical Flight Plan built around real opportunities — no pitch, no obligation.</p>
-        <div class="paths" role="group" aria-label="Choose your business path">
-          <button data-path="startup">I'm starting something</button>
-          <button data-path="existing_business">My business needs to grow</button>
-        </div>
-        <p id="status" class="status" aria-live="polite"></p>
+      <h1>Never Miss Another Job Again.</h1>
+      <p class="lede">Time is money. You don't have hours to sit in front of a computer building a website or connecting all your business tools — so we built someone who does it for you.</p>
+      <div class="nova-intro">
+        <p class="nova-intro-lead">Meet <strong>Nova</strong> — your Moonrock Growth Advisor.</p>
+        <p>Spend just <strong>60 seconds</strong> chatting with Nova. She'll ask a few quick questions, figure out exactly what's holding your business back, and build you a custom <strong>Flight Plan</strong> — your website, your tools, all of it, mapped out for you.</p>
+        <ul class="nova-intro-points">
+          <li>Available 24/7 — no waiting for office hours</li>
+          <li>Remembers your past conversations — no repeating yourself</li>
+          <li>Text her or talk to her hands-free — whatever's easiest while you're on the job</li>
+          <li>Completely on your schedule — she works around you, not the other way around</li>
+        </ul>
+      </div>
+      <div class="paths" role="group" aria-label="Start chatting with Nova">
+        <button data-path="existing_business" class="cta-primary">Chat with Nova — takes 60 seconds</button>
+      </div>
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="hook-section" aria-labelledby="hook-title">
+      <h2 id="hook-title">Where's your business actually losing money?</h2>
+      <p class="lede">Most businesses are bleeding customers in one of two places — and don't even know it. Tell Nova what's going on, or see which one sounds like you:</p>
+      <div class="hook-grid">
+        <a class="hook-card" href="#case-study-calls">
+          <h3>"I miss calls I can't get to"</h3>
+          <p>If your phone rings while you're mid-job, that caller doesn't wait. They hang up and call the next guy.</p>
+          <span class="hook-card-link">See what that's really costing you &darr;</span>
+        </a>
+        <a class="hook-card" href="#case-study-website">
+          <h3>"My website's outdated (or I don't have one)"</h3>
+          <p>If your site looks old, loads slow, or doesn't exist — people notice before they ever pick up the phone.</p>
+          <span class="hook-card-link">See what that's really costing you &darr;</span>
+        </a>
       </div>
     </section>
+
+    <section class="case-study" id="case-study-calls" aria-labelledby="case-study-calls-title">
+      <div class="result-kicker">CASE STUDY: MISSED CALLS</div>
+      <h2 id="case-study-calls-title">The Call You Never Even Knew You Lost</h2>
+      <p class="lede">Right now, if your phone rings and you can't answer it — because you're under a sink, on a roof, or with another customer — that caller doesn't wait. They hang up and call the next guy.</p>
+      <ul class="case-study-stats">
+        <li>Small businesses miss <strong>6 out of every 10 calls</strong></li>
+        <li><strong>85% of callers</strong> who reach voicemail never call back — they just call someone else</li>
+        <li>After-hours emergencies make up <strong>31%</strong> of contractor calls, and the average callback delay is <strong>4.2 hours</strong> — by then, <strong>67%</strong> of those callers have already booked with a competitor</li>
+        <li>Most contractors lose <strong>$800–$1,500 a month</strong> in jobs they never even knew they lost</li>
+      </ul>
+      <div class="case-study-example">
+        <strong>Real example:</strong> A plumber gets 15 calls a day and misses about 4 of them while on job sites. At just 2 missed calls a day and a $500 average job, that's <strong>$365,000 a year</strong> walking out the door — even at a modest 15% conversion rate, that's still <strong>$54,750</strong> in lost business, every year, from calls that just never got answered.
+      </div>
+    </section>
+
+    <section class="case-study" id="case-study-website" aria-labelledby="case-study-website-title">
+      <div class="result-kicker">CASE STUDY: OUTDATED / MISSING WEBSITE</div>
+      <h2 id="case-study-website-title">The Customer You Lost Before the Phone Even Rang</h2>
+      <p class="lede">People decide whether they trust your business in the time it takes to blink — about 50 milliseconds after your website loads. That snap judgment decides whether they call you or the next name on the list.</p>
+      <ul class="case-study-stats">
+        <li>Businesses with a website are seen as <strong>41% more trustworthy</strong> than ones without</li>
+        <li><strong>75% of people</strong> judge how legit your business is based on your website alone</li>
+        <li><strong>92% of people don't trust</strong> a website that looks outdated or thrown together</li>
+        <li><strong>88% of visitors won't come back</strong> after one bad experience on your site</li>
+        <li>Businesses <strong>with</strong> a good website earn <strong>39% more revenue</strong> than ones without</li>
+      </ul>
+      <div class="case-study-example">
+        <strong>Real example:</strong> A homeowner finds your business on Google, taps your website — it's slow, the phone number's wrong, or there isn't a website at all. In under a second, they've decided you're not worth the risk. They hit back and call the next contractor. You never even know that customer existed.
+      </div>
+    </section>
+
+    <section class="offer-section" id="offer" aria-labelledby="offer-title">
+      <div class="result-kicker">THE OFFER: MOONROCK LAUNCH PLAN</div>
+      <h2 id="offer-title">Nova Fixes Both — This Is What She Builds You</h2>
+      <p class="lede">Every business that chats with Nova gets a custom Flight Plan built around their actual bottleneck. The starting point for most businesses is the Moonrock Launch Plan:</p>
+      <ul class="offer-features">
+        <li>Automatic missed-call text-back — the customer hears from you in seconds, not hours</li>
+        <li>Answers common questions for you — hours, pricing, availability — no more texting back and forth all day</li>
+        <li>Automatic review requests — more 5-star reviews without lifting a finger</li>
+        <li>A real website that actually gets you customers — brand new, or we upgrade what you've got so it turns visitors into calls and bookings, not just a page that sits there looking pretty</li>
+        <li>All your leads and bookings in one simple screen — no more sticky notes or missed messages</li>
+      </ul>
+      <div class="price-row">
+        <strong id="launch-plan-setup-price">$0 to set up</strong>
+        <span>Just $97/month — or pay for the year and get 2 months free</span>
+      </div>
+      <p class="scarcity-banner" id="launch-plan-scarcity">We're only taking 10 businesses for this founding offer. After that, setup goes back to $499.</p>
+      <h3 class="offer-final-cta">If you're serious about not losing another job — or another customer — now's the time.</h3>
+      <div class="paths" role="group" aria-label="Start chatting with Nova">
+        <button data-path="existing_business" class="cta-primary">Chat with Nova — takes 60 seconds</button>
+      </div>
+    </section>
+
     <section id="nova-panel" class="nova-panel" hidden>
       <p id="nova-eyebrow" class="eyebrow"></p>
       <div class="nova-dialogue" aria-live="polite">
@@ -32,6 +110,11 @@ app.innerHTML = `
       <div id="nova-controls" class="nova-controls"></div>
       <div id="nova-result" class="nova-result" hidden></div>
     </section>
+
+    <footer class="sources-footnote">
+      <p>Missed-call statistics: <a href="https://www.phone2.io/post/true-cost-of-missed-calls" target="_blank" rel="noopener noreferrer">Phone2</a>, <a href="https://www.callbirdai.com/blog-contractors-lose-money-missed-calls" target="_blank" rel="noopener noreferrer">CallBird AI</a>, <a href="https://skipcalls.com/blog/percentage-business-calls-unanswered-statistics-2026" target="_blank" rel="noopener noreferrer">SkipCalls</a>, <a href="https://pushleads.com/how-to-stop-missing-calls-as-a-contractor-before-that-38-revenue-drain-kills-you/" target="_blank" rel="noopener noreferrer">PushLeads</a>.</p>
+      <p>Website trust statistics: <a href="https://www.dreamhost.com/blog/dreamhost-2026-local-business-trust-index/" target="_blank" rel="noopener noreferrer">DreamHost</a>, <a href="https://itguysteam.com/website-user-behavior-stats-for-businesses-in-2026/" target="_blank" rel="noopener noreferrer">IT Guys Team</a>, <a href="https://rudys.ai/small-business-website-statistics/" target="_blank" rel="noopener noreferrer">Rudy's</a>, <a href="https://www.businessdasher.com/research/statistics-about-website/" target="_blank" rel="noopener noreferrer">Business Dasher</a>.</p>
+    </footer>
   </main>
 `;
 
@@ -423,3 +506,23 @@ function escapeHtml(value: string): string {
 document.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => {
   button.addEventListener("click", () => void begin(button.dataset.path as BusinessPath));
 });
+
+/** Static copy in the markup already matches the founding offer's usual state - this only overwrites it once the real count is known, and leaves it alone entirely if the endpoint isn't configured in this environment yet. */
+async function loadLaunchPlanStatus(): Promise<void> {
+  const scarcity = document.querySelector<HTMLElement>("#launch-plan-scarcity");
+  const setupPrice = document.querySelector<HTMLElement>("#launch-plan-setup-price");
+  if (!scarcity || !setupPrice) return;
+  try {
+    const launchPlanStatus = await getLaunchPlanStatus();
+    if (launchPlanStatus.remainingFoundingSlots > 0) {
+      setupPrice.textContent = `$${launchPlanStatus.foundingSetupFeeUsd} to set up`;
+      scarcity.textContent = `We're only taking ${launchPlanStatus.remainingFoundingSlots} more business${launchPlanStatus.remainingFoundingSlots === 1 ? "" : "es"} for this founding offer. After that, setup goes back to $${launchPlanStatus.standardSetupFeeUsd}.`;
+    } else {
+      setupPrice.textContent = `$${launchPlanStatus.standardSetupFeeUsd} to set up`;
+      scarcity.textContent = `The founding-offer spots are full for now — setup is $${launchPlanStatus.standardSetupFeeUsd} for new businesses.`;
+    }
+  } catch {
+    // Launch-plan tracking isn't configured in this environment - keep the static founding-offer copy already in the markup.
+  }
+}
+void loadLaunchPlanStatus();

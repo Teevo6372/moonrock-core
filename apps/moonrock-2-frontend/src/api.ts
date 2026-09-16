@@ -153,6 +153,18 @@ export function completeHumanHandoff(identity: ContactIdentity, requestText: str
   return post<HumanHandoffResponse>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/handoff`, { identity, requestText, visitorId: getOrCreateVisitorId() });
 }
 
+export interface LaunchPlanStatus {
+  remainingFoundingSlots: number;
+  foundingSetupFeeUsd: number;
+  standardSetupFeeUsd: number;
+  monthlyFeeUsd: number;
+}
+
+/** Not gated on an active discovery session - the homepage offer section calls this before Nova has even started. Callers should degrade gracefully (e.g. static copy) since this reports 503 wherever launch-plan tracking isn't configured. */
+export function getLaunchPlanStatus(): Promise<LaunchPlanStatus> {
+  return get<LaunchPlanStatus>("/v1/launch-plan/status");
+}
+
 export interface OptInSubmission {
   phone: string;
   optedIn: boolean;
