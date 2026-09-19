@@ -131,7 +131,7 @@ function installResumePrompt(): void {
   const status = active.lastResponse.completed ? "I still have the Flight Plan we built" : "I saved where we left off";
   card.innerHTML = `<strong>Welcome back.</strong><span>${status}${subject}. Want to pick it back up?</span><div><button type="button" data-resume-nova>Continue with Nova</button><button type="button" data-start-fresh>Start fresh</button></div>`;
   paths.insertAdjacentElement("beforebegin", card);
-  card.querySelector<HTMLButtonElement>("[data-resume-nova]")?.addEventListener("click", () => { requestResume(); card.remove(); document.querySelector<HTMLButtonElement>(`[data-path="${active.path}"]`)?.click(); });
+  card.querySelector<HTMLButtonElement>("[data-resume-nova]")?.addEventListener("click", () => { requestResume(); card.remove(); window.location.href = "/nova.html"; });
   card.querySelector<HTMLButtonElement>("[data-start-fresh]")?.addEventListener("click", () => { archiveActiveConversation(); window.dispatchEvent(new CustomEvent("nova:continuity-start-fresh")); card.remove(); });
 }
 

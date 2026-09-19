@@ -10,7 +10,7 @@
   padding-top: clamp(56px, 8vw, 72px);
 }
 .hero-copy { grid-area: copy; position: relative; z-index: 3; display: grid; gap: 18px; }
-.hero-cta { grid-area: cta; position: relative; z-index: 3; display: grid; gap: 14px; justify-items: start; }
+.hero-cta { grid-area: cta; position: relative; z-index: 3; display: grid; gap: 14px; justify-items: center; }
 
 .nova-visual-stage {
   grid-area: nova;

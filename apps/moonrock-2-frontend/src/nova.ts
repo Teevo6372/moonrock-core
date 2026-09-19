@@ -9,15 +9,11 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Moonrock frontend root not found");
 
 app.innerHTML = `
-  <main class="shell">
+  <main class="shell nova-page-shell">
     <section class="hero nova-page-hero">
-      <a class="brand-mark" href="/" aria-label="Moonrock Marketing home">
-        <img src="/moonrock-logo-badge.png" alt="Moonrock Marketing" width="46" height="46">
-        <span>MOONROCK<br><small>Marketing</small></span>
-      </a>
-      <div class="hero-copy nova-page-intro">
+      <div class="hero-copy">
         <span class="hero-eyebrow">Your Moonrock Growth Advisor</span>
-        <h1>Meet <span class="pop">Nova.</span></h1>
+        <h1 class="hero-copy-h1">Meet <span class="pop">Nova.</span></h1>
         <p class="lede">Tell me what's going on in the business. I'll ask a few questions and build you a custom <strong>Flight Plan</strong> — no forms, no phone tag.</p>
       </div>
       <div class="hero-cta">
