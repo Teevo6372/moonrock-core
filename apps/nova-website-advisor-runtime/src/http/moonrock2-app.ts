@@ -13,6 +13,7 @@ import { loadGhlRuntimeConfig } from "../ghl-runtime-config.js";
 import { createLaunchPlanRouter } from "../launch-plan-router.js";
 import { createOptInRouter } from "../opt-in-router.js";
 import type { PostgresAccountRepository } from "../postgres-account-repository.js";
+import type { PostgresClientRepository } from "../postgres-client-repository.js";
 import type { PostgresLaunchPlanRepository } from "../postgres-launch-plan-repository.js";
 import { createStripeWebhookRouter } from "../stripe-webhook-router.js";
 import { createApp, type AppOptions } from "./app.js";
@@ -39,6 +40,12 @@ export interface Moonrock2AppOptions extends AppOptions {
   // a real Clerk secret key rather than throwing at startup. See
   // clerk-auth-middleware.ts for why this is a bearer token, not a cookie.
   clerkSecretKey?: string;
+  // Client records and Stripe event dedup (Stage 3). When absent the webhook
+  // still runs but skips client creation and idempotency tracking.
+  clientRepository?: PostgresClientRepository;
+  // URL clients land on after accepting the Clerk invite. Required for Clerk
+  // invitations to be sent; webhook silently skips that step when absent.
+  clerkInviteRedirectUrl?: string;
 }
 
 function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | undefined {
@@ -94,6 +101,8 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     stripe,
     stripeWebhookSecret,
     clerkSecretKey,
+    clientRepository,
+    clerkInviteRedirectUrl,
     ...appOptions
   } = options;
   const llmConnected = Boolean(conversationEngine);
@@ -134,12 +143,15 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   }));
   base.app.route("/v1/client", createClientRouter({
     ...(clerkSecretKey ? { clerkSecretKey } : {}),
+    ...(clientRepository ? { clientRepository } : {}),
   }));
   base.app.route("/v1/webhooks/stripe", createStripeWebhookRouter({
     discoveryRepository,
     ...(stripeWebhookSecret ? { webhookSecret: stripeWebhookSecret } : {}),
     ...(productionGhl ? { productionGhl } : {}),
     ...(launchPlanRepository ? { launchPlanRepository } : {}),
+    ...(clientRepository ? { clientRepository } : {}),
+    ...(clerkSecretKey && clerkInviteRedirectUrl ? { clerkInvitation: { secretKey: clerkSecretKey, inviteRedirectUrl: clerkInviteRedirectUrl } } : {}),
   }));
   return base;
 }

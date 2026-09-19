@@ -366,7 +366,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
           { price: usedFoundingPrice ? stripe.foundingSetupPriceId : stripe.standardSetupPriceId, quantity: 1 },
           { price: stripe.monthlyPriceId, quantity: 1 },
         ],
-        metadata: { moonrock_offer_id: "moonrock_launch_plan", moonrock_session_id: sessionId, moonrock_used_founding_price: String(usedFoundingPrice) },
+        metadata: { moonrock_offer_id: "moonrock_launch_plan", tier: "launch_plan", moonrock_session_id: sessionId, moonrock_used_founding_price: String(usedFoundingPrice) },
       });
       if (!session.url) throw new Error("Stripe did not return a checkout URL");
       return context.json({ url: session.url });

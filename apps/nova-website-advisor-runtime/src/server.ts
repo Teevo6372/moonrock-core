@@ -14,6 +14,7 @@ import { GroqConversationGenerator } from "./groq-conversation-generator.js";
 import { createMoonrock2App } from "./http/moonrock2-app.js";
 import { runMigrations } from "./migrations.js";
 import { PostgresAccountRepository } from "./postgres-account-repository.js";
+import { PostgresClientRepository } from "./postgres-client-repository.js";
 import { PostgresDiscoveryStateRepository } from "./postgres-discovery-state.js";
 import { PostgresDurableStateRepository } from "./postgres-durable-state.js";
 import { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
@@ -28,6 +29,7 @@ async function start(): Promise<void> {
   let pool: Pool | undefined;
   let accountRepository: PostgresAccountRepository | undefined;
   let launchPlanRepository: PostgresLaunchPlanRepository | undefined;
+  let clientRepository: PostgresClientRepository | undefined;
   if (databaseUrl) {
     pool = new Pool({ connectionString: databaseUrl, max: boundedInteger(process.env.NOVA_DATABASE_POOL_MAX, 4, 1, 10), ssl: process.env.NOVA_DATABASE_SSL_MODE === "require" ? { rejectUnauthorized: true } : undefined });
     if (process.env.NOVA_RUN_MIGRATIONS !== "true") { await pool.end(); throw new Error("DATABASE_URL requires NOVA_RUN_MIGRATIONS=true until the schema is verified"); }
@@ -35,6 +37,7 @@ async function start(): Promise<void> {
     repository = new PostgresDurableStateRepository(pool);
     accountRepository = new PostgresAccountRepository(pool);
     launchPlanRepository = new PostgresLaunchPlanRepository(pool);
+    clientRepository = new PostgresClientRepository(pool);
     await repository.verifyConnection();
     process.stdout.write("Nova PostgreSQL adapters verified\n");
   }
@@ -140,7 +143,9 @@ async function start(): Promise<void> {
 
   const sessionSecret = process.env.NOVA_SESSION_SECRET;
   const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+  const clerkInviteRedirectUrl = process.env.NOVA_CLERK_INVITE_REDIRECT_URL?.trim();
   process.stdout.write(`Nova client login (Clerk): ${clerkSecretKey ? "enabled" : "disabled"}\n`);
+  process.stdout.write(`Nova Clerk invitations: ${clerkSecretKey && clerkInviteRedirectUrl ? "enabled" : "disabled (missing CLERK_SECRET_KEY or NOVA_CLERK_INVITE_REDIRECT_URL)"}\n`);
   const { app } = createMoonrock2App({
     allowedOrigins,
     // Default 16KB is tight for a Stripe checkout.session.completed webhook
@@ -157,6 +162,8 @@ async function start(): Promise<void> {
     ...(stripe ? { stripe } : {}),
     ...(stripeWebhookSecret ? { stripeWebhookSecret } : {}),
     ...(clerkSecretKey ? { clerkSecretKey } : {}),
+    ...(clientRepository ? { clientRepository } : {}),
+    ...(clerkInviteRedirectUrl ? { clerkInviteRedirectUrl } : {}),
   });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");

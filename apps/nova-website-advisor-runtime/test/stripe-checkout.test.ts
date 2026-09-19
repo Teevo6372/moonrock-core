@@ -181,13 +181,14 @@ describe("POST /v1/webhooks/stripe", () => {
     await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
 
     const eventBody = JSON.stringify({
+      id: "evt_test_confirmed",
       type: "checkout.session.completed",
       data: {
         object: {
           id: "cs_test_confirmed",
           client_reference_id: sessionId,
           customer_details: { email: "confirmed@example.com", name: "Jamie Owner" },
-          metadata: { moonrock_offer_id: "moonrock_launch_plan", moonrock_session_id: sessionId, moonrock_used_founding_price: "true" },
+          metadata: { moonrock_offer_id: "moonrock_launch_plan", tier: "launch_plan", moonrock_session_id: sessionId, moonrock_used_founding_price: "true" },
         },
       },
     });
