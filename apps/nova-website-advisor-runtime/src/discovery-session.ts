@@ -72,6 +72,8 @@ export interface DiscoverySessionState {
   foundingCustomerEligible?: boolean;
   /** Picked once at session creation; selects the variant prompt for each question so the conversation feels different each time while hitting the same discovery targets. */
   questionVariantIndex?: number;
+  /** Fetched once when the visitor submits their website URL. Injected into the LLM business context for every subsequent turn so Nova can reference the business's copy, services, and brand colors. */
+  websiteContextSummary?: string;
 }
 
 export interface DiscoveryProgress {

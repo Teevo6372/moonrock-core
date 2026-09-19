@@ -49,6 +49,8 @@ export interface DiagnosticInput {
   ownerName?: string;
   businessName?: string;
   industry?: string;
+  teamSize?: number;
+  existingWebsiteUrl?: string;
   businessChallenges?: string;
   monthlyLeads?: number;
   missedCallsPerMonth?: number;

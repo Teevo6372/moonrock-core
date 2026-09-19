@@ -1,4 +1,5 @@
 import type { DiagnosticInput } from "./diagnostic-engine.js";
+import { normalizeWebsiteUrl } from "./website-context-fetcher.js";
 
 const NUMERIC_FIELDS = new Set<keyof DiagnosticInput>([
   "monthlyLeads",
@@ -9,6 +10,7 @@ const NUMERIC_FIELDS = new Set<keyof DiagnosticInput>([
   "departmentsAffected",
   "requestedCustomIntegrations",
   "expectedVoiceMinutesPerMonth",
+  "teamSize",
 ]);
 
 const BOOLEAN_FIELDS = new Set<keyof DiagnosticInput>([
@@ -124,6 +126,7 @@ function clarificationFor(field: keyof DiagnosticInput): string {
     closeRatePercent: "You don’t need an exact percentage. Out of ten qualified opportunities you talk to, about how many usually become customers?",
     medianLeadResponseMinutes: "Think about a normal lead. Is the first real response usually within minutes, within an hour, later that day, or longer?",
     departmentsAffected: "Is this mostly one part of the business, or does it touch a few different areas? A rough sense is all I need.",
+    teamSize: "Just roughly — is it just you running things, a couple of people, or do you have a team of five or more?",
     requestedCustomIntegrations: "That’s okay. Which systems would need to exchange information—CRM, calendar, phones, website forms, billing, or something else?",
     expectedVoiceMinutesPerMonth: "You don’t need a minutes estimate yet. Tell me the coverage you want—after-hours, weekends, overflow, or full-time—and I’ll keep the exact usage as something to confirm later.",
   };
@@ -135,6 +138,11 @@ function qualitativeNumber(field: keyof DiagnosticInput, text: string): number |
   if (field === "departmentsAffected") {
     if (/\b(one|single|just one|main|mainly|primary|primarily|core|central|mostly|mainly|focus)\b/i.test(text)) return 1;
     if (/\b(few|several|multiple|couple|many|various|different areas?)\b/i.test(text)) return 3;
+  }
+  if (field === "teamSize") {
+    if (/\b(just me|only me|solo|solopreneur|myself|i'?m the only|i am the only|on my own|by myself)\b/i.test(text)) return 1;
+    if (/\b(two of us|just two|couple|me and (one|my|a)|partner)\b/i.test(text)) return 2;
+    if (/\b(small team|handful|few of us|three|3 of us)\b/i.test(text)) return 3;
   }
   if (field === "expectedVoiceMinutesPerMonth" && /not sure|unknown|no idea/i.test(text)) return 0;
   return undefined;
@@ -192,6 +200,12 @@ export function normalizeDiscoveryAnswer(field: keyof DiagnosticInput, raw: unkn
     return value
       ? { value, interpreted: true, note: text }
       : { value: raw, interpreted: false, needsClarification: true, clarification: "On review requests specifically, is that happening automatically, manually when somebody remembers, or not consistently yet?", expectedKind: { type: "select", options } };
+  }
+
+  if (field === "existingWebsiteUrl") {
+    if (/\b(no|nope|not yet|don'?t have|do not have|haven'?t|working on|none)\b/i.test(text)) return { value: null, interpreted: true, note: text };
+    const normalized = normalizeWebsiteUrl(text);
+    return normalized ? { value: normalized, interpreted: true, note: text } : { value: text, interpreted: false };
   }
 
   if (!NUMERIC_FIELDS.has(field)) return { value: raw, interpreted: false };

@@ -8,6 +8,7 @@ import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery,
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
 import { appendConversationExchange, isClearYes, isFlightPlanRequest, isReadyToSaveSignal, isSaveCancelSignal, type DiscoverySessionState, type PendingConversationalSave } from "./discovery-session.js";
 import { getDiscoveryQuestions, resolveQuestionPrompt } from "./discovery-graph.js";
+import { fetchWebsiteContext } from "./website-context-fetcher.js";
 import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type NovaConversationEngine, type NovaConversationTurn } from "./dynamic-conversation-engine.js";
 import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig, type ProductionGhlHandoffResult } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
@@ -238,6 +239,15 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const result = isFlightPlanRequest(rawCustomerText)
       ? requestPreliminaryFlightPlan(current.state)
       : await submitNovaDiscoveryAnswer(current.state, body.field as keyof DiagnosticInput, body.value, options.answerInterpreter);
+
+    // When the visitor submits a website URL, fetch and cache the page context
+    // so the LLM can reference the business's copy, services, and brand colors
+    // for the rest of the conversation without re-fetching on every turn.
+    if (body.field === "existingWebsiteUrl" && typeof result.state.answers.existingWebsiteUrl === "string") {
+      const summary = await fetchWebsiteContext(result.state.answers.existingWebsiteUrl);
+      if (summary) result.state = { ...result.state, websiteContextSummary: summary };
+    }
+
     const view = toImmersiveNovaView(result.response);
     const journey = result.response.completed && result.response.result ? completedJourney(result.response.result.flightPlan) : journeyForProgress(view.progressPercent, false);
     const conversationTurn = await withVoice(
