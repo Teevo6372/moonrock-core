@@ -77,6 +77,7 @@ function appendMessage(role: "nova" | "visitor" | "system", text: string, source
   thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" }); updateProgress();
 }
 function syncNovaMessage(): void {
+  if (document.querySelector<HTMLElement>("#nova-panel")?.dataset.novaBusy === "true") return;
   const reaction = document.querySelector<HTMLParagraphElement>("#nova-reaction"); const headline = document.querySelector<HTMLHeadingElement>("#nova-headline"); const body = document.querySelector<HTMLParagraphElement>("#nova-body");
   if (!headline || !body) return;
   const parts = [!reaction?.hidden ? reaction?.textContent : "", headline.textContent, body.textContent].map((part) => part?.trim() ?? "").filter(Boolean);

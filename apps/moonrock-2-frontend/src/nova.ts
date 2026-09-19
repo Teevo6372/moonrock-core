@@ -61,6 +61,7 @@ function newSessionId(): string {
 
 function setBusy(value: boolean, processingState: "thinking" | "diagnosis" = "thinking"): void {
   busy = value;
+  panel.dataset.novaBusy = value ? "true" : "";
   visualStage.setBusy(value, processingState);
   [controls, result].forEach((container) => {
     container.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("input,button,select").forEach((element) => {
