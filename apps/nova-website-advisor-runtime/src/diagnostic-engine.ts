@@ -46,6 +46,7 @@ export type RiskCategory =
 
 export interface DiagnosticInput {
   path: BusinessPath;
+  ownerName?: string;
   businessName?: string;
   industry?: string;
   businessChallenges?: string;

@@ -7,6 +7,7 @@ import type { VoiceSynthesizer } from "./elevenlabs-voice.js";
 import { requestPreliminaryFlightPlan, restoreNovaDiscovery, startNovaDiscovery, submitNovaDiscoveryAnswer, type NovaDiscoveryResponse } from "./discovery-api-contract.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "./discovery-state-repository.js";
 import { appendConversationExchange, isClearYes, isFlightPlanRequest, isReadyToSaveSignal, isSaveCancelSignal, type DiscoverySessionState, type PendingConversationalSave } from "./discovery-session.js";
+import { getDiscoveryQuestions, resolveQuestionPrompt } from "./discovery-graph.js";
 import { isHumanHandoffRequest, SessionGroundedNovaConversationEngine, type NovaConversationEngine, type NovaConversationTurn } from "./dynamic-conversation-engine.js";
 import { handoffFlightPlanToGhl, handoffHumanRequestToGhl, type ProductionGhlContactIdentity, type ProductionGhlHandoffConfig, type ProductionGhlHandoffResult } from "./ghl-production-handoff.js";
 import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
@@ -207,7 +208,10 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const foundingCustomerEligible = await foundingSlotsAvailable(options.launchPlanRepository);
     const result = startNovaDiscovery(body.path, { visitorId, conversationId, ...(previousConversationSummary ? { previousConversationSummary } : {}) }, foundingCustomerEligible);
     const openingText = body.path === "startup" ? "I'm starting something." : "My business needs to grow.";
-    const conversationTurn = await conversationEngine.respond(result.state, openingText, { opening: true, progressPercent: 0 });
+    const variantIndex = result.state.questionVariantIndex ?? 0;
+    const openingQuestion = getDiscoveryQuestions(body.path, {}).find((q) => q.field === "ownerName");
+    const openingNextNeed = openingQuestion ? { nextNeed: { field: "ownerName", prompt: resolveQuestionPrompt(openingQuestion, variantIndex) } } : {};
+    const conversationTurn = await conversationEngine.respond(result.state, openingText, { opening: true, progressPercent: 0, ...openingNextNeed });
     const state = appendConversationExchange(result.state, openingText, conversationTurn.answer);
     try { await repository.create(sessionId, state); } catch { return context.json({ code: "DISCOVERY_ALREADY_EXISTS" }, 409); }
     return context.json({ ...result.response, conversationTurn, journey: journeyForProgress(0, false), view: toImmersiveNovaView(result.response) }, 201);

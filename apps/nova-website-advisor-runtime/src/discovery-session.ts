@@ -70,6 +70,8 @@ export interface DiscoverySessionState {
    * codebase's "never invent a discount" default.
    */
   foundingCustomerEligible?: boolean;
+  /** Picked once at session creation; selects the variant prompt for each question so the conversation feels different each time while hitting the same discovery targets. */
+  questionVariantIndex?: number;
 }
 
 export interface DiscoveryProgress {
@@ -188,7 +190,7 @@ function completedProgress(state: DiscoverySessionState): DiscoveryProgress {
 }
 
 export function createDiscoverySession(path: BusinessPath, continuity?: DiscoveryContinuity, foundingCustomerEligible?: boolean): DiscoverySessionState {
-  return { path, answers: { path }, completed: false, meaningfulTurns: 0, conversationHistory: [], ...(continuity ? { continuity } : {}), ...(foundingCustomerEligible ? { foundingCustomerEligible } : {}) };
+  return { path, answers: { path }, completed: false, meaningfulTurns: 0, conversationHistory: [], questionVariantIndex: Math.floor(Math.random() * 6), ...(continuity ? { continuity } : {}), ...(foundingCustomerEligible ? { foundingCustomerEligible } : {}) };
 }
 
 export function appendConversationHistory(state: DiscoverySessionState, role: DiscoveryConversationTurn["role"], text: string): DiscoverySessionState {

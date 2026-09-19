@@ -10,6 +10,8 @@ export interface DiscoveryQuestion {
   path: BusinessPath | "shared";
   field: DiscoveryField;
   prompt: string;
+  /** Optional rotation pool. When present, resolveQuestionPrompt picks the variant at (variantIndex % prompts.length) instead of prompt. */
+  prompts?: readonly string[];
   helpText?: string;
   answerType: DiscoveryAnswerType;
   required: boolean;
@@ -17,14 +19,61 @@ export interface DiscoveryQuestion {
   askWhen?: (answers: Partial<DiagnosticInput>) => boolean;
 }
 
+/** Returns the variant-resolved prompt for a question given the session's variant index. Falls back to question.prompt when no rotation pool exists. */
+export function resolveQuestionPrompt(question: DiscoveryQuestion, variantIndex: number): string {
+  if (!question.prompts || question.prompts.length === 0) return question.prompt;
+  return question.prompts[variantIndex % question.prompts.length]!;
+}
+
 function challenges(answers: Partial<DiagnosticInput>): string { return String(answers.businessChallenges ?? "").toLowerCase(); }
 function challengeMentions(answers: Partial<DiagnosticInput>, pattern: RegExp): boolean { return pattern.test(challenges(answers)); }
 
 const sharedQuestions: DiscoveryQuestion[] = [
+  {
+    id: "owner-name", path: "shared", field: "ownerName",
+    prompt: "What's your name, and what does your business do?",
+    prompts: [
+      "What's your name, and what does your business do?",
+      "Who am I talking to, and what's the business called?",
+      "Before we get into it — what's your name?",
+    ],
+    answerType: "text", required: false,
+  },
   { id: "business-name", path: "shared", field: "businessName", prompt: "What should I call your business?", answerType: "text", required: false },
-  { id: "industry", path: "shared", field: "industry", prompt: "What kind of business are you building or operating?", answerType: "text", required: true },
-  { id: "business-challenges", path: "shared", field: "businessChallenges", prompt: "What's the main thing you want fixed or made easier?", helpText: "Tell me the biggest headache or goal in your own words. I can build an initial direction from that and tighten it up afterward.", answerType: "text", required: true },
-  { id: "monthly-leads", path: "shared", field: "monthlyLeads", prompt: "Roughly how much customer or lead activity are we talking about?", helpText: "A daily, weekly, or monthly estimate is plenty. If volume is not relevant to the problem, tell me that instead.", answerType: "text", required: false },
+  {
+    id: "industry", path: "shared", field: "industry",
+    prompt: "What kind of business are you building or operating?",
+    prompts: [
+      "What does your business actually do day to day?",
+      "What service or product does your business sell?",
+      "What industry are you in, and roughly how long have you been running?",
+      "Describe your typical customer — who do you serve?",
+    ],
+    answerType: "text", required: true,
+  },
+  {
+    id: "business-challenges", path: "shared", field: "businessChallenges",
+    prompt: "What's the main thing you want fixed or made easier?",
+    prompts: [
+      "What's costing you the most time or money right now?",
+      "Where does your business feel like it's leaking — leads falling through, jobs getting delayed, admin piling up?",
+      "If you could fix one thing about how your business runs today, what would it be?",
+      "What part of your week feels most like putting out fires?",
+      "What's stopping you from growing as fast as you'd like — is it getting customers, keeping up with demand, or managing the back office?",
+      "Walk me through what happens when a new lead or customer comes in — where does it usually break down?",
+    ],
+    helpText: "Tell me the biggest headache or goal in your own words. I can build an initial direction from that and tighten it up afterward.", answerType: "text", required: true,
+  },
+  {
+    id: "monthly-leads", path: "shared", field: "monthlyLeads",
+    prompt: "Roughly how much customer or lead activity are we talking about?",
+    prompts: [
+      "How many new enquiries or jobs do you typically get in a week?",
+      "Are you busier than you can handle, just keeping up, or trying to grow?",
+      "On a busy week, how many customers or active jobs are you juggling at once?",
+    ],
+    helpText: "A daily, weekly, or monthly estimate is plenty. If volume is not relevant to the problem, tell me that instead.", answerType: "text", required: false,
+  },
   { id: "manual-scheduling", path: "shared", field: "appointmentsNeedManualScheduling", prompt: "Does a person usually have to handle scheduling manually?", answerType: "boolean", required: false, askWhen: (answers) => challengeMentions(answers, /schedule|book|appointment|calendar/) },
   { id: "manual-estimate-followup", path: "shared", field: "estimatesNeedManualFollowUp", prompt: "Does someone have to remember to follow up with these leads, quotes, or customers?", answerType: "boolean", required: false, askWhen: (answers) => challengeMentions(answers, /follow.?up|quote|estimate|proposal|lead|sales/) },
   { id: "support-load", path: "shared", field: "repetitiveSupportLoad", prompt: "Would you call the repetitive customer-question load low, medium, or high?", answerType: "single_select", required: false, options: ["low", "medium", "high"], askWhen: (answers) => challengeMentions(answers, /support|question|customer|repeat|inbox|message/) },
@@ -38,7 +87,16 @@ const startupQuestions: DiscoveryQuestion[] = [
 ];
 
 const existingBusinessQuestions: DiscoveryQuestion[] = [
-  { id: "primary-workflow", path: "existing_business", field: "departmentsAffected", prompt: "Is this mostly one part of the business, or is the problem spilling into several areas?", helpText: "A rough answer is enough for the initial Flight Plan.", answerType: "text", required: true },
+  {
+    id: "primary-workflow", path: "existing_business", field: "departmentsAffected",
+    prompt: "Is this mostly one part of the business, or is the problem spilling into several areas?",
+    prompts: [
+      "Where specifically does the bottleneck happen — is it getting new clients, scheduling, doing the actual work, following up after, or something else?",
+      "Is the problem mostly about getting more customers, or more about handling the ones you already have?",
+      "What part of running the business takes time away from the work you're actually good at?",
+    ],
+    helpText: "A rough answer is enough for the initial Flight Plan.", answerType: "text", required: true,
+  },
   { id: "missed-calls", path: "existing_business", field: "missedCallsPerMonth", prompt: "About how often are calls getting missed or delayed?", helpText: "A rough weekly pattern is enough.", answerType: "text", required: false, askWhen: (answers) => challengeMentions(answers, /call|phone|voicemail|answer|after.?hours|weekend/) },
   { id: "lead-response", path: "existing_business", field: "medianLeadResponseMinutes", prompt: "How quickly do those new inquiries usually get a response?", helpText: "Minutes, hours, or same-day is fine.", answerType: "text", required: false, askWhen: (answers) => challengeMentions(answers, /lead|response|slow|miss|sales|follow.?up/) },
   { id: "average-job-value", path: "existing_business", field: "averageJobValueUsd", prompt: "Roughly what is a new customer or job worth?", helpText: "Only needed when it helps us estimate the size of the opportunity.", answerType: "text", required: false, askWhen: (answers) => (answers.missedCallsPerMonth ?? 0) > 0 },
