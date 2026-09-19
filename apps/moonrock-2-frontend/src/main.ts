@@ -32,7 +32,7 @@ app.innerHTML = `
       </div>
       <div class="hero-cta">
         <div class="paths" role="group" aria-label="Start chatting with Nova">
-          <button data-path="existing_business" class="cta-primary">Chat with Nova — takes 60 seconds</button>
+          <a href="/nova.html" class="cta-primary">Chat with Nova — takes 60 seconds</a>
         </div>
         <p id="status" class="status" aria-live="polite"></p>
       </div>
@@ -88,7 +88,7 @@ app.innerHTML = `
           <span id="loss-calc-annual" class="loss-calc-annual">That's $18,000 a year, walking out the door.</span>
         </div>
         <p class="loss-calc-caption">Moonrock can solve this instantly — starting at $97/mo.</p>
-        <button type="button" class="cta-primary" data-path="existing_business">Chat with Nova — takes 60 seconds</button>
+        <a href="/nova.html" class="cta-primary">Chat with Nova — takes 60 seconds</a>
         <p class="loss-calc-disclaimer">Directional estimate assuming a 15% close rate on recovered calls — not a guarantee.</p>
       </div>
     </section>
@@ -127,7 +127,7 @@ app.innerHTML = `
       <p class="scarcity-banner" id="launch-plan-scarcity">We're only taking 10 businesses for this founding offer. After that, setup goes back to $499.</p>
       <h3 class="offer-final-cta">If you're serious about not losing another job — or another customer — now's the time.</h3>
       <div class="paths" role="group" aria-label="Start chatting with Nova">
-        <button data-path="existing_business" class="cta-primary">Chat with Nova — takes 60 seconds</button>
+        <a href="/nova.html" class="cta-primary">Chat with Nova — takes 60 seconds</a>
       </div>
     </section>
 
