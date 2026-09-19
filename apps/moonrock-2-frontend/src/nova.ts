@@ -235,9 +235,7 @@ function conversationalInput(question: DiscoveryQuestion, compact = false): stri
     ? "Example: Mostly evenings and weekends—maybe 80 hours a month?"
     : question.field === "businessChallenges"
       ? "Tell Nova what's going on in your own words…"
-      : question.field === "departmentsAffected"
-        ? "Example: Sales and follow-up, customer service, operations, or all of the above…"
-        : "Tell Nova in your own words…";
+      : "Tell Nova in your own words…";
   return `<form class="answer-form conversational-answer" data-conversation-form><label class="sr-only" for="nova-answer-${escapeHtml(question.id)}">${escapeHtml(question.prompt)}</label><input id="nova-answer-${escapeHtml(question.id)}" name="answer" type="text" autocomplete="off" placeholder="${escapeHtml(placeholder)}" required><button type="submit">${question.isFinalRequired ? "Build my Flight Plan" : compact ? "Tell Nova" : "Send"}</button></form>`;
 }
 
@@ -253,14 +251,6 @@ function renderQuestion(question: DiscoveryQuestion): void {
 
   if (question.answerType === "single_select") {
     controls.innerHTML = `${help}<div class="choice-grid">${(question.options ?? []).map((option) => `<button data-choice="${escapeHtml(option)}">${escapeHtml(labelOption(option))}</button>`).join("")}</div><div class="or-divider"><span>or answer naturally</span></div>${conversationalInput(question, true)}`;
-    controls.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((button) => button.addEventListener("click", () => void submit(question, button.dataset.choice ?? "")));
-    bindConversationForm(question);
-    return;
-  }
-
-  if (question.field === "departmentsAffected") {
-    const chips = ["Sales & follow-up", "Customer service", "Operations", "Marketing", "All of the above"].map((label) => `<button data-choice="${escapeHtml(label)}">${escapeHtml(label)}</button>`).join("");
-    controls.innerHTML = `${help}<div class="choice-grid">${chips}</div><div class="or-divider"><span>or describe it</span></div>${conversationalInput(question, true)}`;
     controls.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((button) => button.addEventListener("click", () => void submit(question, button.dataset.choice ?? "")));
     bindConversationForm(question);
     return;

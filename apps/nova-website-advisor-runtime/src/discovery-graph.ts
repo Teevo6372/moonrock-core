@@ -117,16 +117,6 @@ const startupQuestions: DiscoveryQuestion[] = [
 ];
 
 const existingBusinessQuestions: DiscoveryQuestion[] = [
-  {
-    id: "primary-workflow", path: "existing_business", field: "departmentsAffected",
-    prompt: "Is this mostly one part of the business, or is the problem spilling into several areas?",
-    prompts: [
-      "Where specifically does the bottleneck happen — is it getting new clients, scheduling, doing the actual work, following up after, or something else?",
-      "Is the problem mostly about getting more customers, or more about handling the ones you already have?",
-      "What part of running the business takes time away from the work you're actually good at?",
-    ],
-    helpText: "A rough answer is enough for the initial Flight Plan.", answerType: "text", required: true,
-  },
   { id: "missed-calls", path: "existing_business", field: "missedCallsPerMonth", prompt: "About how often are calls getting missed or delayed?", helpText: "A rough weekly pattern is enough.", answerType: "text", required: false, askWhen: (answers) => challengeMentions(answers, /call|phone|voicemail|answer|after.?hours|weekend/) },
   { id: "lead-response", path: "existing_business", field: "medianLeadResponseMinutes", prompt: "How quickly do those new inquiries usually get a response?", helpText: "Minutes, hours, or same-day is fine.", answerType: "text", required: false, askWhen: (answers) => challengeMentions(answers, /lead|response|slow|miss|sales|follow.?up/) },
   { id: "average-job-value", path: "existing_business", field: "averageJobValueUsd", prompt: "Roughly what is a new customer or job worth?", helpText: "Only needed when it helps us estimate the size of the opportunity.", answerType: "text", required: false, askWhen: (answers) => (answers.missedCallsPerMonth ?? 0) > 0 },

@@ -66,7 +66,6 @@ export function buildFlightPlan(input: DiagnosticInput, diagnosis: DiagnosticRes
   if (input.monthlyLeads === undefined) assumptionsToConfirm.push("Typical lead/customer inquiry volume");
   if (input.requestedCustomIntegrations === undefined) assumptionsToConfirm.push("Any existing systems or integrations that need to be included");
   if (catalogOffer.includedVoiceMinutes !== undefined && input.expectedVoiceMinutesPerMonth === undefined) assumptionsToConfirm.push("Expected phone/voice usage and coverage pattern");
-  if (input.path === "existing_business" && input.departmentsAffected === undefined) assumptionsToConfirm.push("Which business functions need to be included in the initial scope");
   if (input.path === "startup" && input.founderHandlesMostAdmin === undefined) assumptionsToConfirm.push("Who will own calls, follow-up, and customer administration at launch");
 
   const secondary = evidenceBackedSecondaryOffers(diagnosis);
