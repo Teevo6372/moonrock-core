@@ -52,6 +52,8 @@ let businessName = "";
 let busy = false;
 const currentPath: BusinessPath = "existing_business";
 let lastTurn: { field: string; raw: string | number | boolean } | undefined;
+let fpModal: HTMLElement | null = null;
+let fpMinimizedBar: HTMLElement | null = null;
 
 function newSessionId(): string {
   return `web-${crypto.randomUUID()}`;
@@ -60,12 +62,15 @@ function newSessionId(): string {
 function setBusy(value: boolean, processingState: "thinking" | "diagnosis" = "thinking"): void {
   busy = value;
   visualStage.setBusy(value, processingState);
-  controls.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("input,button,select").forEach((element) => {
-    element.disabled = value;
+  [controls, result].forEach((container) => {
+    container.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("input,button,select").forEach((element) => {
+      element.disabled = value;
+    });
   });
 }
 
 function renderResponse(response: DiscoveryResponse, isOpening = false): void {
+  if (fpModal && !response.completed) minimizeFlightPlan();
   visualStage.setState(response.view.visualState);
   progress.style.width = `${response.view.progressPercent}%`;
   panel.hidden = false;
@@ -301,7 +306,6 @@ function renderFlightPlan(response: DiscoveryResponse): void {
   const opportunity = flightPlan.opportunity;
   const saved = response.ghlHandoff?.status === "confirmed";
   controls.innerHTML = "";
-  result.hidden = false;
   result.innerHTML = `
     ${saved ? `<div class="save-confirmation">Flight Plan saved to Moonrock</div>` : ""}
     <div class="result-kicker">NOVA'S RECOMMENDATION</div>
@@ -317,6 +321,85 @@ function renderFlightPlan(response: DiscoveryResponse): void {
     <p class="disclaimer">${escapeHtml(opportunity?.disclaimer ?? flightPlan.disclosures[0] ?? "")}</p>
     ${renderNextStepsSection()}
   `;
+  openFlightPlanModal();
+}
+
+function openFlightPlanModal(): void {
+  if (fpModal) {
+    result.hidden = false;
+    fpModal.dataset.fpState = "open";
+    if (fpMinimizedBar) fpMinimizedBar.hidden = true;
+    document.body.classList.add("fp-modal-open");
+    return;
+  }
+
+  fpModal = document.createElement("div");
+  fpModal.className = "fp-modal-overlay";
+  fpModal.dataset.fpState = "open";
+  fpModal.setAttribute("role", "dialog");
+  fpModal.setAttribute("aria-modal", "true");
+  fpModal.setAttribute("aria-label", "Your Nova Flight Plan");
+
+  const inner = document.createElement("div");
+  inner.className = "fp-modal";
+
+  const header = document.createElement("div");
+  header.className = "fp-modal-header";
+  header.innerHTML = `
+    <p class="fp-modal-kicker">NOVA'S RECOMMENDATION</p>
+    <div class="fp-modal-header-actions">
+      <button type="button" class="fp-modal-btn" data-fp-minimize title="Minimize">—</button>
+      <button type="button" class="fp-modal-btn" data-fp-close title="Close flight plan">×</button>
+    </div>
+  `;
+
+  inner.appendChild(header);
+  inner.appendChild(result);
+  result.hidden = false;
+
+  fpModal.appendChild(inner);
+  document.body.appendChild(fpModal);
+
+  fpMinimizedBar = document.createElement("div");
+  fpMinimizedBar.className = "fp-minimized-bar";
+  fpMinimizedBar.hidden = true;
+  fpMinimizedBar.innerHTML = `
+    <span class="fp-minimized-label">Your Flight Plan is ready</span>
+    <button type="button" class="fp-minimized-restore">View Flight Plan</button>
+  `;
+  document.body.appendChild(fpMinimizedBar);
+
+  header.querySelector("[data-fp-minimize]")?.addEventListener("click", minimizeFlightPlan);
+  header.querySelector("[data-fp-close]")?.addEventListener("click", closeFlightPlan);
+  fpMinimizedBar.querySelector(".fp-minimized-restore")?.addEventListener("click", restoreFlightPlan);
+
+  document.body.classList.add("fp-modal-open");
+}
+
+function minimizeFlightPlan(): void {
+  if (!fpModal) return;
+  fpModal.dataset.fpState = "minimized";
+  if (fpMinimizedBar) fpMinimizedBar.hidden = false;
+  document.body.classList.remove("fp-modal-open");
+}
+
+function restoreFlightPlan(): void {
+  if (!fpModal) return;
+  fpModal.dataset.fpState = "open";
+  if (fpMinimizedBar) fpMinimizedBar.hidden = true;
+  document.body.classList.add("fp-modal-open");
+}
+
+function closeFlightPlan(): void {
+  if (!fpModal) return;
+  panel.appendChild(result);
+  result.hidden = false;
+  fpModal.remove();
+  fpModal = null;
+  fpMinimizedBar?.remove();
+  fpMinimizedBar = null;
+  document.body.classList.remove("fp-modal-open");
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderWebsiteBuildResult(websiteBuildResult: WebsiteBuildResult): void {
