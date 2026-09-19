@@ -92,10 +92,22 @@ export function extractUrgencyStated(text: string): boolean {
 }
 
 function countNamedAreas(text: string): number | undefined {
-  const areas = ["sales", "support", "customer service", "operations", "admin", "marketing", "phones", "phone", "scheduling", "billing", "service", "dispatch", "follow-up", "follow up"];
-  const matches = areas.filter((area) => text.toLowerCase().includes(area));
-  const unique = new Set(matches.map((item) => item === "phone" ? "phones" : item === "follow up" ? "follow-up" : item));
-  return unique.size > 0 ? unique.size : undefined;
+  // Each entry is a canonical bucket name plus the surface forms that map to it.
+  // A bucket matches once regardless of how many of its surface forms appear.
+  const buckets: [string, string[]][] = [
+    ["sales", ["sales", "client", "clients", "lead", "leads", "prospect", "prospects", "onboarding", "intake"]],
+    ["support", ["support", "customer service", "help desk", "helpdesk"]],
+    ["operations", ["operations", "ops", "dispatch", "service", "fulfillment"]],
+    ["admin", ["admin", "administration", "paperwork", "back office"]],
+    ["marketing", ["marketing", "social", "ads", "advertising", "email", "newsletter"]],
+    ["phones", ["phones", "phone", "calls", "voicemail", "answering"]],
+    ["scheduling", ["scheduling", "schedule", "calendar", "appointment", "appointments", "booking", "bookings"]],
+    ["billing", ["billing", "invoicing", "invoice", "invoices", "payment", "payments"]],
+    ["follow-up", ["follow-up", "follow up", "follow ups", "followup"]],
+  ];
+  const lower = text.toLowerCase();
+  const matchedBuckets = buckets.filter(([, forms]) => forms.some((f) => lower.includes(f)));
+  return matchedBuckets.length > 0 ? matchedBuckets.length : undefined;
 }
 
 function clarificationFor(field: keyof DiagnosticInput): string {
@@ -111,7 +123,7 @@ function clarificationFor(field: keyof DiagnosticInput): string {
     averageJobValueUsd: "An estimate is fine. What would you call a typical sale or job—hundreds, a few thousand, or more?",
     closeRatePercent: "You don’t need an exact percentage. Out of ten qualified opportunities you talk to, about how many usually become customers?",
     medianLeadResponseMinutes: "Think about a normal lead. Is the first real response usually within minutes, within an hour, later that day, or longer?",
-    departmentsAffected: "Just name the parts of the business that feel connected—sales, phones, scheduling, support, admin, operations, or whatever fits—and I’ll count the scope from there.",
+    departmentsAffected: "Is this mostly one part of the business, or does it touch a few different areas? A rough sense is all I need.",
     requestedCustomIntegrations: "That’s okay. Which systems would need to exchange information—CRM, calendar, phones, website forms, billing, or something else?",
     expectedVoiceMinutesPerMonth: "You don’t need a minutes estimate yet. Tell me the coverage you want—after-hours, weekends, overflow, or full-time—and I’ll keep the exact usage as something to confirm later.",
   };
