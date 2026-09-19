@@ -1,3 +1,5 @@
+import { currentUserLabel, isClerkConfigured, onClerkAuthChange, openClientSignIn, signOutClient } from "./clerk-auth.js";
+
 const NAV_LINKS: Array<{ href: string; label: string }> = [
   { href: "/", label: "Home" },
   { href: "/about.html", label: "About" },
@@ -41,6 +43,14 @@ const STYLE = `
   font-size: .95rem; padding: 10px 12px; border-radius: 10px;
 }
 .site-nav-panel a:hover { background: rgba(255,255,255,.08); color: #ff4fd8; }
+.site-nav-panel-divider { height: 1px; background: rgba(255,255,255,.12); margin: 6px 4px; }
+.site-nav-auth-button {
+  color: #f8f7ff; text-decoration: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: .95rem; padding: 10px 12px; border-radius: 10px;
+  background: none; border: none; text-align: left; cursor: pointer; width: 100%;
+}
+.site-nav-auth-button:hover { background: rgba(255,255,255,.08); color: #ff4fd8; }
+.site-nav-auth-label { display: block; padding: 6px 12px 2px; font-size: .78rem; color: #a8a3b8; }
 `;
 
 function currentPath(): string {
@@ -75,13 +85,50 @@ export function mountSiteNav(): void {
     return `<a href="${link.href}"${isCurrent ? ' aria-current="page"' : ""}>${link.label}</a>`;
   }).join("");
 
+  let authButton: HTMLButtonElement | null = null;
+  if (isClerkConfigured()) {
+    const divider = document.createElement("div");
+    divider.className = "site-nav-panel-divider";
+    authButton = document.createElement("button");
+    authButton.type = "button";
+    authButton.className = "site-nav-auth-button";
+    // Default label before Clerk has loaded - correct for the overwhelming
+    // majority of visitors (signed out), avoids any pop-in flash for them.
+    authButton.textContent = "Client Login";
+    authButton.onclick = () => { void openClientSignIn(); };
+    panel.append(divider, authButton);
+  }
+
   function setOpen(open: boolean): void {
     root.dataset.open = String(open);
     toggle.setAttribute("aria-expanded", String(open));
     toggle.setAttribute("aria-label", open ? "Close site menu" : "Open site menu");
   }
 
-  toggle.addEventListener("click", () => setOpen(root.dataset.open !== "true"));
+  // Clerk (~580KB gzipped) only starts downloading once a visitor actually
+  // opens the nav - not on every page load - see loadClerk() in
+  // clerk-auth.ts. This listener only needs to run once; the auth-state
+  // listener it installs keeps the button in sync after that.
+  let clerkAuthWired = false;
+  toggle.addEventListener("click", () => {
+    setOpen(root.dataset.open !== "true");
+    if (authButton && !clerkAuthWired) {
+      clerkAuthWired = true;
+      onClerkAuthChange((signedIn) => {
+        if (!authButton) return;
+        if (signedIn) {
+          const label = currentUserLabel();
+          authButton.textContent = "Sign Out";
+          authButton.setAttribute("aria-label", label ? `Sign out (${label})` : "Sign out");
+          authButton.onclick = () => { void signOutClient(); };
+        } else {
+          authButton.textContent = "Client Login";
+          authButton.removeAttribute("aria-label");
+          authButton.onclick = () => { void openClientSignIn(); };
+        }
+      });
+    }
+  });
   document.addEventListener("click", (event) => {
     if (root.dataset.open === "true" && !root.contains(event.target as Node)) setOpen(false);
   });
