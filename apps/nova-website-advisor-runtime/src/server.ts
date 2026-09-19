@@ -139,6 +139,8 @@ async function start(): Promise<void> {
   process.stdout.write(`Nova Stripe checkout: ${stripe ? "enabled" : "disabled"}\n`);
 
   const sessionSecret = process.env.NOVA_SESSION_SECRET;
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+  process.stdout.write(`Nova client login (Clerk): ${clerkSecretKey ? "enabled" : "disabled"}\n`);
   const { app } = createMoonrock2App({
     allowedOrigins,
     // Default 16KB is tight for a Stripe checkout.session.completed webhook
@@ -154,6 +156,7 @@ async function start(): Promise<void> {
     ...(launchPlanRepository ? { launchPlanRepository } : {}),
     ...(stripe ? { stripe } : {}),
     ...(stripeWebhookSecret ? { stripeWebhookSecret } : {}),
+    ...(clerkSecretKey ? { clerkSecretKey } : {}),
   });
   const fetch = async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");

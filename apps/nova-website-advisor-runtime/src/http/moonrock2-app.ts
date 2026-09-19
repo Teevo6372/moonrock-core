@@ -1,5 +1,6 @@
 import type { AnswerInterpreter } from "../answer-interpreter.js";
 import { createAuthRouter } from "../auth-router.js";
+import { createClientRouter } from "../client-router.js";
 import type { GeneralContactGhlConfig } from "../contact-form-ghl.js";
 import { createContactRouter } from "../contact-router.js";
 import { createDiscoveryRouter, type StripeCheckoutConfig } from "../discovery-router.js";
@@ -34,6 +35,10 @@ export interface Moonrock2AppOptions extends AppOptions {
   launchPlanRepository?: PostgresLaunchPlanRepository;
   stripe?: StripeCheckoutConfig;
   stripeWebhookSecret?: string;
+  // Same degrade-gracefully pattern - GET /v1/client/me reports 503 without
+  // a real Clerk secret key rather than throwing at startup. See
+  // clerk-auth-middleware.ts for why this is a bearer token, not a cookie.
+  clerkSecretKey?: string;
 }
 
 function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | undefined {
@@ -88,6 +93,7 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     launchPlanRepository,
     stripe,
     stripeWebhookSecret,
+    clerkSecretKey,
     ...appOptions
   } = options;
   const llmConnected = Boolean(conversationEngine);
@@ -125,6 +131,9 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   }));
   base.app.route("/v1/launch-plan", createLaunchPlanRouter({
     ...(launchPlanRepository ? { launchPlanRepository } : {}),
+  }));
+  base.app.route("/v1/client", createClientRouter({
+    ...(clerkSecretKey ? { clerkSecretKey } : {}),
   }));
   base.app.route("/v1/webhooks/stripe", createStripeWebhookRouter({
     discoveryRepository,
