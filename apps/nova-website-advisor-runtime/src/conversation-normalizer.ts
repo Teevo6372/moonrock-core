@@ -132,7 +132,10 @@ function clarificationFor(field: keyof DiagnosticInput): string {
 
 function qualitativeNumber(field: keyof DiagnosticInput, text: string): number | undefined {
   if (field === "requestedCustomIntegrations" && /none|no other|nothing custom/i.test(text)) return 0;
-  if (field === "departmentsAffected" && /one|single|just one/i.test(text)) return 1;
+  if (field === "departmentsAffected") {
+    if (/\b(one|single|just one|main|mainly|primary|primarily|core|central|mostly|mainly|focus)\b/i.test(text)) return 1;
+    if (/\b(few|several|multiple|couple|many|various|different areas?)\b/i.test(text)) return 3;
+  }
   if (field === "expectedVoiceMinutesPerMonth" && /not sure|unknown|no idea/i.test(text)) return 0;
   return undefined;
 }
