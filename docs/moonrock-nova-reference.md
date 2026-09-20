@@ -112,4 +112,71 @@ Only the memory system follows you automatically across chat, this kind of sessi
 
 ---
 
+## 7. Branch State (as of 2026-09-19)
+
+### Local branches
+
+| Branch | Status | Notes |
+| --- | --- | --- |
+| `main` | Active — 1 ahead of origin | Reference doc commit not yet pushed |
+| `feat/site-pages-contact-form-nav` | Merged — safe to delete | Remote gone; all commits in main |
+| `fix/tier0-catalog-name-drift` | **Unmerged — 1 commit** | `tier0-catalog.ts` only (3 lines): aligns GHL catalog service names with what's actually live. Needs a PR or cherry-pick to main before next client onboards. |
+
+### Remote branches of note (Nova / moonrockmarketing.com)
+
+| Branch | Notes |
+| --- | --- |
+| `agent/nova-release-1-staging-sprint-010` | Last staging sprint branch — superseded by main |
+| `agent/program-006-runtime-activation-sprint-001/002/003` | Runtime activation work — all superseded by main |
+| `feat/mission-32-dynamic-conversation-engine` | Dynamic conversation engine work — superseded by main |
+| `feat/mission-39-flight-plan-sales-journey` | Flight plan sales journey — superseded by main |
+| `feat/production-ghl-handoff-service` | GHL production handoff — superseded by main |
+| `feature/moonrock-2-production-cutover` | Production cutover scripts — superseded by main |
+| `fix/ghl-autonomous-close-field` | GHL autonomous close field fix — check if merged |
+| `fix/nova-health-ready-live-status` | Health/ready status fix — check if merged |
+| Commerce-OS and enterprise branches | Not active — disregard |
+
+All `agent/` and `feature/program-0*` branches are agent-generated sprint work from earlier build phases, all superseded by main. They can be deleted in bulk from GitHub to reduce noise.
+
+### Connected software
+
+| System | Role | Status |
+| --- | --- | --- |
+| Railway | Hosts Nova Website Advisor Runtime (Node/Hono) + PostgreSQL | Live in production |
+| Cloudflare Pages | Hosts moonrock-2-frontend (Vite/TS) at `moonrockmarketing.com` + `clients.moonrockmarketing.com` | Live in production |
+| Stripe | Payments — Checkout, subscriptions, webhook to Railway | Live; webhook endpoint needs production-mode verification |
+| Clerk | Client auth — invitations, sign-in, JWT for `/v1/client/*` | Live with live keys |
+| GoHighLevel (GHL) | CRM — contact records, `nova-paid-onboarding` tag, GHL Client Portal for billing/onboarding | Live on Setterlun University sub-account |
+| Anthropic | LLM backbone for Nova discovery, flight plan, and onboarding conversation | Live; Groq wired as fallback |
+| ElevenLabs | Voice synthesis for Nova voice chat experience | Wired in code; production key status unknown |
+| PostgreSQL (Railway) | Persistent state — discovery sessions, client records, onboarding state, launch plan signups | Live; 7 migrations applied |
+
+---
+
+## 8. Pre-Launch Checklist
+
+### Blockers — must fix before first real client
+
+- [ ] **Merge `fix/tier0-catalog-name-drift`** — 3-line fix aligning GHL catalog service names with what's actually live. If a client's flight plan references the wrong name, the GHL field write will fail silently.
+- [ ] **Stripe webhook production-mode verification** — Confirm the Stripe webhook is pointed at the production Railway URL with *live-mode* events (not test mode). One live test payment should be processed end-to-end: Stripe → Railway webhook → `nova_clients` INSERT → Clerk invitation sent → client signs in → onboarding completes.
+- [ ] **Production migration 0007 confirmed** — `nova_clients` must have `onboarding_status`, `onboarding_conversation`, `onboarding_answers` columns (from `0007_client_onboarding.sql`). Tonight's manual test worked because the columns were present, but formally confirm `NOVA_RUN_MIGRATIONS=true` on Railway and that all 7 migrations have run cleanly.
+- [ ] **Auth-state branching on the homepage** — `main.ts` shows the same Nova discovery chat to every visitor regardless of Clerk sign-in state. A client who already signed up and opens `moonrockmarketing.com` will see the sales page with no path to their portal. At minimum, a signed-in client should see a "Go to your client portal →" banner or be redirected to `clients.moonrockmarketing.com/onboarding`.
+- [ ] **Post-onboarding team notification** — When a client completes the onboarding conversation (`onboarding_status = complete`), the Moonrock team currently receives no notification. Add a GHL task, email to stephen@, or webhook trigger so a team member knows to begin setup within the promised 1 business day.
+
+### High priority — fix before first paying client ships
+
+- [ ] **GHL handoff production flags** — Verify `NOVA_GHL_HANDOFF_ENABLED=true`, `NOVA_GHL_WRITES_ENABLED=true`, and `NOVA_GHL_FIELDS_VERIFIED=true` are set on Railway production. Without these, the discovery-to-GHL handoff is silently skipped. Confirm a real discovery session generates the correct GHL contact + flight plan fields.
+- [ ] **Railway env vars audit** — Confirm all required vars are set for production: `NOVA_CLERK_SECRET_KEY` (live), `NOVA_CLERK_INVITE_REDIRECT_URL` (`https://clients.moonrockmarketing.com/onboarding`), `STRIPE_WEBHOOK_SECRET` (live mode), `NOVA_ANTHROPIC_MODEL`, `NOVA_GHL_*` (location ID, access token), `ELEVENLABS_API_KEY` if voice is live.
+- [ ] **Cloudflare Pages env vars audit** — Confirm production Pages build has `VITE_CLERK_PUBLISHABLE_KEY` (live: `pk_live_Y2xlcmsubW9vbnJvY2ttYXJrZXRpbmcuY29tJA`) and `VITE_NOVA_API_BASE_URL` pointing to Railway production URL (not staging).
+- [ ] **Clean up stale local branches** — Delete `feat/site-pages-contact-form-nav` (already merged) and the 30+ stale remote `agent/` and `feature/program-0*` branches from GitHub. They add noise to every branch listing and PRs.
+
+### Medium priority — before second or third client
+
+- [ ] **Old auth system retirement** — `auth.ts`, `auth-router.ts`, `postgres-account-repository.ts`, and the `nova_auth_accounts` table are still in the codebase and mounted. Now that Clerk handles customer-facing auth, these are dead weight. Removing them eliminates a security surface and simplifies the code.
+- [ ] **Client portal post-onboarding UX** — After `onboarding_status = complete`, the client sees a static "You're all set" screen with no return path. The longer-term client dashboard (activity log, ongoing Nova interaction for Tiers 2/3) is not built. For Launch Plan clients at minimum, the completed screen should surface a link to their GHL Client Portal where their onboarding checklist and deliverables will live.
+- [ ] **ElevenLabs voice production status** — Voice chat is wired in code (`elevenlabs-voice.ts`, `voice-chat-experience.ts`) but it's unclear if `ELEVENLABS_API_KEY` is set on Railway production and whether the voice experience is intended to be live for clients. Decide: live now or hide it behind a flag.
+- [ ] **Per-client website architecture decision** — The open decision on shared template repo vs. separate repo/Pages project per client needs to be settled before the first website build is delivered. This determines whether `nova-managed-site-reference` is the right starting point and what the Nova-automated GitHub → Vite → Cloudflare pipeline looks like in practice.
+
+---
+
 *Generated for Stephen — Moonrock Marketing Company, Lawrence, KS. Keep this doc current as the single reference point.*
