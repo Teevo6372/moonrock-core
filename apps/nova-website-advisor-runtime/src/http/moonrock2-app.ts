@@ -5,7 +5,7 @@ import type { GeneralContactGhlConfig } from "../contact-form-ghl.js";
 import { createContactRouter } from "../contact-router.js";
 import { createDiscoveryRouter, type StripeCheckoutConfig } from "../discovery-router.js";
 import { InMemoryDiscoveryStateRepository, type DiscoveryStateRepository } from "../discovery-state-repository.js";
-import type { NovaConversationEngine } from "../dynamic-conversation-engine.js";
+import type { NovaConversationEngine, NovaConversationGenerator } from "../dynamic-conversation-engine.js";
 import type { VoiceSynthesizer } from "../elevenlabs-voice.js";
 import type { OptInGhlConfig } from "../ghl-opt-in.js";
 import type { ProductionGhlHandoffConfig } from "../ghl-production-handoff.js";
@@ -46,6 +46,10 @@ export interface Moonrock2AppOptions extends AppOptions {
   // URL clients land on after accepting the Clerk invite. Required for Clerk
   // invitations to be sent; webhook silently skips that step when absent.
   clerkInviteRedirectUrl?: string;
+  /** The raw LLM generator, passed separately so the onboarding engine can
+   * build its own system prompt and context without going through the
+   * discovery-state-bound SessionGroundedNovaConversationEngine. */
+  novaConversationGenerator?: NovaConversationGenerator;
 }
 
 function resolveOptInGhlConfig(explicit?: OptInGhlConfig): OptInGhlConfig | undefined {
@@ -93,6 +97,7 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     optInGhl,
     contactGhl,
     conversationEngine,
+    novaConversationGenerator,
     answerInterpreter,
     voiceSynthesizer,
     accountRepository,
@@ -144,6 +149,8 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
   base.app.route("/v1/client", createClientRouter({
     ...(clerkSecretKey ? { clerkSecretKey } : {}),
     ...(clientRepository ? { clientRepository } : {}),
+    discoveryRepository,
+    ...(novaConversationGenerator ? { conversationGenerator: novaConversationGenerator } : {}),
   }));
   base.app.route("/v1/webhooks/stripe", createStripeWebhookRouter({
     discoveryRepository,

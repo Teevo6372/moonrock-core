@@ -2,6 +2,28 @@ import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 
 export type ClientStatus = "paid" | "invited" | "invite_failed" | "active";
+export type OnboardingStatus = "pending" | "in_progress" | "complete";
+
+export interface OnboardingTurn {
+  role: "nova" | "client";
+  text: string;
+  ts: string;
+}
+
+export interface OnboardingAnswers {
+  businessPhone?: string;
+  businessHours?: string;
+  escalationContact?: string;
+  servicesList?: string;
+  commonCustomerQuestions?: string;
+  preferredGreeting?: string;
+}
+
+export interface OnboardingState {
+  status: OnboardingStatus;
+  conversation: OnboardingTurn[];
+  answers: OnboardingAnswers;
+}
 
 export interface NovaClient {
   id: string;
@@ -27,6 +49,9 @@ interface ClientRow {
   clerk_user_id: string | null;
   created_at: Date;
   updated_at: Date;
+  onboarding_status?: string;
+  onboarding_conversation?: unknown;
+  onboarding_answers?: unknown;
 }
 
 function mapRow(row: ClientRow): NovaClient {
@@ -128,5 +153,47 @@ export class PostgresClientRepository {
       [clientId],
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
+  }
+
+  async getOnboardingState(clientId: string): Promise<OnboardingState | null> {
+    const result = await this.pool.query<ClientRow>(
+      `SELECT onboarding_status, onboarding_conversation, onboarding_answers FROM nova_clients WHERE id = $1 LIMIT 1`,
+      [clientId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      status: (row.onboarding_status ?? "pending") as OnboardingStatus,
+      conversation: (row.onboarding_conversation as OnboardingTurn[] | null) ?? [],
+      answers: (row.onboarding_answers as OnboardingAnswers | null) ?? {},
+    };
+  }
+
+  async appendOnboardingTurn(clientId: string, turn: OnboardingTurn): Promise<void> {
+    await this.pool.query(
+      `UPDATE nova_clients
+       SET onboarding_conversation = COALESCE(onboarding_conversation, '[]'::JSONB) || $2::JSONB,
+           onboarding_status = CASE WHEN onboarding_status = 'pending' THEN 'in_progress' ELSE onboarding_status END,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [clientId, JSON.stringify([turn])],
+    );
+  }
+
+  async updateOnboardingAnswers(clientId: string, answers: OnboardingAnswers): Promise<void> {
+    await this.pool.query(
+      `UPDATE nova_clients
+       SET onboarding_answers = COALESCE(onboarding_answers, '{}'::JSONB) || $2::JSONB,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [clientId, JSON.stringify(answers)],
+    );
+  }
+
+  async completeOnboarding(clientId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE nova_clients SET onboarding_status = 'complete', updated_at = NOW() WHERE id = $1`,
+      [clientId],
+    );
   }
 }

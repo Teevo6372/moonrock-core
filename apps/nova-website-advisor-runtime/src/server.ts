@@ -154,6 +154,7 @@ async function start(): Promise<void> {
     ...(pool ? { discoveryRepository: new PostgresDiscoveryStateRepository(pool) } : {}),
     ...(productionGhl ? { productionGhl } : {}),
     conversationEngine,
+    ...(conversationGenerator ? { novaConversationGenerator: conversationGenerator } : {}),
     ...(answerInterpreter ? { answerInterpreter } : {}),
     ...(voiceSynthesizer ? { voiceSynthesizer } : {}),
     ...(accountRepository ? { accountRepository } : {}),
