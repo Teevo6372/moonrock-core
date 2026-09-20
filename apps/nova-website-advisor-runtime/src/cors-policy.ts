@@ -8,6 +8,7 @@ export const NOVA_LOCAL_ORIGINS = [
 export const MOONROCK_PAGES_ORIGINS = [
   "https://moonrock-2.pages.dev",
   "https://staging.moonrock-2.pages.dev",
+  "https://clients.moonrockmarketing.com",
 ] as const;
 
 export function parseAllowedOrigins(raw: string | undefined): string[] {
