@@ -29,7 +29,7 @@ export function corsHeaders(origin: string): Record<string, string> {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type,x-correlation-id,last-event-id",
+    "access-control-allow-headers": "authorization,content-type,x-correlation-id,last-event-id",
     "access-control-max-age": "600",
     vary: "Origin",
   };
