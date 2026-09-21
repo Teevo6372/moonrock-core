@@ -13,7 +13,7 @@ import { loadGhlRuntimeConfig } from "../ghl-runtime-config.js";
 import { createLaunchPlanRouter } from "../launch-plan-router.js";
 import { createOptInRouter } from "../opt-in-router.js";
 import type { PostgresAccountRepository } from "../postgres-account-repository.js";
-import type { PostgresClientRepository } from "../postgres-client-repository.js";
+import type { NovaClient, PostgresClientRepository } from "../postgres-client-repository.js";
 import type { PostgresLaunchPlanRepository } from "../postgres-launch-plan-repository.js";
 import { createStripeWebhookRouter } from "../stripe-webhook-router.js";
 import { createApp, type AppOptions } from "./app.js";
@@ -90,6 +90,60 @@ function resolveGeneralContactGhlConfig(explicit?: GeneralContactGhlConfig): Gen
   }
 }
 
+/**
+ * Fires when a client's onboarding conversation completes. Tags the GHL
+ * contact `nova-onboarding-complete` and writes a note so Stephen knows to
+ * begin setup within the promised 1 business day.
+ * Gracefully no-ops when GHL is not configured (local/dev).
+ */
+async function notifyOnboardingComplete(client: NovaClient, fetchImpl: typeof fetch = fetch): Promise<void> {
+  let ghl: { locationId: string; accessToken: string; baseUrl: string };
+  try {
+    const cfg = loadGhlRuntimeConfig();
+    ghl = { locationId: cfg.locationId, accessToken: cfg.privateIntegrationToken, baseUrl: cfg.baseUrl };
+  } catch {
+    return; // GHL not configured in this environment
+  }
+  const writesEnabled = (process.env.NOVA_GHL_WRITES_ENABLED ?? "").trim().toLowerCase() === "true";
+  if (!writesEnabled) return;
+
+  const baseUrl = ghl.baseUrl.replace(/\/$/, "");
+  const headers = { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${ghl.accessToken}`, Version: "2021-07-28" };
+
+  // Upsert with email only to get the existing contactId — won't create a duplicate.
+  const upsertResp = await fetchImpl(`${baseUrl}/contacts/upsert`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ locationId: ghl.locationId, email: client.email }),
+  });
+  if (!upsertResp.ok) {
+    const text = await upsertResp.text();
+    throw new Error(`GHL contact upsert failed (${upsertResp.status}): ${text}`);
+  }
+  const upsertPayload = await upsertResp.json() as { contact?: { id?: string }; id?: string };
+  const contactId = upsertPayload.contact?.id ?? upsertPayload.id;
+  if (!contactId) throw new Error("GHL contact upsert returned no contact ID");
+
+  await fetchImpl(`${baseUrl}/contacts/${encodeURIComponent(contactId)}/tags`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ tags: ["nova-onboarding-complete"] }),
+  });
+
+  const note = [
+    "NOVA ONBOARDING COMPLETE",
+    `Client: ${client.email}`,
+    `Client ID: ${client.id}`,
+    `Tier: ${client.tier}`,
+    "Nova has collected all onboarding setup information. Begin client setup within 1 business day.",
+  ].join("\n");
+  await fetchImpl(`${baseUrl}/contacts/${encodeURIComponent(contactId)}/notes`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ body: note }),
+  });
+}
+
 export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnType<typeof createApp> {
   const {
     discoveryRepository = new InMemoryDiscoveryStateRepository(),
@@ -151,6 +205,7 @@ export function createMoonrock2App(options: Moonrock2AppOptions = {}): ReturnTyp
     ...(clientRepository ? { clientRepository } : {}),
     discoveryRepository,
     ...(novaConversationGenerator ? { conversationGenerator: novaConversationGenerator } : {}),
+    onOnboardingComplete: (client) => notifyOnboardingComplete(client),
   }));
   base.app.route("/v1/webhooks/stripe", createStripeWebhookRouter({
     discoveryRepository,

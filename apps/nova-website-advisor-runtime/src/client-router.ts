@@ -13,6 +13,8 @@ export interface ClientRouterOptions {
   clientRepository?: PostgresClientRepository;
   discoveryRepository?: DiscoveryStateRepository;
   conversationGenerator?: NovaConversationGenerator;
+  /** Called once when a client's onboarding conversation completes — use this to fire team notifications (e.g. GHL tag/note). Fire-and-forget; errors are logged but do not affect the response. */
+  onOnboardingComplete?: (client: NovaClient) => Promise<void>;
 }
 
 /**
@@ -136,6 +138,11 @@ export function createClientRouter(options: ClientRouterOptions = {}): Hono<{ Va
 
     if (complete) {
       await options.clientRepository.completeOnboarding(client.id);
+      if (options.onOnboardingComplete) {
+        options.onOnboardingComplete(client).catch((error: unknown) => {
+          console.error("[client-router/onboarding] notification sink failed:", error instanceof Error ? error.message : error);
+        });
+      }
     }
 
     return context.json({ answer, complete });

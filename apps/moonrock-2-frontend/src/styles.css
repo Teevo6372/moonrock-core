@@ -223,3 +223,26 @@ button:disabled { cursor: wait; opacity: .55; }
 .fp-minimized-restore:hover, .fp-minimized-restore:focus-visible { background: rgba(255,79,216,.2); border-color: #ff4fd8; outline: none; }
 
 body.fp-modal-open { overflow: hidden; }
+
+/* client portal banner - shown only to signed-in clients */
+.client-portal-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  background: rgba(141,92,255,.12);
+  border-bottom: 1px solid rgba(141,92,255,.25);
+  font-size: .88rem;
+  color: #d9d5e6;
+  text-align: center;
+}
+.client-portal-banner[hidden] { display: none; }
+.client-portal-banner-link {
+  color: #ff4fd8;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.client-portal-banner-link:hover { text-decoration: underline; }
