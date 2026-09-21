@@ -400,7 +400,11 @@ function closeFlightPlan(): void {
   fpMinimizedBar?.remove();
   fpMinimizedBar = null;
   document.body.classList.remove("fp-modal-open");
-  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Land on the "Ask Nova another question" follow-up, not the top of the panel -
+  // otherwise visitors have to re-scroll past the whole recommendation to find
+  // their way back into the conversation.
+  const followUp = result.querySelector<HTMLElement>("#post-plan-question");
+  (followUp ?? result).scrollIntoView({ behavior: "smooth", block: followUp ? "center" : "start" });
 }
 
 function renderWebsiteBuildResult(websiteBuildResult: WebsiteBuildResult): void {
