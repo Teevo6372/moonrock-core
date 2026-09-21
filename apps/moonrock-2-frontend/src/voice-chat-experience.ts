@@ -125,6 +125,10 @@ function handleConversationState(event: Event): void {
   const response = (event as CustomEvent<DiscoveryResponse>).detail;
   learnedCount = response?.progress?.answered ?? learnedCount;
   scheduleSync();
+  // A completed turn (Flight Plan / site brief / GHL result) opens the modal fresh -
+  // it should land on the top of the recommendation, not jump to the "Ask Nova
+  // another question" box just because that's the only form left in the DOM.
+  if (response?.completed) return;
   window.setTimeout(scrollActiveConversationIntoView, 80);
 }
 export function initializeNovaVoiceChatExperience(): void {
