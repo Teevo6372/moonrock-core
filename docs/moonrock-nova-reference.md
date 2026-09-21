@@ -39,10 +39,13 @@ Target market: startup businesses, local SMBs, and contractors — with a specif
 - `GET /v1/client/me` — full implementation: fast path by `clerk_user_id`, fallback via Clerk `publicMetadata.clientId` on first login, activates the client row and links the Clerk identity
 - Clerk-gated onboarding conversation at `clients.moonrockmarketing.com/onboarding` — Nova conducts the post-payment intake Q&A via `POST /v1/client/onboarding/conversation` (`onboarding-conversation-engine.ts`); tested end-to-end 2026-09-19
 - `clients.moonrockmarketing.com` — Cloudflare Pages custom domain for the client portal (required by Clerk's origin validation policy); DNS CNAME `clients → moonrock-2.pages.dev` (proxied)
+- **Client portal banner** (PR #230, 2026-09-21) — signed-in clients on moonrockmarketing.com now see a "Welcome back" banner with a direct link to their client portal
+- **Auth-state branching** (PR #230, 2026-09-21) — `main.ts` now checks Clerk sign-in state on load and shows the portal banner only to authenticated clients
+- **Post-onboarding GHL notification** (PR #230, 2026-09-21) — when a client's onboarding conversation completes, the server tags the GHL contact `nova-onboarding-complete` and writes a note; fire-and-forget via `onOnboardingComplete` callback in `ClientRouterOptions`
+- **Launch add-ons catalog, bundles, and Nova selling behavior** (PR #229, 2026-09-21) — 8 add-on items, 4 bundles with `isBundleSellable()` gating, pitch triggers in system prompt, `approvedServiceCatalog()` includes sellable add-ons, `StripeCheckoutConfig.addonMonthlyPriceIds` wired for order-bump at checkout
 
 **Not yet built:**
 
-- Auth-state branching in the main site frontend (`main.ts` currently shows the same discovery chat to every visitor regardless of Clerk sign-in state)
 - Full client dashboard build-out (Stage 5) — the onboarding conversation is live, but the ongoing client dashboard (activity log, task history) is not started
 - AI Agent Business Advisor and AI Agent Workforce tiers — code exists in the catalog but is deliberately paused
 
@@ -118,15 +121,15 @@ Only the memory system follows you automatically across chat, this kind of sessi
 
 ---
 
-## 7. Branch State (as of 2026-09-19)
+## 7. Branch State (as of 2026-09-21)
 
 ### Local branches
 
 | Branch | Status | Notes |
 | --- | --- | --- |
-| `main` | Active — 1 ahead of origin | Reference doc commit not yet pushed |
+| `main` | Active — clean | All PRs merged; up to date with origin |
 | `feat/site-pages-contact-form-nav` | Merged — safe to delete | Remote gone; all commits in main |
-| `fix/tier0-catalog-name-drift` | **Unmerged — 1 commit** | `tier0-catalog.ts` only (3 lines): aligns GHL catalog service names with what's actually live. Needs a PR or cherry-pick to main before next client onboards. |
+| `fix/tier0-catalog-name-drift` | Merged — safe to delete | Was 1 commit ahead locally; merged to main in earlier session |
 
 ### Remote branches of note (Nova / moonrockmarketing.com)
 
@@ -150,7 +153,7 @@ All `agent/` and `feature/program-0*` branches are agent-generated sprint work f
 | --- | --- | --- |
 | Railway | Hosts Nova Website Advisor Runtime (Node/Hono) + PostgreSQL | Live in production |
 | Cloudflare Pages | Hosts moonrock-2-frontend (Vite/TS) at `moonrockmarketing.com` + `clients.moonrockmarketing.com` | Live in production |
-| Stripe | Payments — Checkout, subscriptions, webhook to Railway | Live; webhook endpoint needs production-mode verification |
+| Stripe | Payments — Checkout, subscriptions, webhook to Railway | Live; Launch Plan prices provisioned; add-on Price IDs pending `stripe-provision-catalog-cli.ts --apply` |
 | Clerk | Client auth — invitations, sign-in, JWT for `/v1/client/*` | Live with live keys |
 | GoHighLevel (GHL) | CRM — contact records, `nova-paid-onboarding` tag, GHL Client Portal for billing/onboarding | Live on Setterlun University sub-account |
 | Anthropic | LLM backbone for Nova discovery, flight plan, and onboarding conversation | Live; Groq wired as fallback |
@@ -163,11 +166,11 @@ All `agent/` and `feature/program-0*` branches are agent-generated sprint work f
 
 ### Blockers — must fix before first real client
 
-- [ ] **Merge `fix/tier0-catalog-name-drift`** — 3-line fix aligning GHL catalog service names with what's actually live. If a client's flight plan references the wrong name, the GHL field write will fail silently.
-- [ ] **Stripe webhook production-mode verification** — Confirm the Stripe webhook is pointed at the production Railway URL with *live-mode* events (not test mode). One live test payment should be processed end-to-end: Stripe → Railway webhook → `nova_clients` INSERT → Clerk invitation sent → client signs in → onboarding completes.
-- [ ] **Production migration 0007 confirmed** — `nova_clients` must have `onboarding_status`, `onboarding_conversation`, `onboarding_answers` columns (from `0007_client_onboarding.sql`). Tonight's manual test worked because the columns were present, but formally confirm `NOVA_RUN_MIGRATIONS=true` on Railway and that all 7 migrations have run cleanly.
-- [ ] **Auth-state branching on the homepage** — `main.ts` shows the same Nova discovery chat to every visitor regardless of Clerk sign-in state. A client who already signed up and opens `moonrockmarketing.com` will see the sales page with no path to their portal. At minimum, a signed-in client should see a "Go to your client portal →" banner or be redirected to `clients.moonrockmarketing.com/onboarding`.
-- [ ] **Post-onboarding team notification** — When a client completes the onboarding conversation (`onboarding_status = complete`), the Moonrock team currently receives no notification. Add a GHL task, email to stephen@, or webhook trigger so a team member knows to begin setup within the promised 1 business day.
+- [x] **Merge `fix/tier0-catalog-name-drift`** — done; was already in main before this session.
+- [x] **Production migration 0007 confirmed** — confirmed via Railway startup logs; `nova_clients` has all required columns; all 7 migrations applied.
+- [x] **Auth-state branching on the homepage** — done (PR #230, 2026-09-21); signed-in clients see a "Welcome back" banner with a link to their portal.
+- [x] **Post-onboarding team notification** — done (PR #230, 2026-09-21); GHL contact is tagged `nova-onboarding-complete` and a setup note is written when onboarding completes.
+- [ ] **Stripe webhook production-mode verification** — confirm the Stripe webhook is pointed at the production Railway URL with live-mode events. One live test payment should be processed end-to-end: Stripe → Railway webhook → `nova_clients` INSERT → Clerk invitation sent → client signs in → onboarding completes. Add-on Price IDs also need to be provisioned via `stripe-provision-catalog-cli.ts --apply` and set in Railway.
 
 ### High priority — fix before first paying client ships
 
