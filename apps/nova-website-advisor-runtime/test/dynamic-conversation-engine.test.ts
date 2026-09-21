@@ -96,10 +96,10 @@ describe("ascension funnel grounding in businessContext", () => {
     return generate.mock.calls[0]![0].businessContext;
   }
 
-  // Ascension funnel v2: the a-la-carte catalog is paused along with the rest
-  // of the old multi-tier catalog (see approvedServiceCatalog in
-  // ai-employee-catalog.ts) - it no longer flows into businessContext at all.
-  it("never grounds the LLM on the a-la-carte catalog now that it is paused", async () => {
+  // Sellable add-ons flow through approvedServiceCatalog() (see
+  // ai-employee-catalog.ts), never as a raw alaCarteCatalog dump — keeping
+  // grounding to the same approved-name list the system prompt enforces.
+  it("never injects the raw a-la-carte catalog object into businessContext (add-ons flow via approvedServiceCatalog instead)", async () => {
     const context = await contextFromRespond(completedState());
     expect(context.alaCarteCatalog).toBeUndefined();
   });

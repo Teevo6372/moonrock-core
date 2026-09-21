@@ -11,7 +11,7 @@ Reference doc — locked decisions, current build status, and open items
 | Tier | Price | What it is | Status |
 | --- | --- | --- | --- |
 | Moonrock Launch Plan | $97/mo ($499 setup, $0 for founding customers) | Missed-call text-back, FAQ answering, automatic review requests, website build/upgrade, leads & bookings in one screen | Live — Nova closes autonomously via Stripe |
-| Launch Plan Add-Ons | $19–$69/mo each; bundles $59–$249/mo | Zero-touch add-ons sold on top of Launch (review replies, referral engine, GBP autopilot, scorecard, reactivation newsletter, etc.); three gated items pending decisions | Catalog and bundles built (feat/launch-addons-catalog, 2026-09-21) — Nova selling behavior (Phase 4) not yet wired |
+| Launch Plan Add-Ons | $19–$69/mo each; bundles $59–$249/mo | Zero-touch add-ons sold on top of Launch (review replies, referral engine, GBP autopilot, scorecard, reactivation newsletter, etc.); three gated items pending decisions | Catalog, bundles, and Nova selling behavior wired (feat/launch-addons-catalog, 2026-09-21) — Stripe Price IDs for add-ons not yet provisioned (see Open Decisions) |
 | AI Agent Business Advisor ("ai_employee") | $999/mo | Nova scoped as a dedicated AI Employee doing ongoing work for one client's business, fully customized | Paused in code — not yet sellable |
 | AI Agent Workforce ("ai_workforce") | $9,999/mo | Nova as part of a multi-agent team running tasks across a client's business, fully customized | Paused in code — not yet sellable |
 
@@ -101,7 +101,9 @@ Target market: startup businesses, local SMBs, and contractors — with a specif
 - **Website Care Plan scope** — confirm what Launch already covers for hosting/edits; price may drop to ~$29 (edits-only) if hosting is already included. Gates `website_care_plan`.
 - **Client dashboard build-out** — final design of the Clerk-gated client surface for Stage 5, once the above are answered.
 - **Stripe key scope for post-purchase add-ons** — the current restricted Stripe key covers Checkout Sessions, Prices, and Customers only; adding an add-on to an existing subscription requires `subscription_update` permission. Pre-purchase add-ons (order bump at Launch checkout) work today; post-purchase does not.
-- **Phase 4 (Nova selling behavior)** — `dynamic-conversation-engine.ts` still hardcodes "no add-ons"; `approvedServiceCatalog()` still returns Launch Plan only. Phase 4 wires Nova's pitch triggers and unlocks the catalog for discovery-chat add-on selling.
+- **Stripe Price IDs for add-ons** — `StripeCheckoutConfig.addonMonthlyPriceIds` is wired and ready; the order-bump line items will be appended at Launch checkout once live Stripe Price IDs are provisioned via `stripe-provision-catalog-cli.ts` and added to Railway env vars. Setup fees are waived at Launch checkout per bundle spec.
+- **Monthly Scorecard fulfillment** — Nova pitches the scorecard and it's in `approvedServiceCatalog()`; Phase 5 fulfillment (the actual monthly report delivery pipeline) is not yet built. One-tap "turn this on" from the scorecard is a clearly-marked extension point.
+- **Post-purchase add-on upgrades** — current Stripe restricted key covers Checkout Sessions, Prices, and Customers only; adding an add-on to an existing subscription requires `subscription_update` permission. Pre-purchase order-bump at Launch checkout works today; post-purchase does not.
 
 ---
 

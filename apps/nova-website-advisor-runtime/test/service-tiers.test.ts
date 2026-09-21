@@ -313,12 +313,33 @@ describe("normalizeDiscoveryAnswer for new service-tier fields", () => {
 });
 
 describe("approvedServiceCatalog", () => {
-  // Ascension funnel v2: every catalog except moonrock_launch_plan is paused
-  // (see the comment on approvedServiceCatalog in ai-employee-catalog.ts) -
-  // Nova should only ever cite the one offer actually being sold.
-  it("includes only the Moonrock Launch Plan now that the rest of the catalog is paused", () => {
+  it("includes the Moonrock Launch Plan as the first entry", () => {
     const names = approvedServiceCatalog().map((service) => service.name);
-    expect(names).toEqual(["Moonrock Launch Plan"]);
+    expect(names[0]).toBe("Moonrock Launch Plan");
+  });
+
+  it("includes every sellable add-on from ALA_CARTE_CATALOG", () => {
+    const names = approvedServiceCatalog().map((service) => service.name);
+    // Spot-check the five ungated new add-ons
+    expect(names).toContain("Review Response Autopilot");
+    expect(names).toContain("Referral Engine");
+    expect(names).toContain("Google Business Profile Autopilot");
+    expect(names).toContain("Customer Reactivation & Newsletter");
+    expect(names).toContain("Nova Monthly Scorecard");
+  });
+
+  it("never includes unsellable items (Launch duplicates, gated add-ons, or retired items)", () => {
+    const names = approvedServiceCatalog().map((service) => service.name);
+    // Launch duplicates
+    expect(names).not.toContain("Missed-Call Text-Back");
+    expect(names).not.toContain("Reputation Management");
+    expect(names).not.toContain("Review Request Automation");
+    // Gated items
+    expect(names).not.toContain("Social Content Autopilot");
+    expect(names).not.toContain("Local SEO Page Pack");
+    expect(names).not.toContain("Website Care Plan");
+    // Retired
+    expect(names).not.toContain("Tracking & Analytics");
   });
 
   it("never includes a hallucination-prone third-party platform name that isn't an actual offer", () => {
