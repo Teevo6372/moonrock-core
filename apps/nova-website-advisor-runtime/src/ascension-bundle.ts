@@ -2,6 +2,100 @@ import type { ServiceTier } from "./ai-employee-catalog.js";
 import { ALA_CARTE_CATALOG, type AlaCarteItemId } from "./ala-carte-catalog.js";
 import type { DiagnosticInput } from "./diagnostic-engine.js";
 
+// ---------------------------------------------------------------------------
+// Launch add-on bundles
+// Each bundle stores exactly one price (bundleMonthlyFeeUsd). The separate
+// total and savings figures are always computed from ALA_CARTE_CATALOG so
+// they can never drift from catalog prices.
+// Setup fees for member items are waived when a bundle is purchased at Launch
+// checkout (setupFeesWaivedAtLaunchCheckout: true).
+// A bundle is only sellable when every member item is also sellable — gated
+// items make any bundle containing them unsellable automatically.
+// ---------------------------------------------------------------------------
+
+export type LaunchAddonBundleId =
+  | "reputation_pack"
+  | "get_found_pack"
+  | "keep_customers_pack"
+  | "full_autopilot";
+
+export interface LaunchAddonBundle {
+  id: LaunchAddonBundleId;
+  name: string;
+  /** Catalog item IDs that make up this bundle. Must match AlaCarteItemId. */
+  itemIds: readonly AlaCarteItemId[];
+  /** The single stored bundle price. Totals and savings are derived, never stored. */
+  bundleMonthlyFeeUsd: number;
+  /** True: individual member setup fees are waived when purchased at Launch checkout. */
+  setupFeesWaivedAtLaunchCheckout: boolean;
+}
+
+export const LAUNCH_ADDON_BUNDLES: Readonly<Record<LaunchAddonBundleId, LaunchAddonBundle>> = {
+  reputation_pack: {
+    id: "reputation_pack",
+    name: "Reputation Pack",
+    itemIds: ["review_response_autopilot", "referral_engine", "monthly_scorecard"],
+    bundleMonthlyFeeUsd: 59,
+    setupFeesWaivedAtLaunchCheckout: true,
+  },
+  get_found_pack: {
+    id: "get_found_pack",
+    name: "Get Found Pack",
+    itemIds: ["gbp_autopilot", "social_content_autopilot", "local_seo_page_pack"],
+    bundleMonthlyFeeUsd: 119,
+    setupFeesWaivedAtLaunchCheckout: true,
+  },
+  keep_customers_pack: {
+    id: "keep_customers_pack",
+    name: "Keep-Customers Pack",
+    itemIds: ["quote_followup_sequences", "reactivation_newsletter", "seasonal_campaign_automation"],
+    bundleMonthlyFeeUsd: 119,
+    setupFeesWaivedAtLaunchCheckout: true,
+  },
+  full_autopilot: {
+    id: "full_autopilot",
+    name: "Full Autopilot",
+    itemIds: [
+      "review_response_autopilot",
+      "referral_engine",
+      "monthly_scorecard",
+      "gbp_autopilot",
+      "social_content_autopilot",
+      "local_seo_page_pack",
+      "quote_followup_sequences",
+      "reactivation_newsletter",
+      "seasonal_campaign_automation",
+      "website_care_plan",
+    ],
+    bundleMonthlyFeeUsd: 249,
+    setupFeesWaivedAtLaunchCheckout: true,
+  },
+};
+
+/** Sum of each member item's catalog monthly fee — the "if bought separately" figure. */
+export function computeBundleSeparateMonthlyTotal(bundle: LaunchAddonBundle): number {
+  return bundle.itemIds.reduce((sum, id) => sum + ALA_CARTE_CATALOG[id].monthlyFeeUsd, 0);
+}
+
+/** Monthly savings vs. buying each item separately. */
+export function computeBundleMonthlySavings(bundle: LaunchAddonBundle): number {
+  return computeBundleSeparateMonthlyTotal(bundle) - bundle.bundleMonthlyFeeUsd;
+}
+
+/**
+ * A bundle is only sellable when every member item is also sellable.
+ * Gated items (sellable: false) automatically make any bundle containing them
+ * unsellable until the gate is lifted.
+ */
+export function isBundleSellable(bundle: LaunchAddonBundle): boolean {
+  return bundle.itemIds.every((id) => ALA_CARTE_CATALOG[id].sellable);
+}
+
+/** Returns only bundles where every member item is currently sellable. */
+export function sellableLaunchAddonBundles(): LaunchAddonBundle[] {
+  return Object.values(LAUNCH_ADDON_BUNDLES).filter(isBundleSellable);
+}
+
 export interface BundleLineItem {
   itemId: string;
   itemName: string;

@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { composeAlaCarteBundle, composeCrossTierBundle, downsellBundle, requiresCrmAttachment } from "../src/ascension-bundle.js";
+import {
+  composeAlaCarteBundle,
+  composeCrossTierBundle,
+  computeBundleMonthlySavings,
+  computeBundleSeparateMonthlyTotal,
+  downsellBundle,
+  isBundleSellable,
+  LAUNCH_ADDON_BUNDLES,
+  requiresCrmAttachment,
+  sellableLaunchAddonBundles,
+} from "../src/ascension-bundle.js";
 import { diagnoseWebsiteBuild, type DiagnosticInput } from "../src/diagnostic-engine.js";
+import { ALA_CARTE_CATALOG } from "../src/ala-carte-catalog.js";
 
 function input(overrides: Partial<DiagnosticInput> = {}): DiagnosticInput {
   return { path: "existing_business", ...overrides };
@@ -98,6 +109,101 @@ describe("composeCrossTierBundle", () => {
   it("returns undefined for ai_employee and ghl_saas (no cross-tier heuristic defined for them)", () => {
     expect(composeCrossTierBundle("ai_employee", input())).toBeUndefined();
     expect(composeCrossTierBundle("ghl_saas", input())).toBeUndefined();
+  });
+});
+
+describe("LAUNCH_ADDON_BUNDLES — bundle data and computed pricing", () => {
+  it("defines all four bundles", () => {
+    expect(Object.keys(LAUNCH_ADDON_BUNDLES)).toEqual(
+      expect.arrayContaining(["reputation_pack", "get_found_pack", "keep_customers_pack", "full_autopilot"]),
+    );
+    expect(Object.keys(LAUNCH_ADDON_BUNDLES)).toHaveLength(4);
+  });
+
+  it("stores exactly one bundle price per bundle (the computed totals are derived, not stored)", () => {
+    // Verify the stored prices match the spec
+    expect(LAUNCH_ADDON_BUNDLES.reputation_pack.bundleMonthlyFeeUsd).toBe(59);
+    expect(LAUNCH_ADDON_BUNDLES.get_found_pack.bundleMonthlyFeeUsd).toBe(119);
+    expect(LAUNCH_ADDON_BUNDLES.keep_customers_pack.bundleMonthlyFeeUsd).toBe(119);
+    expect(LAUNCH_ADDON_BUNDLES.full_autopilot.bundleMonthlyFeeUsd).toBe(249);
+  });
+
+  it("computes reputation_pack separate total from catalog prices (never hard-coded)", () => {
+    const bundle = LAUNCH_ADDON_BUNDLES.reputation_pack;
+    const expectedSeparate = 29 + 29 + 19; // review_response_autopilot + referral_engine + monthly_scorecard
+    expect(computeBundleSeparateMonthlyTotal(bundle)).toBe(expectedSeparate);
+    expect(computeBundleMonthlySavings(bundle)).toBe(expectedSeparate - 59);
+  });
+
+  it("computes keep_customers_pack separate total from catalog prices", () => {
+    const bundle = LAUNCH_ADDON_BUNDLES.keep_customers_pack;
+    const expectedSeparate = 49 + 49 + 59; // quote_followup + reactivation_newsletter + seasonal_campaign
+    expect(computeBundleSeparateMonthlyTotal(bundle)).toBe(expectedSeparate);
+    expect(computeBundleMonthlySavings(bundle)).toBe(expectedSeparate - 119);
+  });
+
+  it("every bundle shows positive savings vs. buying separately", () => {
+    for (const bundle of Object.values(LAUNCH_ADDON_BUNDLES)) {
+      expect(computeBundleMonthlySavings(bundle), bundle.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("waives setup fees at Launch checkout for all four bundles", () => {
+    for (const bundle of Object.values(LAUNCH_ADDON_BUNDLES)) {
+      expect(bundle.setupFeesWaivedAtLaunchCheckout, bundle.id).toBe(true);
+    }
+  });
+
+  it("full_autopilot contains exactly 10 items spanning all three other bundles plus website_care_plan", () => {
+    const full = LAUNCH_ADDON_BUNDLES.full_autopilot;
+    expect(full.itemIds).toHaveLength(10);
+    // Every item from the three sub-bundles must appear
+    for (const id of LAUNCH_ADDON_BUNDLES.reputation_pack.itemIds) {
+      expect(full.itemIds).toContain(id);
+    }
+    for (const id of LAUNCH_ADDON_BUNDLES.get_found_pack.itemIds) {
+      expect(full.itemIds).toContain(id);
+    }
+    for (const id of LAUNCH_ADDON_BUNDLES.keep_customers_pack.itemIds) {
+      expect(full.itemIds).toContain(id);
+    }
+    expect(full.itemIds).toContain("website_care_plan");
+  });
+
+  it("every bundle item ID exists in ALA_CARTE_CATALOG", () => {
+    for (const bundle of Object.values(LAUNCH_ADDON_BUNDLES)) {
+      for (const id of bundle.itemIds) {
+        expect(ALA_CARTE_CATALOG[id], `${bundle.id} references unknown item ${id}`).toBeDefined();
+      }
+    }
+  });
+});
+
+describe("isBundleSellable and sellableLaunchAddonBundles — gating logic", () => {
+  it("marks reputation_pack as sellable (all members are ungated)", () => {
+    expect(isBundleSellable(LAUNCH_ADDON_BUNDLES.reputation_pack)).toBe(true);
+  });
+
+  it("marks keep_customers_pack as sellable (all members are ungated)", () => {
+    expect(isBundleSellable(LAUNCH_ADDON_BUNDLES.keep_customers_pack)).toBe(true);
+  });
+
+  it("marks get_found_pack as unsellable because social_content_autopilot and local_seo_page_pack are gated", () => {
+    expect(isBundleSellable(LAUNCH_ADDON_BUNDLES.get_found_pack)).toBe(false);
+  });
+
+  it("marks full_autopilot as unsellable because it contains gated items", () => {
+    expect(isBundleSellable(LAUNCH_ADDON_BUNDLES.full_autopilot)).toBe(false);
+  });
+
+  it("sellableLaunchAddonBundles() returns only bundles with all members enabled", () => {
+    const sellable = sellableLaunchAddonBundles();
+    for (const bundle of sellable) {
+      expect(isBundleSellable(bundle), bundle.id).toBe(true);
+    }
+    // get_found_pack and full_autopilot are gated — must not appear
+    expect(sellable.some((b) => b.id === "get_found_pack")).toBe(false);
+    expect(sellable.some((b) => b.id === "full_autopilot")).toBe(false);
   });
 });
 
