@@ -1,3 +1,5 @@
+import { sellableAlaCarteItems } from "./ala-carte-catalog.js";
+
 export type AiEmployeeId =
   | "moonrock_launch_plan"
   | "reputation_retention"
@@ -316,14 +318,19 @@ export interface ApprovedServiceSummary {
  * invent a product, platform, or capability Moonrock does not actually offer
  * when asked what else Moonrock can help with.
  *
- * Ascension-funnel-v2: WEBSITE_BUILD_CATALOG, GHL_SAAS_CATALOG,
- * ALA_CARTE_CATALOG, and every AI_EMPLOYEE_CATALOG entry except
- * moonrock_launch_plan are paused (see the comment on AI_EMPLOYEE_CATALOG
- * above) - restricted to the one offer actually being sold so Nova stops
- * citing paused catalogs as if they were live. Recoverable via git history
- * once more ascension-funnel products ship.
+ * Includes the Moonrock Launch Plan (always) plus every sellable Launch add-on
+ * (those with sellable: true in ALA_CARTE_CATALOG). WEBSITE_BUILD_CATALOG,
+ * GHL_SAAS_CATALOG, and the paused AI_EMPLOYEE_CATALOG entries above
+ * moonrock_launch_plan remain excluded — they are not yet being sold.
  */
 export function approvedServiceCatalog(): ApprovedServiceSummary[] {
   const launchPlan = AI_EMPLOYEE_CATALOG.moonrock_launch_plan;
-  return [{ name: launchPlan.name, oneLiner: launchPlan.includedFeatures[0] ?? launchPlan.name }];
+  const addOns = sellableAlaCarteItems().map((offer) => ({
+    name: offer.name,
+    oneLiner: offer.includedFeatures[0] ?? offer.name,
+  }));
+  return [
+    { name: launchPlan.name, oneLiner: launchPlan.includedFeatures[0] ?? launchPlan.name },
+    ...addOns,
+  ];
 }

@@ -127,6 +127,61 @@ describe("POST /:sessionId/create-checkout-session", () => {
     expect(params.metadata.moonrock_used_founding_price).toBe("false");
   });
 
+  it("appends add-on line items when addonMonthlyPriceIds are configured and addonItemIds are passed at checkout", async () => {
+    const createCheckoutSession = vi.fn().mockResolvedValue({ id: "cs_test_addon", url: "https://checkout.stripe.com/cs_test_addon" });
+    const stripeWithAddons: StripeCheckoutConfig = {
+      ...mockStripe(createCheckoutSession),
+      addonMonthlyPriceIds: { review_response_autopilot: "price_review_response", referral_engine: "price_referral" },
+    };
+    const { app } = createMoonrock2App({ stripe: stripeWithAddons, launchPlanRepository: mockLaunchPlanRepository(0) });
+    const sessionId = "checkout-with-addons";
+    await post(app, `/v1/discovery/${sessionId}/start`, { path: "existing_business" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "businessName", value: "Test Co" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "industry", value: "plumbing" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "missedCallsPerMonth", value: 10 });
+    const final = await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
+    expect(final.json.completed).toBe(true);
+
+    // addonItemIds passed directly in the checkout request (set by the frontend
+    // from the visitor's add-on selections, not pre-stored in session state)
+    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, {
+      identity: { email: "owner@example.com" },
+      addonItemIds: ["review_response_autopilot", "referral_engine"],
+    });
+    expect(result.status).toBe(200);
+    const params = createCheckoutSession.mock.calls[0]![0];
+    expect(params.line_items).toEqual([
+      { price: "price_founding", quantity: 1 },
+      { price: "price_monthly", quantity: 1 },
+      { price: "price_review_response", quantity: 1 },
+      { price: "price_referral", quantity: 1 },
+    ]);
+    expect(params.metadata.moonrock_addon_item_ids).toBe("review_response_autopilot,referral_engine");
+  });
+
+  it("does not append add-on line items when addonMonthlyPriceIds is not configured, even if addonItemIds are requested", async () => {
+    const createCheckoutSession = vi.fn().mockResolvedValue({ id: "cs_test_no_addon", url: "https://checkout.stripe.com/cs_test_no_addon" });
+    // Use full founding slots so line_items uses the standard price (no founding ambiguity)
+    const { app } = createMoonrock2App({ stripe: mockStripe(createCheckoutSession), launchPlanRepository: mockLaunchPlanRepository(10) });
+    const sessionId = "checkout-no-addon-prices";
+    await post(app, `/v1/discovery/${sessionId}/start`, { path: "existing_business" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "businessName", value: "Test Co" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "industry", value: "plumbing" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "missedCallsPerMonth", value: 10 });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
+
+    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, {
+      identity: { email: "owner@example.com" },
+      addonItemIds: ["review_response_autopilot"],
+    });
+    expect(result.status).toBe(200);
+    const params = createCheckoutSession.mock.calls[0]![0];
+    expect(params.line_items).toEqual([
+      { price: "price_standard", quantity: 1 },
+      { price: "price_monthly", quantity: 1 },
+    ]);
+  });
+
   it("reports 409 when the Flight Plan escalated and isn't autonomous-close eligible", async () => {
     const { app } = createMoonrock2App({ stripe: mockStripe() });
     const sessionId = "checkout-escalated";

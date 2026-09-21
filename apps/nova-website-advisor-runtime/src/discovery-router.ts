@@ -24,6 +24,16 @@ export interface StripeCheckoutConfig {
   monthlyPriceId: string;
   successUrl: string;
   cancelUrl: string;
+  /**
+   * Maps AlaCarteItemId → Stripe Price ID for the add-on's monthly subscription.
+   * Setup fees are waived at Launch checkout (setupFeesWaivedAtLaunchCheckout: true
+   * on all bundles), so only monthly price IDs are needed here.
+   * Add-ons the visitor indicated interest in (alaCarteItemsRequested) are appended
+   * as additional line items when their price ID is present in this map.
+   * EXTENSION POINT (Phase 5): populate this map with live Stripe Price IDs once
+   * they are provisioned via stripe-provision-catalog-cli.ts.
+   */
+  addonMonthlyPriceIds?: Record<string, string>;
 }
 
 export interface DiscoveryRouterOptions {
@@ -357,7 +367,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     if (!recommendation || recommendation.offerId !== "moonrock_launch_plan" || !recommendation.autonomousCloseAllowed) {
       return context.json({ code: "CHECKOUT_NOT_ELIGIBLE", detail: "This Flight Plan is not eligible for self-serve checkout." }, 409);
     }
-    const body = await context.req.json().catch(() => ({})) as { identity?: { email?: unknown; firstName?: unknown; lastName?: unknown } };
+    const body = await context.req.json().catch(() => ({})) as { identity?: { email?: unknown; firstName?: unknown; lastName?: unknown }; addonItemIds?: unknown };
     const email = typeof body.identity?.email === "string" ? body.identity.email.trim() : "";
     if (!email) return context.json({ code: "CHECKOUT_CONTACT_REQUIRED", detail: "A valid email is required to check out." }, 400);
     const firstName = typeof body.identity?.firstName === "string" ? body.identity.firstName.trim() : "";
@@ -366,6 +376,18 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const stripe = options.stripe;
     try {
       const usedFoundingPrice = await foundingSlotsAvailable(options.launchPlanRepository);
+      // Add-on order-bump: append any add-ons the visitor indicated interest in
+      // that have a configured Stripe Price ID. Setup fees are waived at Launch
+      // checkout per bundle spec (setupFeesWaivedAtLaunchCheckout: true).
+      // addonItemIds in the request body (set by the frontend at checkout) takes
+      // precedence over session-state alaCarteItemsRequested (set during discovery).
+      const requestedAddonIds: readonly string[] = Array.isArray(body.addonItemIds)
+        ? body.addonItemIds.filter((id): id is string => typeof id === "string")
+        : ((current.state.answers as Partial<DiagnosticInput>).alaCarteItemsRequested ?? []) as readonly string[];
+      const addonLineItems = requestedAddonIds
+        .map((id) => stripe.addonMonthlyPriceIds?.[id])
+        .filter((priceId): priceId is string => Boolean(priceId))
+        .map((price) => ({ price, quantity: 1 }));
       // A real Customer (not just customer_email) is what lets Stripe Checkout
       // actually prefill the name already collected on the Save Flight Plan
       // form, instead of asking the visitor to type it again.
@@ -379,8 +401,15 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
         line_items: [
           { price: usedFoundingPrice ? stripe.foundingSetupPriceId : stripe.standardSetupPriceId, quantity: 1 },
           { price: stripe.monthlyPriceId, quantity: 1 },
+          ...addonLineItems,
         ],
-        metadata: { moonrock_offer_id: "moonrock_launch_plan", tier: "launch_plan", moonrock_session_id: sessionId, moonrock_used_founding_price: String(usedFoundingPrice) },
+        metadata: {
+          moonrock_offer_id: "moonrock_launch_plan",
+          tier: "launch_plan",
+          moonrock_session_id: sessionId,
+          moonrock_used_founding_price: String(usedFoundingPrice),
+          ...(requestedAddonIds.length > 0 ? { moonrock_addon_item_ids: requestedAddonIds.join(",") } : {}),
+        },
       });
       if (!session.url) throw new Error("Stripe did not return a checkout URL");
       return context.json({ url: session.url });
