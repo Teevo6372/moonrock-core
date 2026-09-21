@@ -11,6 +11,7 @@ Reference doc — locked decisions, current build status, and open items
 | Tier | Price | What it is | Status |
 | --- | --- | --- | --- |
 | Moonrock Launch Plan | $97/mo ($499 setup, $0 for founding customers) | Missed-call text-back, FAQ answering, automatic review requests, website build/upgrade, leads & bookings in one screen | Live — Nova closes autonomously via Stripe |
+| Launch Plan Add-Ons | $19–$69/mo each; bundles $59–$249/mo | Zero-touch add-ons sold on top of Launch (review replies, referral engine, GBP autopilot, scorecard, reactivation newsletter, etc.); three gated items pending decisions | Catalog and bundles built (feat/launch-addons-catalog, 2026-09-21) — Nova selling behavior (Phase 4) not yet wired |
 | AI Agent Business Advisor ("ai_employee") | $999/mo | Nova scoped as a dedicated AI Employee doing ongoing work for one client's business, fully customized | Paused in code — not yet sellable |
 | AI Agent Workforce ("ai_workforce") | $9,999/mo | Nova as part of a multi-agent team running tasks across a client's business, fully customized | Paused in code — not yet sellable |
 
@@ -94,10 +95,13 @@ Target market: startup businesses, local SMBs, and contractors — with a specif
 
 ## 5. Open Decisions (Not Yet Settled)
 
-- **Social auto-posting / "prospect feed"** — in scope for the Launch Plan or not?
-- **Per-client website architecture** — a shared template repo with per-client content injection, or a separate repo / Cloudflare Pages project per client?
-- **Higgsfield vs. GHL AI Studio** — whether to keep the Higgsfield Plus subscription for video/content generation or shift that work to GHL's native AI Studio.
+- **Social auto-posting** — resolved: NOT in Launch Plan; sold as `social_content_autopilot` add-on ($49/mo). Currently gated pending the Higgsfield vs GHL AI Studio decision.
+- **Higgsfield vs. GHL AI Studio** — whether to keep the Higgsfield Plus subscription for video/content generation or shift that work to GHL's native AI Studio. Gates `social_content_autopilot`.
+- **Per-client website architecture** — a shared template repo with per-client content injection, or a separate repo / Cloudflare Pages project per client? Gates `local_seo_page_pack` and `website_care_plan`.
+- **Website Care Plan scope** — confirm what Launch already covers for hosting/edits; price may drop to ~$29 (edits-only) if hosting is already included. Gates `website_care_plan`.
 - **Client dashboard build-out** — final design of the Clerk-gated client surface for Stage 5, once the above are answered.
+- **Stripe key scope for post-purchase add-ons** — the current restricted Stripe key covers Checkout Sessions, Prices, and Customers only; adding an add-on to an existing subscription requires `subscription_update` permission. Pre-purchase add-ons (order bump at Launch checkout) work today; post-purchase does not.
+- **Phase 4 (Nova selling behavior)** — `dynamic-conversation-engine.ts` still hardcodes "no add-ons"; `approvedServiceCatalog()` still returns Launch Plan only. Phase 4 wires Nova's pitch triggers and unlocks the catalog for discovery-chat add-on selling.
 
 ---
 
