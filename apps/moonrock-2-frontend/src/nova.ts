@@ -331,6 +331,7 @@ function openFlightPlanModal(): void {
     fpModal.dataset.fpState = "open";
     if (fpMinimizedBar) fpMinimizedBar.hidden = true;
     document.body.classList.add("fp-modal-open");
+    result.scrollTop = 0;
     return;
   }
 
@@ -360,6 +361,7 @@ function openFlightPlanModal(): void {
 
   fpModal.appendChild(inner);
   document.body.appendChild(fpModal);
+  result.scrollTop = 0;
 
   fpMinimizedBar = document.createElement("div");
   fpMinimizedBar.className = "fp-minimized-bar";
@@ -389,6 +391,7 @@ function restoreFlightPlan(): void {
   fpModal.dataset.fpState = "open";
   if (fpMinimizedBar) fpMinimizedBar.hidden = true;
   document.body.classList.add("fp-modal-open");
+  result.scrollTop = 0;
 }
 
 function closeFlightPlan(): void {
