@@ -3,6 +3,7 @@ import "./site-nav.js";
 import { answerDiscovery, getLaunchPlanStatus, startDiscovery } from "./api.js";
 import { consumeVoiceInputFlag } from "./voice-chat-experience.js";
 import { createNovaVisualStage } from "./visual-stage.js";
+import { currentUserLabel, isClerkConfigured, onClerkAuthChange } from "./clerk-auth.js";
 import type { BusinessPath, DiscoveryQuestion, DiscoveryResponse, GhlSaasResult, WebsiteBuildResult } from "./types.js";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -10,6 +11,11 @@ if (!app) throw new Error("Moonrock frontend root not found");
 
 app.innerHTML = `
   <main class="shell">
+    <div id="client-portal-banner" class="client-portal-banner" hidden role="alert">
+      <span id="client-portal-banner-label">Welcome back.</span>
+      <a href="https://clients.moonrockmarketing.com/onboarding" class="client-portal-banner-link">Go to your client portal &rarr;</a>
+    </div>
+
     <section class="hero">
       <a class="brand-mark" href="/" aria-label="Moonrock Marketing home">
         <img src="/moonrock-logo-badge.png" alt="Moonrock Marketing" width="46" height="46">
@@ -558,3 +564,17 @@ async function loadLaunchPlanStatus(): Promise<void> {
   }
 }
 void loadLaunchPlanStatus();
+
+if (isClerkConfigured()) {
+  const banner = document.querySelector<HTMLElement>("#client-portal-banner");
+  const bannerLabel = document.querySelector<HTMLElement>("#client-portal-banner-label");
+  if (banner && bannerLabel) {
+    onClerkAuthChange((signedIn) => {
+      banner.hidden = !signedIn;
+      if (signedIn) {
+        const label = currentUserLabel();
+        bannerLabel.textContent = label ? `Welcome back, ${label}.` : "Welcome back.";
+      }
+    });
+  }
+}
