@@ -77,6 +77,7 @@ export class StripeClient {
     customer_email?: string;
     line_items: Array<{ price: string; quantity: number }>;
     metadata?: Record<string, string>;
+    allow_promotion_codes?: boolean;
   }): Promise<StripeCheckoutSession> {
     return this.post("/v1/checkout/sessions", params);
   }

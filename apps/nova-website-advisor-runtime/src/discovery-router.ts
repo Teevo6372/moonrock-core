@@ -398,6 +398,11 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
         cancel_url: stripe.cancelUrl,
         client_reference_id: sessionId,
         customer: customer.id,
+        // TEMPORARY (Nova E2E test, added 2026-09-24): lets a Stripe promotion
+        // code be entered at Checkout so a $0 test run doesn't require a real
+        // charge. REVERT this line (remove allow_promotion_codes) once the
+        // end-to-end test is done - see chat with Claude for context.
+        allow_promotion_codes: true,
         line_items: [
           { price: usedFoundingPrice ? stripe.foundingSetupPriceId : stripe.standardSetupPriceId, quantity: 1 },
           { price: stripe.monthlyPriceId, quantity: 1 },
