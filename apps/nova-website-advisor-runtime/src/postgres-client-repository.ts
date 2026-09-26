@@ -115,6 +115,29 @@ export class PostgresClientRepository {
     return mapRow(result.rows[0]!);
   }
 
+  /**
+   * Records Launch add-ons bought at checkout. Idempotent per (client, add-on):
+   * a replay or a repeat purchase leaves the existing row, and its status, alone.
+   */
+  async recordPurchasedAddons(clientId: string, itemIds: readonly string[], stripeCheckoutSessionId: string): Promise<void> {
+    for (const itemId of itemIds) {
+      await this.pool.query(
+        `INSERT INTO nova_client_addons (client_id, item_id, stripe_checkout_session_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (client_id, item_id) DO NOTHING`,
+        [clientId, itemId, stripeCheckoutSessionId],
+      );
+    }
+  }
+
+  async listAddons(clientId: string): Promise<Array<{ itemId: string; status: string }>> {
+    const result = await this.pool.query<{ item_id: string; status: string }>(
+      `SELECT item_id, status FROM nova_client_addons WHERE client_id = $1 ORDER BY created_at, item_id`,
+      [clientId],
+    );
+    return result.rows.map((row) => ({ itemId: row.item_id, status: row.status }));
+  }
+
   async setInvited(clientId: string): Promise<void> {
     await this.pool.query(
       `UPDATE nova_clients SET status = 'invited', updated_at = NOW() WHERE id = $1`,

@@ -670,3 +670,8 @@ export function isSellableLaunchAddonId(id: string): id is LaunchAddonItemId {
 export function sellableLaunchAddonItems(): AlaCarteOffer[] {
   return LAUNCH_ADDON_ITEM_IDS.filter(isSellableLaunchAddonId).map((id) => ALA_CARTE_CATALOG[id]);
 }
+
+/** True for any Launch add-on id, sellable or not (a purchase made while an item was sellable must still be recognised later). */
+export function isLaunchAddonId(id: string): id is LaunchAddonItemId {
+  return LAUNCH_ADDON_ID_SET.has(id);
+}

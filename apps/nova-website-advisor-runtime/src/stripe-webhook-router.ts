@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
+import { announceAddonPurchaseInGhl } from "./addon-fulfillment.js";
 import { AI_EMPLOYEE_CATALOG } from "./ai-employee-catalog.js";
 import { sendClerkInvitation, type ClerkInvitationConfig } from "./clerk-invitation.js";
 import { restoreNovaDiscovery } from "./discovery-api-contract.js";
@@ -7,6 +8,7 @@ import type { DiagnosticInput } from "./diagnostic-engine.js";
 import type { DiscoveryStateRepository } from "./discovery-state-repository.js";
 import { recordConversationSale } from "./discovery-session.js";
 import { handoffFlightPlanToGhl, type ProductionGhlHandoffConfig } from "./ghl-production-handoff.js";
+import { purchasedAddonIdsFromMetadata } from "./launch-addon-prices.js";
 import type { PostgresClientRepository } from "./postgres-client-repository.js";
 import type { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
 import { verifyStripeWebhookSignature } from "./stripe-client.js";
@@ -122,6 +124,7 @@ export function createStripeWebhookRouter(options: StripeWebhookRouterOptions): 
     }
 
     const usedFoundingPrice = session.metadata?.moonrock_used_founding_price === "true";
+    const purchasedAddonIds = purchasedAddonIdsFromMetadata(session.metadata?.moonrock_addon_item_ids);
 
     if (options.launchPlanRepository) {
       await options.launchPlanRepository.recordSignup({
@@ -168,6 +171,14 @@ export function createStripeWebhookRouter(options: StripeWebhookRouterOptions): 
         });
         clientId = client.id;
 
+        if (purchasedAddonIds.length > 0) {
+          try {
+            await options.clientRepository.recordPurchasedAddons(client.id, purchasedAddonIds, session.id);
+          } catch (addonError) {
+            console.error(`[stripe-webhook] failed to record add-ons for client ${client.id}:`, addonError instanceof Error ? addonError.message : addonError);
+          }
+        }
+
         if (options.clerkInvitation) {
           try {
             await sendClerkInvitation({ email, clientId: client.id, tier }, options.clerkInvitation);
@@ -184,7 +195,7 @@ export function createStripeWebhookRouter(options: StripeWebhookRouterOptions): 
       }
 
       process.stdout.write(
-        JSON.stringify({ event: "nova-new-paid-client", email, clientId, sessionId, tier, ts: new Date().toISOString() }) + "\n",
+        JSON.stringify({ event: "nova-new-paid-client", email, clientId, sessionId, tier, ...(purchasedAddonIds.length > 0 ? { addons: purchasedAddonIds } : {}), ts: new Date().toISOString() }) + "\n",
       );
     }
 
@@ -217,6 +228,15 @@ export function createStripeWebhookRouter(options: StripeWebhookRouterOptions): 
         await markGhlContactPaidOnboarding(email, options.productionGhl);
       } catch (ghlError) {
         console.error(`[stripe-webhook] failed to apply GHL paid-onboarding tag for ${email}:`, ghlError instanceof Error ? ghlError.message : ghlError);
+      }
+    }
+
+    // Hand the purchased add-ons to the team in GHL (tags usable as workflow triggers, plus a note).
+    if (purchasedAddonIds.length > 0 && options.productionGhl?.enabled && options.productionGhl.writesEnabled && email) {
+      try {
+        await announceAddonPurchaseInGhl({ email, itemIds: purchasedAddonIds, checkoutSessionId: session.id }, options.productionGhl);
+      } catch (ghlError) {
+        console.error(`[stripe-webhook] failed to announce add-on purchase in GHL for ${email}:`, ghlError instanceof Error ? ghlError.message : ghlError);
       }
     }
 
