@@ -11,7 +11,7 @@ Reference doc — locked decisions, current build status, and open items
 | Tier | Price | What it is | Status |
 | --- | --- | --- | --- |
 | Moonrock Launch Plan | $97/mo ($499 setup, $0 for founding customers) | Missed-call text-back, FAQ answering, automatic review requests, website build/upgrade, leads & bookings in one screen | Live — Nova closes autonomously via Stripe |
-| Launch Plan Add-Ons | $19–$69/mo each; bundles $59–$249/mo | Zero-touch add-ons sold on top of Launch (review replies, referral engine, GBP autopilot, scorecard, reactivation newsletter, etc.); three gated items pending decisions | Catalog, bundles, and Nova selling behavior wired (feat/launch-addons-catalog, 2026-09-21) — Stripe Price IDs for add-ons not yet provisioned (see Open Decisions) |
+| Launch Plan Add-Ons | $19–$69/mo each; bundles $59–$249/mo | Zero-touch add-ons sold on top of Launch (review replies, referral engine, GBP autopilot, scorecard, reactivation newsletter, etc.); three gated items pending decisions | Catalog, bundles, Nova selling behavior, checkout add-on picker, and purchase hand-off are built and merged (PRs #229, #231, #233, #235). Test mode and staging verified 2026-09-26. **Not yet enabled in production or live Stripe** — see section 9 for the go-live steps |
 | AI Agent Business Advisor ("ai_employee") | $999/mo | Nova scoped as a dedicated AI Employee doing ongoing work for one client's business, fully customized | Paused in code — not yet sellable |
 | AI Agent Workforce ("ai_workforce") | $9,999/mo | Nova as part of a multi-agent team running tasks across a client's business, fully customized | Paused in code — not yet sellable |
 
@@ -43,6 +43,10 @@ Target market: startup businesses, local SMBs, and contractors — with a specif
 - **Auth-state branching** (PR #230, 2026-09-21) — `main.ts` now checks Clerk sign-in state on load and shows the portal banner only to authenticated clients
 - **Post-onboarding GHL notification** (PR #230, 2026-09-21) — when a client's onboarding conversation completes, the server tags the GHL contact `nova-onboarding-complete` and writes a note; fire-and-forget via `onOnboardingComplete` callback in `ClientRouterOptions`
 - **Launch add-ons catalog, bundles, and Nova selling behavior** (PR #229, 2026-09-21) — 8 add-on items, 4 bundles with `isBundleSellable()` gating, pitch triggers in system prompt, `approvedServiceCatalog()` includes sellable add-ons, `StripeCheckoutConfig.addonMonthlyPriceIds` for order-bump at checkout (populated from env as of 2026-09-25, see Open Decisions)
+- **Add-on Stripe provisioning and checkout wiring** (PR #231, 2026-09-26) — `npm run provision:stripe-addons` (dry-run by default, re-runnable), `STRIPE_ADDON_MONTHLY_PRICE_IDS` env parsing, checkout de-duplication and sellability re-check
+- **Checkout add-on picker** (PR #233, 2026-09-26) — optional picker in the Save Flight Plan card with running total; Nova-named add-ons flagged "Suggested by Nova"; nothing pre-ticked
+- **Add-on purchase hand-off** (PR #235, 2026-09-26) — database record (`nova_client_addons`, migration 0008) plus `nova-addon-*` GHL tags and a GHL note when a checkout includes add-ons
+- **Stripe account cleanup** (2026-09-26) — 3,932 legacy imported products archived; Launch Plan and 50 lead magnets kept
 
 **Not yet built:**
 
@@ -106,7 +110,7 @@ Target market: startup businesses, local SMBs, and contractors — with a specif
 - **Stripe key scope for post-purchase add-ons** — the current restricted Stripe key covers Checkout Sessions, Prices, and Customers only; adding an add-on to an existing subscription requires `subscription_update` permission. Pre-purchase add-ons (order bump at Launch checkout) work today; post-purchase does not.
 - **Stripe Price IDs for add-ons** — code merged (PR #231, 2026-09-26). **Test mode and staging verified:** the 5 sandbox prices exist, and staging (`NOVA_STRIPE_ENABLED=true` + `STRIPE_ADDON_MONTHLY_PRICE_IDS` set 2026-09-26) returned a real test Checkout Session with Launch + Review Response Autopilot + Monthly Scorecard; a gated item and a duplicate id in the same request were correctly dropped. **Production and live Stripe are not done** (see the remaining steps at the end of this entry). Details of the code: `stripe-provision-addons-cli.ts` (`npm run provision:stripe-addons`) creates one monthly Price per sellable Launch add-on (5 today; gated items are never provisioned), keyed by lookup key `moonrock_addon_<item_id>_monthly` so it is safe to re-run, and prints the JSON map to set as `STRIPE_ADDON_MONTHLY_PRICE_IDS`. `server.ts` parses that variable, drops unknown or gated ids, and ignores malformed JSON with a warning; checkout de-duplicates ids and re-checks sellability. **Checkout add-on picker (PR #233, 2026-09-26):** the Save Flight Plan card now shows an optional add-on picker (from `GET /v1/discovery/addon-offers`: only sellable add-ons that have a configured price) with a running monthly total, and checkout sends exactly the ticked ids. When Nova names an add-on in a reply the server returns `suggestedAddonIds`; the picker labels it "Suggested by Nova" and lists it first, and nothing is ever pre-ticked. Nova's instructions were narrowed to the 5 purchasable add-ons: Quote & Estimate Follow-Up, Seasonal Campaign and bundle prices were removed from the pitch because they have no Stripe price (restore them once priced). **Remaining:** (1) verify on staging with a real Nova conversation; (2) purchased add-ons are now handed off (see **Add-on purchase hand-off** below) but delivery is manual: nobody or nothing activates the add-on yet, so build GHL workflows on the `nova-addon-*` tags or set them up by hand; (3) only after (1) and (2) are settled: a live-mode `--apply` and setting the Railway production variable (which redeploys production). Live steps need Stephen's explicit go-ahead; the CLI refuses a live key with `--apply` unless `--live` is passed. Do not run `stripe-provision-catalog-cli.ts --apply` again: it would duplicate the Launch Plan product. Setup fees are waived at Launch checkout per bundle spec.
 - **Stripe account cleanup — done 2026-09-26.** The "Nova Stripe Account" held 3,983 products: 3,932 were a bulk import made through GoHighLevel on 2026-09-14/15 (WordPress themes, WooCommerce plugins, Elementor add-ons and resale bundles left over from the retired WordPress SaaS kit), 50 are Moonrock's own lead-magnet templates created in GHL (kept), and 1 is the Moonrock Launch Plan (kept). All 3,932 imported products were **archived, not deleted** (reversible); the archive list was saved as a manifest file kept by Stephen, and the temporary keys used were deleted. The archived products still exist in GHL, where they are mirrored. Prices on the archived products were left as they are. Only add-on products created by `stripe-provision-addons-cli.ts` (metadata `moonrock_offer_id`) and the lead magnets should remain active. Checkout branding was corrected from leftover Woo branding to Moonrock Marketing Company (logo and colors) on 2026-09-25. No brand palette is documented in the repo; the live site uses `#070712` (background), `#f8f7ff` (text), `#ff4fd8` (magenta accent) and `#9be7ff`/`#46c8ff` (cyan).
-- **Add-on purchase hand-off** (PR pending, 2026-09-26) — when a paid Launch checkout carries add-ons (`moonrock_addon_item_ids` metadata), the Stripe webhook records them in the new `nova_client_addons` table (migration 0008, status `purchased`, idempotent per client and add-on), tags the GHL contact `nova-addon-<name>` per add-on (for example `nova-addon-review-response-autopilot`, usable as a GHL workflow trigger), and writes a GHL note listing them. It does not activate or deliver the add-on. GHL writes need the same flags as the paid-onboarding tag (`NOVA_GHL_HANDOFF_ENABLED`, `NOVA_GHL_WRITES_ENABLED`). Failures are logged and never fail the webhook.
+- **Add-on purchase hand-off** (PR #235, merged 2026-09-26) — when a paid Launch checkout carries add-ons (`moonrock_addon_item_ids` metadata), the Stripe webhook records them in the new `nova_client_addons` table (migration 0008, status `purchased`, idempotent per client and add-on), tags the GHL contact `nova-addon-<name>` per add-on (for example `nova-addon-review-response-autopilot`, usable as a GHL workflow trigger), and writes a GHL note listing them. It does not activate or deliver the add-on. GHL writes need the same flags as the paid-onboarding tag (`NOVA_GHL_HANDOFF_ENABLED`, `NOVA_GHL_WRITES_ENABLED`). Failures are logged and never fail the webhook.
 - **Monthly Scorecard fulfillment** — Nova pitches the scorecard and it's in `approvedServiceCatalog()`; Phase 5 fulfillment (the actual monthly report delivery pipeline) is not yet built. One-tap "turn this on" from the scorecard is a clearly-marked extension point.
 - **Post-purchase add-on upgrades** — current Stripe restricted key covers Checkout Sessions, Prices, and Customers only; adding an add-on to an existing subscription requires `subscription_update` permission. Pre-purchase order-bump at Launch checkout works today; post-purchase does not.
 
@@ -123,7 +127,7 @@ Only the memory system follows you automatically across chat, this kind of sessi
 
 ---
 
-## 7. Branch State (as of 2026-09-21)
+## 7. Branch State (as of 2026-09-26)
 
 ### Local branches
 
@@ -132,6 +136,8 @@ Only the memory system follows you automatically across chat, this kind of sessi
 | `main` | Active — clean | All PRs merged; up to date with origin |
 | `feat/site-pages-contact-form-nav` | Merged — safe to delete | Remote gone; all commits in main |
 | `fix/tier0-catalog-name-drift` | Merged — safe to delete | Was 1 commit ahead locally; merged to main in earlier session |
+| `feature/launch-addon-stripe-prices`, `feature/checkout-addon-picker`, `feature/addon-purchase-fulfillment` | Merged (PRs #231, #233, #235) — safe to delete | Squash-merged; remote branches can be deleted |
+| `docs/nova-reference-*` (several) | Merged (PRs #232, #234, #236) — safe to delete | Doc-only branches |
 
 ### Remote branches of note (Nova / moonrockmarketing.com)
 
@@ -155,12 +161,12 @@ All `agent/` and `feature/program-0*` branches are agent-generated sprint work f
 | --- | --- | --- |
 | Railway | Hosts Nova Website Advisor Runtime (Node/Hono) + PostgreSQL | Live in production |
 | Cloudflare Pages | Hosts moonrock-2-frontend (Vite/TS) at `moonrockmarketing.com` + `clients.moonrockmarketing.com` | Live in production |
-| Stripe | Payments — Checkout, subscriptions, webhook to Railway | Live; Launch Plan prices provisioned; add-on Price IDs pending `stripe-provision-addons-cli.ts --apply` (test mode first) |
+| Stripe | Payments — Checkout, subscriptions, webhook to Railway | Live; Launch Plan prices provisioned; legacy products archived 2026-09-26; add-on prices exist in the sandbox only — live provisioning pending (section 9) |
 | Clerk | Client auth — invitations, sign-in, JWT for `/v1/client/*` | Live with live keys |
 | GoHighLevel (GHL) | CRM — contact records, `nova-paid-onboarding` tag, GHL Client Portal for billing/onboarding | Live on Setterlun University sub-account |
 | Anthropic | LLM backbone for Nova discovery, flight plan, and onboarding conversation | Live; Groq wired as fallback |
 | ElevenLabs | Voice synthesis for Nova voice chat experience | Wired in code; production key status unknown |
-| PostgreSQL (Railway) | Persistent state — discovery sessions, client records, onboarding state, launch plan signups | Live; 7 migrations applied |
+| PostgreSQL (Railway) | Persistent state — discovery sessions, client records, onboarding state, launch plan signups | Live; 8 migrations (0008 `nova_client_addons` deployed 2026-09-26) |
 
 ---
 
@@ -172,7 +178,13 @@ All `agent/` and `feature/program-0*` branches are agent-generated sprint work f
 - [x] **Production migration 0007 confirmed** — confirmed via Railway startup logs; `nova_clients` has all required columns; all 7 migrations applied.
 - [x] **Auth-state branching on the homepage** — done (PR #230, 2026-09-21); signed-in clients see a "Welcome back" banner with a link to their portal.
 - [x] **Post-onboarding team notification** — done (PR #230, 2026-09-21); GHL contact is tagged `nova-onboarding-complete` and a setup note is written when onboarding completes.
-- [ ] **Stripe webhook production-mode verification** — confirm the Stripe webhook is pointed at the production Railway URL with live-mode events. One live test payment should be processed end-to-end: Stripe → Railway webhook → `nova_clients` INSERT → Clerk invitation sent → client signs in → onboarding completes. Add-on Price IDs also need to be provisioned via `stripe-provision-addons-cli.ts --apply` and set in Railway as `STRIPE_ADDON_MONTHLY_PRICE_IDS`.
+- [ ] **Stripe webhook production-mode verification** — confirm the Stripe webhook is pointed at the production Railway URL with live-mode events. One live test payment should be processed end-to-end: Stripe → Railway webhook → `nova_clients` INSERT → Clerk invitation sent → client signs in → onboarding completes. Add-on go-live is tracked separately in section 9 (staging end-to-end test, then live price provisioning and the production `STRIPE_ADDON_MONTHLY_PRICE_IDS` variable).
+
+### Add-on go-live (see section 9)
+
+- [ ] **Staging end-to-end purchase with add-ons** — real Nova suggestion, Stripe test checkout, GHL tags and note, database row.
+- [ ] **Live add-on prices provisioned and `STRIPE_ADDON_MONTHLY_PRICE_IDS` set on Railway production** — needs Stephen's explicit go-ahead; redeploys production.
+- [ ] **One live add-on checkout verified** end to end (small real payment, then refund).
 
 ### High priority — fix before first paying client ships
 
@@ -187,6 +199,61 @@ All `agent/` and `feature/program-0*` branches are agent-generated sprint work f
 - [ ] **Client portal post-onboarding UX** — After `onboarding_status = complete`, the client sees a static "You're all set" screen with no return path. The longer-term client dashboard (activity log, ongoing Nova interaction for Tiers 2/3) is not built. For Launch Plan clients at minimum, the completed screen should surface a link to their GHL Client Portal where their onboarding checklist and deliverables will live.
 - [ ] **ElevenLabs voice production status** — Voice chat is wired in code (`elevenlabs-voice.ts`, `voice-chat-experience.ts`) but it's unclear if `ELEVENLABS_API_KEY` is set on Railway production and whether the voice experience is intended to be live for clients. Decide: live now or hide it behind a flag.
 - [ ] **Per-client website architecture decision** — The open decision on shared template repo vs. separate repo/Pages project per client needs to be settled before the first website build is delivered. This determines whether `nova-managed-site-reference` is the right starting point and what the Nova-automated GitHub → Vite → Cloudflare pipeline looks like in practice.
+
+---
+
+## 9. Session Log and Next Steps (2026-09-25 to 2026-09-26)
+
+Written so the next session can pick up without re-deriving anything. Source handoff: "Launch add-on Stripe prices (order-bump at checkout)".
+
+### Done and merged to `main`
+
+| PR | What |
+| --- | --- |
+| #231 | `stripe-provision-addons-cli.ts` (`npm run provision:stripe-addons`): dry-run by default, re-runnable (price lookup keys `moonrock_addon_<item_id>_monthly`), refuses a live key with `--apply` unless `--live`. `server.ts` reads `STRIPE_ADDON_MONTHLY_PRICE_IDS` (JSON map, degrades gracefully, drops unknown or gated ids). Checkout de-duplicates ids and re-checks sellability. Also fixed 3 stale tests that had kept CI red since 2026-09-21. |
+| #233 | Checkout add-on picker: `GET /v1/discovery/addon-offers`, `suggestedAddonIds` on Nova turns, optional picker in the Save Flight Plan card with a running monthly total (nothing pre-ticked; Nova-named add-ons labelled "Suggested by Nova" and listed first). Nova's pitch narrowed to the 5 purchasable add-ons. |
+| #235 | Webhook hand-off for purchased add-ons: migration 0008 `nova_client_addons`, `nova-addon-<name>` GHL tags and a "NOVA ADD-ONS PURCHASED" GHL note. |
+| #232, #234, #236 | Doc updates (this file). |
+
+### Verified so far
+- **Stripe test mode:** 5 sandbox prices created; a test Checkout Session with Launch-style prices plus 2 add-ons returned the 4 expected line items ($499 one-time, $97/mo, $29/mo, $19/mo).
+- **Staging** (`https://moonrock-core-staging.up.railway.app`, Railway project "Nova Website Advisor — Staging", service `moonrock-core`, deploys from `main`): `NOVA_STRIPE_ENABLED=true` and `STRIPE_ADDON_MONTHLY_PRICE_IDS` (the 5 sandbox price ids) are set. A staging checkout with add-ons showed the right lines with Moonrock branding, and a gated add-on and a duplicate id were dropped.
+- **Both deploys healthy** after the merges (`/health/live` and `/health/ready` 200); production `addon-offers` returns an empty list because the price variable is not set there.
+- **Local browser run** of the picker: nothing pre-ticked, suggested add-on first, total updates, checkout request carries exactly the ticked ids.
+- **CI on `main` is green again** (Nova Runtime CI: typecheck, tests, build). Runtime: 552 tests; frontend: 9 tests.
+
+### Stripe account cleanup (live "Nova Stripe Account")
+3,932 legacy products (WordPress themes/plugins/resale bundles from the retired SaaS kit, bulk-imported through GHL on 2026-09-14/15) were **archived, not deleted**. Kept active: the 50 lead-magnet templates and the Moonrock Launch Plan (`prod_VIrMF5rhMIT7Vk`). The manifest file for undoing it is `stripe-archive-manifest-*.json` in Stephen's Downloads folder; the throwaway audit and archive scripts (`stripe-product-audit.mjs`, `stripe-product-archive.mjs`) are not in the repo. Checkout branding was corrected from leftover Woo branding to Moonrock Marketing Company. All temporary Stripe keys have been deleted.
+
+### Sandbox (test-mode) add-on prices, for reference
+`review_response_autopilot` $29, `referral_engine` $29, `gbp_autopilot` $39, `reactivation_newsletter` $49, `monthly_scorecard` $19. These are sandbox only; live prices do not exist yet.
+
+### Design decisions taken this session
+- Picker never pre-ticks a paid add-on (consent). Nova only highlights suggestions.
+- Nova no longer pitches Quote & Estimate Follow-Up, Seasonal Campaign, or bundle prices, because none has a Stripe price and the bundle price ($59) would not match the checkout total ($77). Restore them by provisioning prices (and a Reputation Pack price) and reverting the prompt change from PR #233.
+- Purchased add-ons are handed off (database row, GHL tag, GHL note); delivery is manual or via GHL workflows on the `nova-addon-*` tags.
+
+### NEXT STEPS (in order)
+1. **Staging end-to-end test of a purchase with add-ons.** On the staging site: chat with Nova, mention Google reviews, confirm Nova names Review Response Autopilot and the save form lists it first with "Suggested by Nova", tick one add-on, pay at Stripe test checkout with card `4242 4242 4242 4242`. Then check the GHL contact for `nova-addon-...` tags and a note starting "NOVA ADD-ONS PURCHASED". First check in Railway (staging) that `NOVA_GHL_HANDOFF_ENABLED` and `NOVA_GHL_WRITES_ENABLED` are on, otherwise nothing is written to GHL (the database record still is). This is the first real exercise of the GHL tag/note calls (only mocked tests so far) and of a real-LLM Nova suggestion.
+2. **Production go-live (each step needs Stephen's explicit go-ahead):**
+   1. Create a temporary live restricted key (Products Write, Prices Write, Prices Read). In PowerShell, from `C:\Users\steph\Documents\github\moonrock-core\apps\nova-website-advisor-runtime`: set the key with the hidden prompt (`$s = Read-Host "Paste rk_live key" -AsSecureString; $env:STRIPE_SECRET_KEY = [System.Net.NetworkCredential]::new("", $s).Password`), run `npm run provision:stripe-addons` (dry run, should list 5 to create), then `npm run provision:stripe-addons -- --apply --live`. Copy the printed JSON map.
+   2. Set `STRIPE_ADDON_MONTHLY_PRICE_IDS` (that JSON) on Railway production, project "Moonrock Nova Runtime", service `moonrock-core`. **This redeploys production.**
+   3. Delete the temporary key and clear the variable (`Remove-Item Env:STRIPE_SECRET_KEY`).
+   4. Do one live add-on checkout yourself (small real payment, refund after) and confirm the row, the GHL tags, and the note.
+   Do **not** run `stripe-provision-catalog-cli.ts --apply` again: it would duplicate the Launch Plan product.
+3. **Confirm migration 0008 applied** on both databases (look for the migration line in Railway startup logs; health checks were fine after deploy, which implies it did).
+4. **Check the Railway production Stripe key scope.** The handoff said Customers "read" only, but checkout creates a customer on every session, and the live test on 2026-09-24 worked, so the note is probably out of date. Post-purchase add-on upgrades still need `subscription_update`.
+5. **Decide what happens after purchase:** who activates each add-on, and build GHL workflows on the `nova-addon-*` tags. Monthly Scorecard report generation is still not built; decide whether to keep selling it before it exists.
+6. **Optional cleanups:** archive the prices attached to the archived products; bulk-delete the mirrored legacy products inside GHL; delete stale remote branches (see section 7).
+7. **Frontend polish to consider:** an explicit "Add to my plan" chip in the chat itself (option C in the design mockups); a "due today" line showing the setup fee ($0 founding, $499 otherwise) next to the monthly total.
+
+### Working notes and gotchas
+- Stephen's local clone has an uncommitted whitespace edit to `README.md`; ignore it, do not commit it.
+- PowerShell needs the key value in quotes; use the hidden `Read-Host -AsSecureString` prompt instead of pasting keys into commands. Never paste keys into chat.
+- The `--` in `npm run provision:stripe-addons -- --apply` is required so npm passes the flag to the script.
+- Runtime health routes are `/health/live`, `/health/ready`, `/health/persistence` (not `/health`).
+- `main` auto-deploys to both staging and production on merge.
+- Checkout pages opened in the in-app browser lose the `#fragment` of the URL; open Stripe checkout links in a normal browser.
 
 ---
 
