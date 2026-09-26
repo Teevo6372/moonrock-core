@@ -1,4 +1,4 @@
-import { isSellableLaunchAddonId, sellableLaunchAddonItems } from "./ala-carte-catalog.js";
+import { ALA_CARTE_CATALOG, isLaunchAddonId, isSellableLaunchAddonId, sellableLaunchAddonItems } from "./ala-carte-catalog.js";
 
 /**
  * Launch add-on Stripe pricing, derived from ALA_CARTE_CATALOG only. Only monthly
@@ -100,4 +100,22 @@ export function suggestedAddonIdsFromText(text: string, pricedItemIds: readonly 
   return purchasableAddonOffers(pricedItemIds)
     .filter((offer) => [offer.name, offer.name.replace(/^Nova\s+/i, "")].some((alias) => new RegExp(`(^|[^\\w])${escapeRegExp(alias)}($|[^\\w])`, "i").test(text)))
     .map((offer) => offer.id);
+}
+
+/**
+ * Add-on ids recorded on a paid checkout session (metadata.moonrock_addon_item_ids, written server-side
+ * by create-checkout-session). Keeps known Launch add-on ids only, de-duplicated, whether or not they
+ * are still sellable: the customer has already paid.
+ */
+export function purchasedAddonIdsFromMetadata(raw: string | null | undefined): string[] {
+  return [...new Set((raw ?? "").split(",").map((id) => id.trim()).filter(Boolean))].filter(isLaunchAddonId);
+}
+
+/** GHL tag applied to a contact per purchased add-on, e.g. nova-addon-review-response-autopilot (usable as a workflow trigger). */
+export function addonGhlTag(itemId: string): string {
+  return `nova-addon-${itemId.replace(/_/g, "-")}`;
+}
+
+export function addonDisplayName(itemId: string): string {
+  return isLaunchAddonId(itemId) ? ALA_CARTE_CATALOG[itemId].name : itemId;
 }
