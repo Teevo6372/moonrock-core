@@ -9,18 +9,17 @@ describe("Mission 45 session continuity", () => {
     const state: DiscoverySessionState = {
       path: "existing_business",
       completed: false,
-      meaningfulTurns: 3,
+      meaningfulTurns: 2,
       answers: {
         path: "existing_business",
         businessName: "Perry Pizza",
         industry: "pizza restaurant",
-        businessChallenges: "missed calls and inconsistent follow-up",
       },
     };
 
     const response = restoreNovaDiscovery(state);
 
-    expect(response.progress.answered).toBe(3);
+    expect(response.progress.answered).toBe(2);
     expect(response.completed).toBe(false);
     expect(response.nextQuestion).toBeDefined();
   });

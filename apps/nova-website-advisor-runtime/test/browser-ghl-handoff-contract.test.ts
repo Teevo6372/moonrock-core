@@ -18,7 +18,8 @@ describe("browser discovery and Flight Plan save boundary", () => {
       const [field, value] = answers[index]!;
       current = await submitNovaDiscoveryAnswer(current.state, field, value);
       expect(current.response.nextQuestion?.isFinalRequired ?? false).toBe(false);
-      if (index < 3) expect(current.response.completed).toBe(false);
+      // Discovery completes once businessName, industry and businessChallenges are answered.
+      if (index < 2) expect(current.response.completed).toBe(false);
     }
 
     expect(current.response.completed).toBe(true);
