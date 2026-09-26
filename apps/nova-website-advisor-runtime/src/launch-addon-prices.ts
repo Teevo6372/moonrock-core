@@ -72,3 +72,32 @@ export function parseAddonMonthlyPriceIds(raw: string | undefined): ParsedAddonP
   }
   return { priceIds: Object.keys(priceIds).length > 0 ? priceIds : undefined, warnings };
 }
+
+export interface AddonOffer {
+  id: string;
+  name: string;
+  monthlyFeeUsd: number;
+  summary: string;
+}
+
+/** Sellable Launch add-ons that also have a configured Stripe price, i.e. ones checkout can actually charge for. */
+export function purchasableAddonOffers(pricedItemIds: readonly string[]): AddonOffer[] {
+  const priced = new Set(pricedItemIds);
+  return sellableLaunchAddonItems()
+    .filter((offer) => priced.has(offer.id))
+    .map((offer) => ({ id: offer.id, name: offer.name, monthlyFeeUsd: offer.monthlyFeeUsd, summary: offer.includedFeatures[0] ?? "" }));
+}
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Which purchasable add-ons a piece of Nova text names. Matches the exact
+ * catalog name (Nova is instructed to use exact names), also without a leading
+ * "Nova ". Detection is deterministic and never asks the model to record
+ * anything; the visitor still has to tick the add-on themselves.
+ */
+export function suggestedAddonIdsFromText(text: string, pricedItemIds: readonly string[]): string[] {
+  return purchasableAddonOffers(pricedItemIds)
+    .filter((offer) => [offer.name, offer.name.replace(/^Nova\s+/i, "")].some((alias) => new RegExp(`(^|[^\\w])${escapeRegExp(alias)}($|[^\\w])`, "i").test(text)))
+    .map((offer) => offer.id);
+}
