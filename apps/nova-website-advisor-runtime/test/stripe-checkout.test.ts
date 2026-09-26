@@ -182,6 +182,48 @@ describe("POST /:sessionId/create-checkout-session", () => {
     ]);
   });
 
+  async function completedSession(app: ReturnType<typeof createMoonrock2App>["app"], sessionId: string) {
+    await post(app, `/v1/discovery/${sessionId}/start`, { path: "existing_business" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "businessName", value: "Test Co" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "industry", value: "plumbing" });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "missedCallsPerMonth", value: 10 });
+    await post(app, `/v1/discovery/${sessionId}/answers`, { field: "medianLeadResponseMinutes", value: 45 });
+  }
+
+  it("de-duplicates add-on ids and skips gated, unknown and unpriced ids, recording only ids that became line items", async () => {
+    const createCheckoutSession = vi.fn().mockResolvedValue({ id: "cs_test_hardening", url: "https://checkout.stripe.com/cs_test_hardening" });
+    const stripeWithAddons: StripeCheckoutConfig = {
+      ...mockStripe(createCheckoutSession),
+      // Gated and non-Launch ids are in the map on purpose: checkout must ignore them regardless.
+      addonMonthlyPriceIds: { review_response_autopilot: "price_review_response", website_care_plan: "price_gated", email_marketing: "price_older_item" },
+    };
+    const { app } = createMoonrock2App({ stripe: stripeWithAddons, launchPlanRepository: mockLaunchPlanRepository(10) });
+    const sessionId = "checkout-addon-hardening";
+    await completedSession(app, sessionId);
+
+    const result = await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, {
+      identity: { email: "owner@example.com" },
+      addonItemIds: ["review_response_autopilot", "review_response_autopilot", "website_care_plan", "email_marketing", "referral_engine", "__proto__"],
+    });
+    expect(result.status).toBe(200);
+    const params = createCheckoutSession.mock.calls[0]![0];
+    expect(params.line_items).toEqual([
+      { price: "price_standard", quantity: 1 },
+      { price: "price_monthly", quantity: 1 },
+      { price: "price_review_response", quantity: 1 },
+    ]);
+    expect(params.metadata.moonrock_addon_item_ids).toBe("review_response_autopilot");
+  });
+
+  it("omits add-on metadata when no requested add-on became a line item", async () => {
+    const createCheckoutSession = vi.fn().mockResolvedValue({ id: "cs_test_nometa", url: "https://checkout.stripe.com/cs_test_nometa" });
+    const { app } = createMoonrock2App({ stripe: mockStripe(createCheckoutSession), launchPlanRepository: mockLaunchPlanRepository(10) });
+    const sessionId = "checkout-addon-nometa";
+    await completedSession(app, sessionId);
+    await post(app, `/v1/discovery/${sessionId}/create-checkout-session`, { identity: { email: "owner@example.com" }, addonItemIds: ["referral_engine"] });
+    expect(createCheckoutSession.mock.calls[0]![0].metadata).not.toHaveProperty("moonrock_addon_item_ids");
+  });
+
   it("reports 409 when the Flight Plan escalated and isn't autonomous-close eligible", async () => {
     const { app } = createMoonrock2App({ stripe: mockStripe() });
     const sessionId = "checkout-escalated";

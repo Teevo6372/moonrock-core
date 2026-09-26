@@ -27,7 +27,7 @@ describe("Nova browser origin policy", () => {
     expect(corsHeaders("https://moonrock-2.pages.dev")).toEqual({
       "access-control-allow-origin": "https://moonrock-2.pages.dev",
       "access-control-allow-methods": "GET,POST,OPTIONS",
-      "access-control-allow-headers": "content-type,x-correlation-id,last-event-id",
+      "access-control-allow-headers": "authorization,content-type,x-correlation-id,last-event-id",
       "access-control-max-age": "600",
       vary: "Origin",
     });

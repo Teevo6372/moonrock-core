@@ -6,6 +6,15 @@ export interface StripeClientOptions {
   timeoutMs?: number;
 }
 
+export interface StripePriceSummary {
+  id: string;
+  active: boolean;
+  lookup_key: string | null;
+  unit_amount: number | null;
+  currency: string;
+  recurring: { interval: string } | null;
+}
+
 export interface StripeCheckoutSession {
   id: string;
   url: string | null;
@@ -49,15 +58,48 @@ export class StripeClient {
     }
   }
 
+  private async get<T>(path: string, query: Array<[string, string]>): Promise<T> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const search = query.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&");
+      const response = await fetch(`${this.baseUrl}${path}${search ? `?${search}` : ""}`, {
+        method: "GET",
+        headers: { authorization: `Bearer ${this.options.secretKey}` },
+        signal: controller.signal,
+      });
+      const payload = (await response.json()) as T & { error?: { message?: string } };
+      if (!response.ok) {
+        throw new Error(`Stripe request to ${path} failed with ${response.status}: ${payload.error?.message ?? "unknown error"}`);
+      }
+      return payload;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Looks up Prices (active or archived) by lookup_key; keys with no Price are simply absent from the result. */
+  async listPricesByLookupKeys(lookupKeys: readonly string[]): Promise<StripePriceSummary[]> {
+    if (lookupKeys.length === 0) return [];
+    const result = await this.get<{ data: StripePriceSummary[] }>("/v1/prices", [
+      ...lookupKeys.map((key): [string, string] => ["lookup_keys[]", key]),
+      ["limit", "100"],
+    ]);
+    return result.data;
+  }
+
   createProduct(params: { name: string; metadata?: Record<string, string> }): Promise<{ id: string }> {
     return this.post("/v1/products", params);
   }
 
   createPrice(params: {
-    product: string;
+    product?: string;
+    /** Creates the Product in the same call as the Price, so there is no orphaned Product on partial failure. Use instead of `product`. */
+    product_data?: { name: string; metadata?: Record<string, string> };
     unit_amount: number;
     currency: string;
     recurring?: { interval: "month" | "year" };
+    lookup_key?: string;
     metadata?: Record<string, string>;
   }): Promise<{ id: string }> {
     return this.post("/v1/prices", params);

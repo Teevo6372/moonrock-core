@@ -48,6 +48,47 @@ describe("StripeClient", () => {
     expect(body).toContain("name=Jamie%20Owner");
   });
 
+  it("lists prices by lookup key with a GET and bracketed lookup_keys[]", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: "price_1", lookup_key: "k1" }] }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new StripeClient({ secretKey: "sk_test_x" });
+    const result = await client.listPricesByLookupKeys(["k1", "k2"]);
+
+    expect(result).toEqual([{ id: "price_1", lookup_key: "k1" }]);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(init.method).toBe("GET");
+    expect(init.body).toBeUndefined();
+    expect(init.headers.authorization).toBe("Bearer sk_test_x");
+    expect(url).toBe("https://api.stripe.com/v1/prices?lookup_keys%5B%5D=k1&lookup_keys%5B%5D=k2&limit=100");
+  });
+
+  it("does not call Stripe when listing prices for no lookup keys", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await new StripeClient({ secretKey: "sk_test_x" }).listPricesByLookupKeys([])).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces Stripe errors from a GET", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: { message: "Permission denied" } }) }));
+    await expect(new StripeClient({ secretKey: "sk_test_x" }).listPricesByLookupKeys(["k"])).rejects.toThrow(/403.*Permission denied/);
+  });
+
+  it("creates a price with inline product_data and a lookup key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "price_new" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await new StripeClient({ secretKey: "sk_test_x" }).createPrice({
+      product_data: { name: "Add-On", metadata: { moonrock_offer_id: "x" } }, unit_amount: 2900, currency: "usd", recurring: { interval: "month" }, lookup_key: "lk",
+    });
+    const body = fetchMock.mock.calls[0]![1].body as string;
+    expect(body).toContain("product_data%5Bname%5D=Add-On");
+    expect(body).toContain("product_data%5Bmetadata%5D%5Bmoonrock_offer_id%5D=x");
+    expect(body).toContain("lookup_key=lk");
+    expect(body).toContain("recurring%5Binterval%5D=month");
+    expect(body).not.toContain("product=");
+  });
+
   it("throws with the Stripe error message when the response is not ok", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 402, json: async () => ({ error: { message: "Your card was declined." } }) }));
     const client = new StripeClient({ secretKey: "sk_test_x" });
