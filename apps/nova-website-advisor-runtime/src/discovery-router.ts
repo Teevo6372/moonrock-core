@@ -15,7 +15,7 @@ import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 import { completedJourney, journeyForProgress } from "./nova-sales-journey.js";
 import type { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
 import type { StripeClient } from "./stripe-client.js";
-import { sellableAddonIdsFrom } from "./launch-addon-prices.js";
+import { purchasableAddonOffers, sellableAddonIdsFrom, suggestedAddonIdsFromText } from "./launch-addon-prices.js";
 
 export interface StripeCheckoutConfig {
   enabled: boolean;
@@ -209,6 +209,15 @@ async function handlePendingSave(
 export function createDiscoveryRouter(repository: DiscoveryStateRepository = new InMemoryDiscoveryStateRepository(), options: DiscoveryRouterOptions = {}): Hono {
   const router = new Hono();
   const conversationEngine = options.conversationEngine ?? new SessionGroundedNovaConversationEngine();
+  const pricedAddonIds = (): string[] => Object.keys(options.stripe?.enabled ? options.stripe.addonMonthlyPriceIds ?? {} : {});
+  // Flags which purchasable add-ons Nova named in a reply so the save form can highlight them. The visitor still ticks them themselves.
+  const withAddonSuggestions = <T extends { answer: string }>(turn: T): T & { suggestedAddonIds?: string[] } => {
+    const suggestedAddonIds = suggestedAddonIdsFromText(turn.answer, pricedAddonIds());
+    return suggestedAddonIds.length > 0 ? { ...turn, suggestedAddonIds } : turn;
+  };
+
+  // Registered before the /:sessionId routes so "addon-offers" is never read as a session id.
+  router.get("/addon-offers", (context) => context.json({ addons: purchasableAddonOffers(pricedAddonIds()) }));
 
   router.post("/:sessionId/start", async (context) => {
     const sessionId = context.req.param("sessionId");
@@ -223,7 +232,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
     const variantIndex = result.state.questionVariantIndex ?? 0;
     const openingQuestion = getDiscoveryQuestions(body.path, {}).find((q) => q.field === "ownerName");
     const openingNextNeed = openingQuestion ? { nextNeed: { field: "ownerName", prompt: resolveQuestionPrompt(openingQuestion, variantIndex) } } : {};
-    const conversationTurn = await conversationEngine.respond(result.state, openingText, { opening: true, progressPercent: 0, ...openingNextNeed });
+    const conversationTurn = withAddonSuggestions(await conversationEngine.respond(result.state, openingText, { opening: true, progressPercent: 0, ...openingNextNeed }));
     const state = appendConversationExchange(result.state, openingText, conversationTurn.answer);
     try { await repository.create(sessionId, state); } catch { return context.json({ code: "DISCOVERY_ALREADY_EXISTS" }, 409); }
     return context.json({ ...result.response, conversationTurn, journey: journeyForProgress(0, false), view: toImmersiveNovaView(result.response) }, 201);
@@ -261,7 +270,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
 
     const view = toImmersiveNovaView(result.response);
     const journey = result.response.completed && result.response.result ? completedJourney(result.response.result.flightPlan) : journeyForProgress(view.progressPercent, false);
-    const conversationTurn = await withVoice(
+    const conversationTurn = withAddonSuggestions(await withVoice(
       result.response.clarification
         ? { answer: result.response.clarification.message, mode: "grounded_fallback", intent: "pause_discovery" }
         : result.response.completed
@@ -269,7 +278,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
           : await conversationEngine.respond(result.state, rawCustomerText, { progressPercent: view.progressPercent, ...(result.response.nextQuestion ? { nextNeed: { field: String(result.response.nextQuestion.field), prompt: result.response.nextQuestion.prompt } } : {}) }),
       voiceInput,
       options.voiceSynthesizer,
-    );
+    ));
     const state = appendConversationExchange(result.state, rawCustomerText, conversationTurn.answer);
     try { await repository.save(sessionId, state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
     return context.json({ ...result.response, conversationTurn, journey, view });
@@ -326,7 +335,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
 
     const currentView = responseWithView(current.state);
     try {
-      const turn = await withVoice(await conversationEngine.respond(current.state, question, { progressPercent: currentView.view.progressPercent }), voiceInput, options.voiceSynthesizer);
+      const turn = withAddonSuggestions(await withVoice(await conversationEngine.respond(current.state, question, { progressPercent: currentView.view.progressPercent }), voiceInput, options.voiceSynthesizer));
       const state = appendConversationExchange(current.state, question, turn.answer);
       try { await repository.save(sessionId, state, current.version); } catch { return context.json({ code: "DISCOVERY_VERSION_CONFLICT" }, 409); }
       return context.json({ ...turn, progress: currentView.response.progress, completed: current.state.completed, view: currentView.view, ...(turn.intent === "human_handoff" ? { humanHandoff: handoffPrompt(question) } : {}) });
