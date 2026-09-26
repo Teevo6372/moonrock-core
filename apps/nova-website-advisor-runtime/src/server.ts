@@ -18,6 +18,7 @@ import { PostgresClientRepository } from "./postgres-client-repository.js";
 import { PostgresDiscoveryStateRepository } from "./postgres-discovery-state.js";
 import { PostgresDurableStateRepository } from "./postgres-durable-state.js";
 import { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
+import { parseAddonMonthlyPriceIds } from "./launch-addon-prices.js";
 import { StripeClient } from "./stripe-client.js";
 
 const port = Number(process.env.PORT ?? process.env.NOVA_LOCAL_PORT ?? "8787");
@@ -127,6 +128,10 @@ async function start(): Promise<void> {
   const stripeSuccessUrl = process.env.NOVA_STRIPE_SUCCESS_URL?.trim();
   const stripeCancelUrl = process.env.NOVA_STRIPE_CANCEL_URL?.trim();
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  // Optional order-bump prices: JSON map of Launch add-on item id -> Stripe monthly
+  // Price id. Absent/malformed just means no add-ons are offered at checkout.
+  const addonPrices = parseAddonMonthlyPriceIds(process.env.STRIPE_ADDON_MONTHLY_PRICE_IDS);
+  for (const warning of addonPrices.warnings) process.stdout.write(`${warning}\n`);
   const stripe: StripeCheckoutConfig | undefined =
     stripeEnabled && stripeSecretKey && stripeFoundingSetupPriceId && stripeStandardSetupPriceId && stripeMonthlyPriceId && stripeSuccessUrl && stripeCancelUrl
       ? {
@@ -135,11 +140,13 @@ async function start(): Promise<void> {
           foundingSetupPriceId: stripeFoundingSetupPriceId,
           standardSetupPriceId: stripeStandardSetupPriceId,
           monthlyPriceId: stripeMonthlyPriceId,
+          ...(addonPrices.priceIds ? { addonMonthlyPriceIds: addonPrices.priceIds } : {}),
           successUrl: stripeSuccessUrl,
           cancelUrl: stripeCancelUrl,
         }
       : undefined;
   process.stdout.write(`Nova Stripe checkout: ${stripe ? "enabled" : "disabled"}\n`);
+  process.stdout.write(`Nova Stripe add-on prices: ${stripe?.addonMonthlyPriceIds ? Object.keys(stripe.addonMonthlyPriceIds).length : 0} configured\n`);
 
   const sessionSecret = process.env.NOVA_SESSION_SECRET;
   const clerkSecretKey = process.env.CLERK_SECRET_KEY;

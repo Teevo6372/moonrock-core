@@ -15,6 +15,7 @@ import { toImmersiveNovaView } from "./higgsfield-ui-adapter.js";
 import { completedJourney, journeyForProgress } from "./nova-sales-journey.js";
 import type { PostgresLaunchPlanRepository } from "./postgres-launch-plan-repository.js";
 import type { StripeClient } from "./stripe-client.js";
+import { sellableAddonIdsFrom } from "./launch-addon-prices.js";
 
 export interface StripeCheckoutConfig {
   enabled: boolean;
@@ -30,8 +31,8 @@ export interface StripeCheckoutConfig {
    * on all bundles), so only monthly price IDs are needed here.
    * Add-ons the visitor indicated interest in (alaCarteItemsRequested) are appended
    * as additional line items when their price ID is present in this map.
-   * EXTENSION POINT (Phase 5): populate this map with live Stripe Price IDs once
-   * they are provisioned via stripe-provision-catalog-cli.ts.
+   * server.ts populates this from STRIPE_ADDON_MONTHLY_PRICE_IDS (the JSON map
+   * printed by stripe-provision-addons-cli.ts), keeping only sellable Launch add-on ids.
    */
   addonMonthlyPriceIds?: Record<string, string>;
 }
@@ -384,10 +385,13 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
       const requestedAddonIds: readonly string[] = Array.isArray(body.addonItemIds)
         ? body.addonItemIds.filter((id): id is string => typeof id === "string")
         : ((current.state.answers as Partial<DiagnosticInput>).alaCarteItemsRequested ?? []) as readonly string[];
-      const addonLineItems = requestedAddonIds
-        .map((id) => stripe.addonMonthlyPriceIds?.[id])
-        .filter((priceId): priceId is string => Boolean(priceId))
-        .map((price) => ({ price, quantity: 1 }));
+      // The body is untrusted: ids are de-duplicated and re-checked against the
+      // catalog's sellable flag here, on top of the price map. Unknown, gated,
+      // or price-less ids are silently skipped.
+      const addonItems = sellableAddonIdsFrom(requestedAddonIds)
+        .map((id) => ({ id, price: stripe.addonMonthlyPriceIds?.[id] }))
+        .filter((item): item is { id: string; price: string } => Boolean(item.price));
+      const addonLineItems = addonItems.map((item) => ({ price: item.price, quantity: 1 }));
       // A real Customer (not just customer_email) is what lets Stripe Checkout
       // actually prefill the name already collected on the Save Flight Plan
       // form, instead of asking the visitor to type it again.
@@ -408,7 +412,7 @@ export function createDiscoveryRouter(repository: DiscoveryStateRepository = new
           tier: "launch_plan",
           moonrock_session_id: sessionId,
           moonrock_used_founding_price: String(usedFoundingPrice),
-          ...(requestedAddonIds.length > 0 ? { moonrock_addon_item_ids: requestedAddonIds.join(",") } : {}),
+          ...(addonItems.length > 0 ? { moonrock_addon_item_ids: addonItems.map((item) => item.id).join(",") } : {}),
         },
       });
       if (!session.url) throw new Error("Stripe did not return a checkout URL");

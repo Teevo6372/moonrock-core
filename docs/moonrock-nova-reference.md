@@ -42,7 +42,7 @@ Target market: startup businesses, local SMBs, and contractors — with a specif
 - **Client portal banner** (PR #230, 2026-09-21) — signed-in clients on moonrockmarketing.com now see a "Welcome back" banner with a direct link to their client portal
 - **Auth-state branching** (PR #230, 2026-09-21) — `main.ts` now checks Clerk sign-in state on load and shows the portal banner only to authenticated clients
 - **Post-onboarding GHL notification** (PR #230, 2026-09-21) — when a client's onboarding conversation completes, the server tags the GHL contact `nova-onboarding-complete` and writes a note; fire-and-forget via `onOnboardingComplete` callback in `ClientRouterOptions`
-- **Launch add-ons catalog, bundles, and Nova selling behavior** (PR #229, 2026-09-21) — 8 add-on items, 4 bundles with `isBundleSellable()` gating, pitch triggers in system prompt, `approvedServiceCatalog()` includes sellable add-ons, `StripeCheckoutConfig.addonMonthlyPriceIds` wired for order-bump at checkout
+- **Launch add-ons catalog, bundles, and Nova selling behavior** (PR #229, 2026-09-21) — 8 add-on items, 4 bundles with `isBundleSellable()` gating, pitch triggers in system prompt, `approvedServiceCatalog()` includes sellable add-ons, `StripeCheckoutConfig.addonMonthlyPriceIds` for order-bump at checkout (populated from env as of 2026-09-25, see Open Decisions)
 
 **Not yet built:**
 
@@ -104,7 +104,7 @@ Target market: startup businesses, local SMBs, and contractors — with a specif
 - **Website Care Plan scope** — confirm what Launch already covers for hosting/edits; price may drop to ~$29 (edits-only) if hosting is already included. Gates `website_care_plan`.
 - **Client dashboard build-out** — final design of the Clerk-gated client surface for Stage 5, once the above are answered.
 - **Stripe key scope for post-purchase add-ons** — the current restricted Stripe key covers Checkout Sessions, Prices, and Customers only; adding an add-on to an existing subscription requires `subscription_update` permission. Pre-purchase add-ons (order bump at Launch checkout) work today; post-purchase does not.
-- **Stripe Price IDs for add-ons** — `StripeCheckoutConfig.addonMonthlyPriceIds` is wired and ready; the order-bump line items will be appended at Launch checkout once live Stripe Price IDs are provisioned via `stripe-provision-catalog-cli.ts` and added to Railway env vars. Setup fees are waived at Launch checkout per bundle spec.
+- **Stripe Price IDs for add-ons** — code done on branch `feature/launch-addon-stripe-prices` (2026-09-25). `stripe-provision-addons-cli.ts` (`npm run provision:stripe-addons`) creates one monthly Price per sellable Launch add-on (5 today; gated items are never provisioned), keyed by lookup key `moonrock_addon_<item_id>_monthly` so it is safe to re-run, and prints the JSON map to set as `STRIPE_ADDON_MONTHLY_PRICE_IDS`. `server.ts` parses that variable, drops unknown or gated ids, and ignores malformed JSON with a warning; checkout de-duplicates ids and re-checks sellability. **Still to do:** test-mode `--apply` and a staging checkout check, then a live-mode `--apply` and setting the Railway production variable (which redeploys production). Both need Stephen's explicit go-ahead; the CLI refuses a live key with `--apply` unless `--live` is passed. Do not run `stripe-provision-catalog-cli.ts --apply` again: it would duplicate the Launch Plan product. Setup fees are waived at Launch checkout per bundle spec.
 - **Monthly Scorecard fulfillment** — Nova pitches the scorecard and it's in `approvedServiceCatalog()`; Phase 5 fulfillment (the actual monthly report delivery pipeline) is not yet built. One-tap "turn this on" from the scorecard is a clearly-marked extension point.
 - **Post-purchase add-on upgrades** — current Stripe restricted key covers Checkout Sessions, Prices, and Customers only; adding an add-on to an existing subscription requires `subscription_update` permission. Pre-purchase order-bump at Launch checkout works today; post-purchase does not.
 
@@ -153,7 +153,7 @@ All `agent/` and `feature/program-0*` branches are agent-generated sprint work f
 | --- | --- | --- |
 | Railway | Hosts Nova Website Advisor Runtime (Node/Hono) + PostgreSQL | Live in production |
 | Cloudflare Pages | Hosts moonrock-2-frontend (Vite/TS) at `moonrockmarketing.com` + `clients.moonrockmarketing.com` | Live in production |
-| Stripe | Payments — Checkout, subscriptions, webhook to Railway | Live; Launch Plan prices provisioned; add-on Price IDs pending `stripe-provision-catalog-cli.ts --apply` |
+| Stripe | Payments — Checkout, subscriptions, webhook to Railway | Live; Launch Plan prices provisioned; add-on Price IDs pending `stripe-provision-addons-cli.ts --apply` (test mode first) |
 | Clerk | Client auth — invitations, sign-in, JWT for `/v1/client/*` | Live with live keys |
 | GoHighLevel (GHL) | CRM — contact records, `nova-paid-onboarding` tag, GHL Client Portal for billing/onboarding | Live on Setterlun University sub-account |
 | Anthropic | LLM backbone for Nova discovery, flight plan, and onboarding conversation | Live; Groq wired as fallback |
@@ -170,7 +170,7 @@ All `agent/` and `feature/program-0*` branches are agent-generated sprint work f
 - [x] **Production migration 0007 confirmed** — confirmed via Railway startup logs; `nova_clients` has all required columns; all 7 migrations applied.
 - [x] **Auth-state branching on the homepage** — done (PR #230, 2026-09-21); signed-in clients see a "Welcome back" banner with a link to their portal.
 - [x] **Post-onboarding team notification** — done (PR #230, 2026-09-21); GHL contact is tagged `nova-onboarding-complete` and a setup note is written when onboarding completes.
-- [ ] **Stripe webhook production-mode verification** — confirm the Stripe webhook is pointed at the production Railway URL with live-mode events. One live test payment should be processed end-to-end: Stripe → Railway webhook → `nova_clients` INSERT → Clerk invitation sent → client signs in → onboarding completes. Add-on Price IDs also need to be provisioned via `stripe-provision-catalog-cli.ts --apply` and set in Railway.
+- [ ] **Stripe webhook production-mode verification** — confirm the Stripe webhook is pointed at the production Railway URL with live-mode events. One live test payment should be processed end-to-end: Stripe → Railway webhook → `nova_clients` INSERT → Clerk invitation sent → client signs in → onboarding completes. Add-on Price IDs also need to be provisioned via `stripe-provision-addons-cli.ts --apply` and set in Railway as `STRIPE_ADDON_MONTHLY_PRICE_IDS`.
 
 ### High priority — fix before first paying client ships
 

@@ -637,3 +637,36 @@ export const ALA_CARTE_CATALOG: Readonly<Record<AlaCarteItemId, AlaCarteOffer>> 
 export function sellableAlaCarteItems(): AlaCarteOffer[] {
   return Object.values(ALA_CARTE_CATALOG).filter((offer) => offer.sellable);
 }
+
+/**
+ * The Launch order-bump add-ons (the "LAUNCH ADD-ONS" sections above). This is
+ * the only list Stripe provisioning and Launch checkout may draw from -
+ * sellableAlaCarteItems() also returns the older human-checkpoint items, which
+ * are not order-bump add-ons. Sellability is never copied here: filter through
+ * isSellableLaunchAddonId() / sellableLaunchAddonItems() so a gated item is
+ * blocked by its `sellable: false` flag alone.
+ */
+export const LAUNCH_ADDON_ITEM_IDS = [
+  "review_response_autopilot",
+  "referral_engine",
+  "gbp_autopilot",
+  "reactivation_newsletter",
+  "monthly_scorecard",
+  "social_content_autopilot",
+  "local_seo_page_pack",
+  "website_care_plan",
+] as const satisfies readonly AlaCarteItemId[];
+
+export type LaunchAddonItemId = (typeof LAUNCH_ADDON_ITEM_IDS)[number];
+
+const LAUNCH_ADDON_ID_SET: ReadonlySet<string> = new Set(LAUNCH_ADDON_ITEM_IDS);
+
+/** True only for a known Launch add-on id whose catalog entry is currently sellable. */
+export function isSellableLaunchAddonId(id: string): id is LaunchAddonItemId {
+  return LAUNCH_ADDON_ID_SET.has(id) && ALA_CARTE_CATALOG[id as LaunchAddonItemId].sellable;
+}
+
+/** Launch add-ons that are currently sellable, in LAUNCH_ADDON_ITEM_IDS order. */
+export function sellableLaunchAddonItems(): AlaCarteOffer[] {
+  return LAUNCH_ADDON_ITEM_IDS.filter(isSellableLaunchAddonId).map((id) => ALA_CARTE_CATALOG[id]);
+}
