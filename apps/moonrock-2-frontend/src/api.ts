@@ -2,7 +2,7 @@ import { consumeVoiceInputFlag, playTurnAudio } from "./voice-chat-experience.js
 import { assertFrontendConfig, config } from "./config.js";
 import { publishProgressiveFlightPlanResponse } from "./progressive-flight-plan.js";
 import { appendConversationTurn, archiveActiveConversation, consumeResume, getOrCreateVisitorId, initializeVisitorContinuity, migrateConversationSession, previousConversationSummary, saveConversation, updateLastResponse } from "./visitor-continuity.js";
-import type { BusinessPath, ContactIdentity, DiscoveryResponse, HumanHandoffResponse, NovaConversationTurn } from "./types.js";
+import type { AddonOffer, BusinessPath, ContactIdentity, DiscoveryResponse, HumanHandoffResponse, NovaConversationTurn } from "./types.js";
 
 let activeDiscoverySessionId = "";
 let activeDiscoveryPath: BusinessPath | undefined;
@@ -48,9 +48,17 @@ function post<T>(path: string, body: unknown): Promise<T> {
 }
 function get<T>(path: string): Promise<T> { return request<T>(path); }
 
+/** Tells the save form which add-ons Nova just named. It only highlights them; the visitor still ticks them. */
+function publishAddonSuggestions(ids: string[] | undefined): void {
+  if (ids && ids.length > 0) window.dispatchEvent(new CustomEvent("nova:addon-suggestions", { detail: ids }));
+}
+
+export function getAddonOffers(): Promise<{ addons: AddonOffer[] }> { return get<{ addons: AddonOffer[] }>("/v1/discovery/addon-offers"); }
+
 function publish(response: DiscoveryResponse): DiscoveryResponse {
   publishProgressiveFlightPlanResponse(response);
   window.dispatchEvent(new CustomEvent("nova:conversation-state", { detail: response }));
+  publishAddonSuggestions(response.conversationTurn?.suggestedAddonIds);
   playTurnAudio(response.conversationTurn?.audio);
   if (response.completed && response.result) window.dispatchEvent(new CustomEvent("nova:flight-plan", { detail: response.result.flightPlan }));
   if (response.completed && response.websiteBuildResult) window.dispatchEvent(new CustomEvent("nova:website-build-result", { detail: response.websiteBuildResult }));
@@ -120,6 +128,7 @@ export async function askNova(question: string, voiceInput = false): Promise<Nov
     ? { ...envelope.conversationTurn, ...(envelope.humanHandoff ? { humanHandoff: envelope.humanHandoff } : {}) }
     : { answer: envelope.answer, mode: envelope.mode, intent: envelope.intent, ...(envelope.audio ? { audio: envelope.audio } : {}), ...(envelope.humanHandoff ? { humanHandoff: envelope.humanHandoff } : {}) };
   appendConversationTurn(question, turn.answer);
+  publishAddonSuggestions(envelope.suggestedAddonIds ?? envelope.conversationTurn?.suggestedAddonIds);
   if (envelope.completed !== undefined && envelope.progress && envelope.view && envelope.progressiveFlightPlan) {
     const activePath = activeDiscoveryPath;
     const response = {
@@ -153,9 +162,10 @@ export interface LaunchPlanCheckoutSession {
 }
 
 /** Reuses the same identity already collected by the Save Flight Plan form - Stripe Checkout gets a real Customer (name + email) from it rather than asking the visitor to type their details again. */
-export function createLaunchPlanCheckout(identity: ContactIdentity): Promise<LaunchPlanCheckoutSession> {
+export function createLaunchPlanCheckout(identity: ContactIdentity, addonItemIds: string[] = []): Promise<LaunchPlanCheckoutSession> {
   if (!activeDiscoverySessionId) return Promise.reject(new Error("Nova's discovery session is not active."));
-  return post<LaunchPlanCheckoutSession>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/create-checkout-session`, { identity, visitorId: getOrCreateVisitorId() });
+  // Always send the list (even empty): it is exactly what the visitor ticked, so the server never falls back to anything they didn't confirm.
+  return post<LaunchPlanCheckoutSession>(`/v1/discovery/${encodeURIComponent(activeDiscoverySessionId)}/create-checkout-session`, { identity, addonItemIds, visitorId: getOrCreateVisitorId() });
 }
 
 export function completeHumanHandoff(identity: ContactIdentity, requestText: string): Promise<HumanHandoffResponse> {

@@ -1,4 +1,5 @@
 import "./flight-plan-save-card.css";
+import { mountAddonPicker, selectedAddonIds } from "./addon-picker.js";
 import { createLaunchPlanCheckout, saveFlightPlan } from "./api.js";
 import { isPlausibleName } from "./identity-validation.js";
 import type { ContactIdentity, FlightPlanResult } from "./types.js";
@@ -37,6 +38,7 @@ function cardMarkup(): string {
           <label>Email<input name="email" type="email" autocomplete="email" required></label>
           <label>Phone <span class="optional">optional</span><input name="phone" type="tel" autocomplete="tel"></label>
         </div>
+        ${checkoutEligible ? "<div data-addon-picker hidden></div>" : ""}
         <p data-save-card-error class="save-card-error" role="alert" hidden></p>
         <label class="consent-row"><input name="consent" type="checkbox" required><span>Yes, save my Flight Plan and Moonrock inquiry using this email.</span></label>
         <label class="consent-row"><input name="followUpConsent" type="checkbox"><span>Moonrock may follow up with me about this Flight Plan. Optional.</span></label>
@@ -75,6 +77,8 @@ function wireCard(card: HTMLElement): void {
   card.querySelector<HTMLButtonElement>("[data-save-card-close]")?.addEventListener("click", () => {
     const bar = ensureReopenBar(card); card.hidden = true; bar.hidden = false; setStatus("Save form closed. Your Nova conversation remains open — you can reopen the save form anytime.");
   });
+  const pickerContainer = card.querySelector<HTMLElement>("[data-addon-picker]");
+  if (pickerContainer && latestPlan) void mountAddonPicker(pickerContainer, latestPlan.recommendation.monthlyFeeUsd);
   card.querySelector<HTMLFormElement>("[data-flight-plan-save-form]")?.addEventListener("submit", (event) => void submitSave(event, card));
 }
 
@@ -112,7 +116,7 @@ async function submitSave(event: SubmitEvent, card: HTMLElement): Promise<void> 
     if (latestPlan?.recommendation.autonomousCloseAllowed) {
       setStatus("Setting up secure checkout…");
       try {
-        const checkout = await createLaunchPlanCheckout(identity);
+        const checkout = await createLaunchPlanCheckout(identity, selectedAddonIds());
         window.location.href = checkout.url;
         return; // a full-page navigation to Stripe is about to happen
       } catch {

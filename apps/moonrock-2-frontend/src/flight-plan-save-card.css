@@ -17,3 +17,15 @@
   .save-card-toolbar { margin-top: -2px; }
   .save-card-submit, .save-card-reopen { width: 100%; }
 }
+.addon-picker { margin: 12px 0 4px; padding: 10px 12px 6px; border: 1px solid rgba(255,255,255,.16); border-radius: 14px; }
+.addon-picker legend { padding: 0 6px; font-weight: 700; font-size: .9rem; color: #f8f7ff; }
+.addon-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.08); cursor: pointer; }
+.addon-row:first-of-type { border-top: 0; }
+.addon-row input { margin-top: 3px; accent-color: #ff4fd8; }
+.addon-name { flex: 1; display: grid; gap: 2px; font-size: .9rem; color: #f8f7ff; }
+.addon-summary { font-size: .78rem; line-height: 1.4; color: #a8a3b8; }
+.addon-price { white-space: nowrap; font-size: .85rem; color: #9be7ff; }
+.addon-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.addon-suggested { padding: 1px 8px; border: 1px solid #ff4fd8; border-radius: 999px; font-size: .7rem; color: #ff4fd8; white-space: nowrap; }
+.addon-total { display: flex; justify-content: space-between; margin: 6px 0 0; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.2); font-size: .9rem; }
+.addon-picker[hidden], [data-addon-picker][hidden] { display: none !important; }
